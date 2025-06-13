@@ -7,6 +7,12 @@ Home Manager module to enable setting Steam game launch options through your Nix
 > 
 > Please report bugs and request features in the [issues tab](https://github.com/different-name/steam-launch.nix/issues)
 
+
+> [!IMPORTANT]  
+> **Steam must be closed** when rebuilding your home-manager config, this is because the config update script writes to `localconfig.vdf`, which steam will overwrite when closing
+>
+> Currently, the script is not aware of steam and does not provide any feedback to the user, this will be addressed in future revisions
+
 ## Usage
 
 ### Flakes
