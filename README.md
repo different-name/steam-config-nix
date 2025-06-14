@@ -11,7 +11,7 @@ Home Manager module to enable setting Steam game launch options through your Nix
 > [!IMPORTANT]  
 > **Steam must be closed** when rebuilding your home-manager config, this is because the config update script writes to `localconfig.vdf`, which steam will overwrite when closing
 >
-> Currently, the script is not aware of steam and does not provide any feedback to the user, this will be addressed in future revisions
+> By default, writing to the config is skipped if steam is currently running. Enable `programs.steam-launch.stopSteam` to close steam automatically before writing any changes to the configuration. Steam will only be stopped when a launch option is updated
 
 ## Usage
 
