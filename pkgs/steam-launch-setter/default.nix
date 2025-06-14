@@ -17,6 +17,7 @@ pkgs.python313Packages.buildPythonApplication {
 
   propagatedBuildInputs = [
     inputs.self.packages.${pkgs.system}.srctools
+    pkgs.python313Packages.psutil
   ];
 
   meta = {

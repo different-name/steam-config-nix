@@ -9,6 +9,7 @@
 in {
   options.programs.steam-launch = {
     enable = lib.mkEnableOption "per-game Steam launch options configuration";
+    stopSteam = lib.mkEnableOption "automatic closing of steam if it is running when modifying config";
 
     options = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;
@@ -27,7 +28,7 @@ in {
       launch-options-json-file = builtins.toFile "steam-launch-options.json" (builtins.toJSON cfg.options);
     in
       lib.hm.dag.entryAfter ["writeBoundary"] ''
-        run ${steam-launch-setter-exe} ${launch-options-json-file}
+        run ${steam-launch-setter-exe} ${launch-options-json-file}${lib.optionalString cfg.stopSteam " -f"}
       '';
   };
 }
