@@ -8,7 +8,7 @@ from tempfile import NamedTemporaryFile
 import shutil
 
 import psutil
-from srctools import Keyvalues
+from srctools import Keyvalues, NoKeyError
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -115,7 +115,7 @@ def generate_updated_vdf(existing: Keyvalues, launch_options: dict[str, str]) ->
         # check if desired value exists
         try:
             current_value = app_block.find_key('LaunchOptions').value
-        except KeyError:
+        except NoKeyError:
             current_value = None
 
         if current_value != options:
