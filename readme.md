@@ -3,9 +3,9 @@
 Home Manager module to enable setting Steam game launch options through your NixOS config
 
 > [!WARNING]
-> This module is in early development, it is unstable and should be treated as such
+> This flake is in early development and may be unstable
 > 
-> Please report bugs and request features in the [issues tab](https://github.com/different-name/steam-launch.nix/issues)
+> Please report bugs or request features via the [issues tab](https://github.com/different-name/steam-launch.nix/issues)
 
 
 > [!IMPORTANT]  
