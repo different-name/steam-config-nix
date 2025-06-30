@@ -119,6 +119,13 @@ programs.steam.package = pkgs.steam.override {
 };
 ```
 
+## Goals
+
+I'd like to add easy bindings for more localconfig properties if possible:
+
+- Compatibility tools config
+- Beta participation
+
 ## Acknowledgements
 
 - https://github.com/FeralInteractive/gamemode/issues/177 for the idea
