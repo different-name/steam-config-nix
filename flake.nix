@@ -1,37 +1,37 @@
 {
-  description = "Home Manager module for declarative Steam game launch options";
+  description = "Manage Steam launch options and other local config declaratively through Home Manager";
 
   inputs = {
-    flake-utils = {
-      url = "github:numtide/flake-utils";
-      inputs.systems.follows = "systems";
-    };
-
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-
-    systems.url = "github:nix-systems/default-linux";
+    systems.url = "github:nix-systems/default";
   };
 
-  outputs = inputs:
-    inputs.flake-utils.lib.eachDefaultSystem (
-      system: let
-        pkgs = import inputs.nixpkgs {inherit system;};
-      in {
-        packages = import ./pkgs {inherit pkgs inputs;};
-      }
-    )
-    // {
-      homeModules.steam-launch = {
-        config,
-        lib,
-        pkgs,
-        ...
-      } @ args:
-        import ./modules/steam-launch.nix (args // {inherit inputs;});
+  outputs =
+    inputs:
+    let
+      inherit (inputs.nixpkgs) lib;
+      eachSystem = lib.genAttrs (import inputs.systems);
+    in
+    {
+      packages = eachSystem (
+        system:
+        let
+          pkgs = inputs.nixpkgs.legacyPackages.${system};
+          steamlcPackages = lib.packagesFromDirectoryRecursive {
+            callPackage = lib.callPackageWith (pkgs // steamlcPackages // pkgs.python3 // pkgs.python3Packages);
+            directory = ./pkgs;
+          };
+        in
+        steamlcPackages
+      );
+
+      homeModules.default =
+        {
+          config,
+          lib,
+          pkgs,
+          ...
+        }@args:
+        import ./modules/steam-localconfig.nix (args // { inherit inputs; });
     };
 }

@@ -1,6 +1,6 @@
-# steam-launch.nix
+# steam-localconfig-nix
 
-Home Manager module to enable setting Steam game launch options through your NixOS config
+Manage Steam launch options and other local config declaratively through [Home Manager](https://github.com/nix-community/home-manager)
 
 > [!WARNING]
 > This flake is in early development and may be unstable
@@ -9,87 +9,106 @@ Home Manager module to enable setting Steam game launch options through your Nix
 
 
 > [!IMPORTANT]  
-> **Steam must be closed** when rebuilding your home-manager config, this is because the config update script writes to `localconfig.vdf`, which steam will overwrite when closing
+> **Steam must be closed** when activating your Home Manager configuration, this is because localconfig can only be written to reliably while Steam is not running
 >
-> By default, writing to the config is skipped if steam is currently running. Enable `programs.steam-launch.stopSteam` to close steam automatically before writing any changes to the configuration. Steam will only be stopped when a launch option is updated
+> If `programs.steam.localConfig.closeSteam` is enabled, Steam will be closed before writing changes. Steam won't be closed if configuration values have not changed
+
+## Install
+
+Add `steam-localconfig-nix` to your flake inputs
+
+```nix
+steam-localconfig-nix = {
+  url = "github:different-name/steam-localconfig-nix";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+```
+
+Then import and enable the [Home Manager](https://github.com/nix-community/home-manager) module
+
+```nix
+imports = [
+  inputs.steam-localconfig-nix.homeModules.default
+];
+
+programs.steam.localConfig = {
+  enable = true;
+};
+```
 
 ## Usage
 
-### Flakes
+Configuration is applied per Steam user ID
 
-Import the [home-manager](https://github.com/nix-community/home-manager) module
+User IDs must be in `steamID3` format **without** `[]` or the `U:1:` prefix. For example: `[U:1:987654321]` -> `987654321`
+
+You can find your Steam ID through [steamid.io/lookup](https://steamid.io/lookup) or in `~/.steam/steam/userdata`
+
+### Setting launch options
+
+Define launch options per App ID using:
+
+```
+programs.steam.localConfig.users.<user_id>.launchOptions.<app_id>
+```
+
+You can find a game's AppID using [steamdb.info](https://steamdb.info/) or through the game’s store page URL
+
+#### Example
 
 ```nix
-{
-  inputs = {
-    nixpkgs.url = "nixpkgs/nixos-unstable";
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    steam-launch-nix = {
-      url = "github:different-name/steam-launch.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+programs.steam.localConfig = {
+  enable = true;
+  closeSteam = true; # See 'Important' note at beginning of this readme
+
+  users."987654321" = {
+    launchOptions = {
+      "438100" = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
+      "620" = ''%command% -vulkan'';
     };
   };
+};
+```
 
-  outputs = { nixpkgs, catppuccin, home-manager }: {
-    # for nixos module home-manager installations
-    nixosConfigurations.diffysComputer = pkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.users.diffy = {
-            imports = [
-              ./home.nix
-              steam-launch-nix.homeModules.steam-launch
-            ];
+### Extra config
+
+Set any localconfig value using:
+
+```
+programs.steam.localConfig.users.<user_id>.extraConfig
+```
+
+I am not sure what practical applications this has yet, but it is included for completeness
+
+#### Example
+
+```nix
+programs.steam.localConfig = {
+  enable = true;
+  closeSteam = true; # See 'Important' note at beginning of this readme
+
+  users."987654321" = {
+    extraConfig = {
+      UserLocalConfigStore.Software.Valve.Steam = {
+        Apps = {
+          "438100" = {
+            LaunchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
           };
-        }
-      ];
+          "620" = {
+            LaunchOptions = ''%command% -vulkan'';
+          };
+        };
+      };
     };
-
-    # for standalone home-manager installations
-    homeConfigurations.sodium = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      modules = [
-        ./home.nix
-        steam-launch-nix.homeModules.steam-launch
-      ];
-    };
-  };
-}
-```
-
-### Configuration
-
-In your configuration, enable the module
-
-```nix
-programs.steam-launch = {
-  enable = true;
-};
-```
-
-and configure your launch options, here's an example
-
-```nix
-programs.steam-launch = {
-  enable = true;
-  
-  options = {
-    "438100" = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
-    "620" = "%command% -vulkan";
   };
 };
 ```
 
-#### Global Configuration
+### Global Configuration
 
-This module only provides per-game launch options
+It is not possible to perform any global configuration of games through localconfig
 
-You can set to environmental variables across all games by overriding `extraProfile` in the steam package like so:
+To set environment variables for all Steam games, override `extraProfile` in the Steam package:
 
 ```nix
 programs.steam.package = pkgs.steam.override {
@@ -104,4 +123,3 @@ programs.steam.package = pkgs.steam.override {
 
 - https://github.com/FeralInteractive/gamemode/issues/177 for the idea
 - https://github.com/TeamSpen210/srctools for their library
-- https://github.com/catppuccin/nix for the README usage example

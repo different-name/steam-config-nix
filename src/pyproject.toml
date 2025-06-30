@@ -1,14 +1,14 @@
 [project]
-name = "steam-launch-setter"
+name = "steamlc-patcher"
 version = "0.1.0"
-description = "A tool to set launch options in Steam's localconfig.vdf"
+description = "Configure Steam's localconfig.vdf using JSON file input"
 authors = [{ name = "different-name", email = "hello@different-name.dev" }]
-dependencies = ["srctools"]
+dependencies = ["srctools", "psutil"]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }
 
 [project.scripts]
-steam-launch-setter = "steam_launch_setter.main:main"
+steamlc-patcher = "steamlc_patcher.main:main"
 
 [build-system]
 requires = ["setuptools>=61"]
