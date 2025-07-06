@@ -7,12 +7,12 @@
   ...
 }:
 buildPythonApplication {
-  pname = "steamlc-patcher";
+  pname = "steam-config-patcher";
   version = "0.1.0";
 
   src = builtins.path {
     path = ../../src;
-    name = "steamlc-patcher-src";
+    name = "steam-config-patcher-src";
   };
 
   format = "pyproject";
@@ -27,10 +27,10 @@ buildPythonApplication {
   ];
 
   meta = {
-    description = "Configure Steam's localconfig.vdf using JSON file input";
-    homepage = "https://github.com/different-name/steamlc-patcher";
+    description = "Patch Steam vdf files using JSON file input";
+    homepage = "https://github.com/different-name/steam-config-nix";
     license = lib.licenses.gpl3Plus;
-    mainProgram = "steamlc-patcher";
+    mainProgram = "steam-config-patcher";
     platforms = lib.platforms.all;
   };
 }

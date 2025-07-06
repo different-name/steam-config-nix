@@ -14,8 +14,8 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        prog="steamlc-patcher",
-        description="Patch Steam localconfig values using JSON"
+        prog="steam-config-patcher",
+        description="Patch Steam vdf files using JSON file input"
     )
     parser.add_argument(
         "json_file",

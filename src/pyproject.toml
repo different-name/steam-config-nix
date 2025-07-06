@@ -1,14 +1,14 @@
 [project]
-name = "steamlc-patcher"
+name = "steam-config-patcher"
 version = "0.1.0"
-description = "Configure Steam's localconfig.vdf using JSON file input"
+description = "Patch Steam vdf files using JSON file input"
 authors = [{ name = "different-name", email = "hello@different-name.dev" }]
 dependencies = ["srctools", "psutil"]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }
 
 [project.scripts]
-steamlc-patcher = "steamlc_patcher.main:main"
+steam-config-patcher = "steam_config_patcher.main:main"
 
 [build-system]
 requires = ["setuptools>=61"]
