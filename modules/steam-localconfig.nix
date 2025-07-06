@@ -94,6 +94,5 @@ in
     home.activation.steamlc-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run ${lib.getExe steamlc-patcher} ${lib.concatStringsSep " " arguments}
     '';
-    home.file."maocow".source = jsonFile;
   };
 }
