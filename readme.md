@@ -24,95 +24,42 @@ steam-config-nix = {
 };
 ```
 
-Then import and enable the [Home Manager](https://github.com/nix-community/home-manager) module
+Then import the [Home Manager](https://github.com/nix-community/home-manager) module
 
 ```nix
 imports = [
   inputs.steam-config-nix.homeModules.default
 ];
-
-programs.steam.config = {
-  enable = true;
-};
 ```
 
 ## Usage
 
-Configuration is applied per Steam user ID
-
-User IDs must be in `steamID3` format **without** `[]` or the `U:1:` prefix. For example: `[U:1:987654321]` -> `987654321`
-
-You can find your Steam ID through [steamid.io/lookup](https://steamid.io/lookup) or in `~/.steam/steam/userdata`
-
-### Setting launch options
-
-Define launch options per App ID using:
-
-```
-programs.steam.config.users.<user_id>.launchOptions.<app_id>
-```
-
-You can find a game's AppID using [steamdb.info](https://steamdb.info/) or through the game’s store page URL
-
-#### Example
-
 ```nix
 programs.steam.config = {
   enable = true;
-  closeSteam = true; # See 'Important' note at beginning of this readme
+  closeSteam = true; # see 'Important' note at beginning of this readme
 
-  users."987654321" = {
-    launchOptions = {
-      "438100" = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
-      "620" = ''%command% -vulkan'';
-    };
-  };
-};
-```
-
-### Extra config
-
-Set any `config.vdf` or `localconfig.vdf` value using:
-
-```
-programs.steam.config.users.<user_id>.extraConfig
-programs.steam.config.users.<user_id>.extraLocalConfig
-```
-
-I am not sure what practical applications this has yet, but it is included for completeness
-
-#### Example
-
-```nix
-programs.steam.config = {
-  enable = true;
-  closeSteam = true; # See 'Important' note at beginning of this readme
-
-  users."987654321" = {
-    extraConfig = {
-      InstallConfigStore.Software.Valve.Steam = {
-        CompatToolMapping = {
-          "438100" = {
-						name = "proton_experimental";
-						config = "";
-						priority = "250";
-					};
-        };
-      };
+  # Configuration for apps across all users
+  apps = {
+    # App IDs can be found through the game's store URL
+    "438100" = {
+      # Compat tool names can be found in ~/.steam/steam/config/config.vdf under "CompatToolMapping"
+      compatTool = "proton_experimental";
     };
 
-    extraLocalConfig = {
-      UserLocalConfigStore.Software.Valve.Steam = {
-        Apps = {
-          "438100" = {
-            LaunchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
-          };
-          "620" = {
-            LaunchOptions = ''%command% -vulkan'';
-          };
-        };
-      };
+    "1058830" = {
+      compatTool = "GE-Proton";
+      launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
     };
+  }
+
+  # Configuration per user's steamID3
+  # Your steamID3 can be found using https://steamid.io/lookup or in ~/.steam/steam/userdata
+  users."987654321".apps = {
+    # Per user config only supports launchOptions
+    # Pompat tools must be set globally
+    "438100".launchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
+    "620".launchOptions = "%command% -vulkan";
   };
 };
 ```
@@ -135,6 +82,7 @@ programs.steam.package = pkgs.steam.override {
 ## Goals
 
 - Beta config
+- Add non steam games
 
 ## Acknowledgements
 

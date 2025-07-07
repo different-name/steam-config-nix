@@ -1,7 +1,11 @@
 import argparse
 import json
+import re
+import glob
+import copy
+from deepmerge import always_merger
 from pathlib import Path
-from srctools import Keyvalues
+from srctools import Keyvalues, AtomicWriter
 from typing import Union, Tuple, Dict, Any
 import psutil
 import shutil
@@ -15,11 +19,12 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 def parse_args():
     parser = argparse.ArgumentParser(
         prog="steam-config-patcher",
-        description="Patch Steam vdf files using JSON file input"
+        description="Patch Steam vdf files using JSON input"
     )
     parser.add_argument(
-        "json_file",
-        metavar="JSON_FILE",
+        "--json",
+        dest="json_input",
+        required=True,
         help="path to the JSON input file to parse"
     )
     parser.add_argument(
@@ -30,21 +35,37 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_json(path: Path) -> Dict[str, Any]:
+def load_json(json_input: str) -> Dict[Path, Dict[str, Any]]:
     try:
-        with open(path) as json_f:
-            data = json.load(json_f)
+        data = json.loads(json_input)
         if not isinstance(data, dict):
-            raise ValueError(f"{path} is not a valid JSON object")
-        return data
+            raise ValueError(f"JSON input is not a valid object")
+
+        final_data: Dict[Path, Dict[str, Any]] = {}
+        exact_paths: Dict[Path, Dict[str, Any]] = {}
+
+        for path_str, config in data.items():
+            if bool(re.search(r'[\*\?\[\]]', path_str)):
+                for resolved_path_str in glob.glob(path_str):
+                    final_data[Path(resolved_path_str)] = copy.deepcopy(config)
+            else:
+                exact_paths[Path(path_str)] = config
+
+        for path, config in exact_paths.items():
+            if path in final_data:
+                always_merger.merge(final_data[path], config)
+            else:
+                final_data[path] = config
+        
+        return final_data
     except Exception as e:
-        raise ValueError(f"Failed to parse '{path}': {e}") 
+        raise ValueError(f"Failed to parse json input: {e}") 
 
 
-def load_lc(path: Path) -> Keyvalues:
+def load_vdf(path: Path) -> Keyvalues:
     try:
-        with open(path) as lc_f:
-            return Keyvalues.parse(lc_f)
+        with open(path) as vdf_f:
+            return Keyvalues.parse(vdf_f)
     except Exception as e:
         raise ValueError(f"Failed to parse VDF file '{path}': {e}")
 
@@ -111,37 +132,35 @@ def ensure_steam_closed(should_close: bool) -> bool:
     return closed
 
 
-def write_lc(path: Path, root: Keyvalues) -> None:
+def write_vdf(path: Path, root: Keyvalues) -> None:
     try:
         backup_path = path.with_suffix(path.suffix + '.bak')
         shutil.copy(path, backup_path)
         logging.info(f"Backup written to {backup_path}")
 
-        with NamedTemporaryFile('w', delete=False, encoding='utf-8') as tmp_file:
-            root.serialise(tmp_file)
-        shutil.move(tmp_file.name, path)
+        with AtomicWriter(path) as f:
+            root.serialise(f)
     except Exception as e:
         raise IOError(f"Failed to write to '{path}': {e}")
             
 
 def main() -> None:
     args = parse_args()
-    json_path = Path(args.json_file)
-    json_data = load_json(json_path)
+    json_data = load_json(args.json_input)
 
     to_write = []
-    for lc_path_str, data in json_data.items():
+    for vdf_path_str, data in json_data.items():
         if not isinstance(data, dict):
-            raise ValueError(f"{lc_path_str} is not a valid JSON object")
+            raise ValueError(f"{vdf_path_str} is not a valid JSON object")
 
-        lc_path = Path(lc_path_str)
-        lc_root = load_lc(lc_path)
+        vdf_path = Path(vdf_path_str)
+        vdf_root = load_vdf(vdf_path)
 
-        modified_values = overwrite_keys(lc_root, data)
+        modified_values = overwrite_keys(vdf_root, data)
         if modified_values:
-            to_write.append((lc_path, lc_root))
+            to_write.append((vdf_path, vdf_root))
         else:
-            logging.info(f"\"{lc_path}\" is up to date, skipping write")
+            logging.info(f"\"{vdf_path}\" is up to date, skipping write")
 
     if not to_write:
         return
@@ -150,9 +169,9 @@ def main() -> None:
         logging.warning("Steam is currently running, close steam or use --close-steam")
         return
 
-    for lc_path, lc_root in to_write:
-        logging.info(f"Writing changes to \"{lc_path}\"")
-        write_lc(lc_path, lc_root)
+    for vdf_path, vdf_root in to_write:
+        logging.info(f"Writing changes to \"{vdf_path}\"")
+        write_vdf(vdf_path, vdf_root)
     
 
 if __name__ == '__main__':

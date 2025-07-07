@@ -4,6 +4,7 @@
   setuptools,
   srctools,
   psutil,
+  deepmerge,
   ...
 }:
 buildPythonApplication {
@@ -24,10 +25,11 @@ buildPythonApplication {
   propagatedBuildInputs = [
     srctools
     psutil
+    deepmerge
   ];
 
   meta = {
-    description = "Patch Steam vdf files using JSON file input";
+    description = "Patch Steam vdf files using JSON input";
     homepage = "https://github.com/different-name/steam-config-nix";
     license = lib.licenses.gpl3Plus;
     mainProgram = "steam-config-patcher";

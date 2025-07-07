@@ -9,92 +9,120 @@ let
   inherit (lib) types;
   nestedAttrsOfStrings = types.lazyAttrsOf (types.either types.str nestedAttrsOfStrings);
 
-  cfg = config.programs.steam.localConfig;
-  steam-config-patcher = inputs.self.packages.${pkgs.system}.steam-config-patcher;
+  steamAppOptions = {
+    launchOptions = lib.mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "%command% -vulkan";
+      description = "Game launch options";
+    };
 
-  genLocalConfig = userId: userCfg: {
-    name = "${config.home.homeDirectory}/.steam/steam/userdata/${userId}/config/localconfig.vdf";
-    value = lib.recursiveUpdate {
-      UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (name: value: {
-        LaunchOptions = value;
-      }) userCfg.launchOptions;
-    } userCfg.extraConfig;
+    compatTool = lib.mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "proton_experimental";
+      description = "Compatibility tool to use, referenced by display name";
+    };
   };
 
-  jsonFile = lib.pipe cfg.users [
-    (lib.mapAttrsToList genLocalConfig)
-    lib.listToAttrs
-    builtins.toJSON
-    (builtins.toFile "steamlc-json")
-  ];
+  mkSteamAppsOption =
+    options:
+    lib.mkOption {
+      type = types.attrsOf (types.submodule { inherit options; });
+      default = { };
+      description = ''
+        Configuration for a Steam app
+        App IDs can be found through https://steamdb.info/ or through the game's store page URL
+      '';
+    };
 
-  arguments =
-    lib.cli.toGNUCommandLine { } {
-      close-steam = cfg.closeSteam;
-    }
-    ++ [ jsonFile ];
+  cfg = config.programs.steam.config;
+  steamDir = "${config.home.homeDirectory}/.steam/steam";
+
+  arguments = lib.cli.toGNUCommandLine { } {
+    json = builtins.toJSON (config.programs.steam.config.extraConfig);
+    close-steam = cfg.closeSteam;
+  };
+
+  steam-config-patcher = inputs.self.packages.${pkgs.system}.steam-config-patcher;
 in
 {
-  options.programs.steam = {
-    localConfig = {
-      enable = lib.mkEnableOption "Steam user config store management";
+  imports = [
+    (lib.mkRemovedOptionModule [ "programs" "steam" "localconfig" ] ''
+      programs.steam.localconfig has been removed in favor of programs.steam.config
+      See the steam-config-nix readme for new usage instructions
+    '')
+  ];
 
-      closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
+  options.programs.steam.config = {
+    enable = lib.mkEnableOption "Steam user config store management";
+    closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
 
-      users = lib.mkOption {
-        type = types.attrsOf (
-          types.submodule {
-            options = {
-              launchOptions = lib.mkOption {
-                type = types.attrsOf types.str;
-                default = { };
-                example = {
-                  "438100" = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
-                  "620" = ''%command% -vulkan'';
-                };
-                description = ''
-                  Per-game launch options keyed by Steam App ID
-                '';
-              };
+    apps = mkSteamAppsOption {
+      inherit (steamAppOptions) launchOptions compatTool;
+    };
 
-              extraConfig = lib.mkOption {
-                type = nestedAttrsOfStrings;
-                default = { };
-                example = {
-                  UserLocalConfigStore.Software.Valve.Steam = {
-                    Apps = {
-                      "438100" = {
-                        LaunchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
-                      };
-                      "620" = {
-                        LaunchOptions = ''%command% -vulkan'';
-                      };
-                    };
-                  };
-                };
-                description = ''
-                  Extra config options to be patched into localconfig.vdf
-                '';
+    users = lib.mkOption {
+      type = types.attrsOf (
+        types.submodule {
+          options = {
+            apps = mkSteamAppsOption {
+              inherit (steamAppOptions) launchOptions;
+            };
+          };
+        }
+      );
+      default = { };
+      description = ''
+        Per user configuration for a Steam app
+        User IDs are in steamID3 format, without [] or the U:1: prefix
+        For example [U:1:987654321] -> 987654321
+        User IDs can be found through https://steamid.io/lookup or in ~/.steam/steam/userdata
+      '';
+    };
+
+    extraConfig = lib.mkOption {
+      type = nestedAttrsOfStrings;
+      visible = false;
+      default = { };
+    };
+  };
+
+  config = lib.mkIf (cfg.enable) {
+    programs.steam.config = {
+      users."*".apps = lib.mapAttrs (_: app: { inherit (app) launchOptions; }) cfg.apps;
+
+      extraConfig = lib.mkMerge [
+        (
+          let
+            compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
+          in
+          lib.mkIf (compatToolConfigs != { }) {
+            "${steamDir}/config/config.vdf" = {
+              InstallConfigStore.Software.Valve.Steam = {
+                CompatToolMapping = lib.mapAttrs (_: app: {
+                  name = app.compatTool;
+                  config = "";
+                  priority = "250";
+                }) compatToolConfigs;
               };
             };
           }
-        );
+        )
 
-        default = { };
-        example = "987654321";
-        description = ''
-          Local config values for a Steam user
-          User IDs are in steamID3 format, without [] or the U:1: prefix
-          For example [U:1:987654321] -> 987654321
-          User IDs can be found through https://steamid.io/lookup or in ~/.steam/steam/userdata
-        '';
-      };
+        (lib.mapAttrs' (userId: user: {
+          name = "${steamDir}/userdata/${userId}/config/localconfig.vdf";
+          value = {
+            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (_: app: {
+              LaunchOptions = app.launchOptions;
+            }) user.apps;
+          };
+        }) cfg.users)
+      ];
     };
 
-    config = lib.mkIf (cfg.enable) {
-      home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        run ${lib.getExe steam-config-patcher} ${lib.concatStringsSep " " arguments}
-      '';
-    };
+    home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      run ${lib.getExe steam-config-patcher} ${lib.escapeShellArgs arguments}
+    '';
   };
 }
