@@ -1,4 +1,4 @@
-# steam-confg-nix
+# steam-config-nix
 
 Manage Steam launch options and other local config declaratively through [Home Manager](https://github.com/nix-community/home-manager)
 
