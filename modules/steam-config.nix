@@ -9,26 +9,49 @@ let
   inherit (lib) types;
   nestedAttrsOfStrings = types.lazyAttrsOf (types.either types.str nestedAttrsOfStrings);
 
-  steamAppOptions = {
-    launchOptions = lib.mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      example = "%command% -vulkan";
-      description = "Game launch options";
-    };
+  genWrapperName = appId: "app-${appId}-wrapped";
+  genWrapperPath =
+    userId: appId: "steam-config-nix/${lib.replaceString "*" "common" userId}/${genWrapperName appId}";
 
-    compatTool = lib.mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      example = "proton_experimental";
-      description = "Compatibility tool to use, referenced by display name";
-    };
-  };
+  genLaunchOptionPackage =
+    appId: launchOptions:
+    pkgs.writeShellScriptBin (genWrapperName appId) ''
+      exec ${lib.replaceString "%command%" ''"$@"'' launchOptions}
+    '';
 
   mkSteamAppsOption =
-    options:
+    {
+      launchOptions ? false,
+      compatTool ? false,
+    }:
     lib.mkOption {
-      type = types.attrsOf (types.submodule { inherit options; });
+      type = types.attrsOf (
+        types.submodule (
+          { name, ... }:
+          {
+            options = lib.mergeAttrsList [
+              (lib.optionalAttrs launchOptions {
+                launchOptions = lib.mkOption {
+                  type = types.nullOr (types.coercedTo types.str (genLaunchOptionPackage name) types.package);
+                  default = null;
+                  example = "%command% -vulkan";
+                  description = "Game launch options";
+                };
+              })
+
+              (lib.optionalAttrs compatTool {
+                compatTool = lib.mkOption {
+                  type = types.nullOr types.str;
+                  default = null;
+                  example = "proton_experimental";
+                  description = "Compatibility tool to use, referenced by display name";
+                };
+              })
+            ];
+          }
+        )
+      );
+
       default = { };
       description = ''
         Configuration for a Steam app
@@ -59,16 +82,15 @@ in
     closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
 
     apps = mkSteamAppsOption {
-      inherit (steamAppOptions) launchOptions compatTool;
+      launchOptions = true;
+      compatTool = true;
     };
 
     users = lib.mkOption {
       type = types.attrsOf (
         types.submodule {
           options = {
-            apps = mkSteamAppsOption {
-              inherit (steamAppOptions) launchOptions;
-            };
+            apps = mkSteamAppsOption { launchOptions = true; };
           };
         }
       );
@@ -113,13 +135,25 @@ in
         (lib.mapAttrs' (userId: user: {
           name = "${steamDir}/userdata/${userId}/config/localconfig.vdf";
           value = {
-            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (_: app: {
-              LaunchOptions = app.launchOptions;
+            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (appId: app: {
+              LaunchOptions = "${config.xdg.dataHome}/${genWrapperPath userId appId} %command%";
             }) user.apps;
           };
         }) cfg.users)
       ];
     };
+
+    xdg.dataFile =
+      cfg.users
+      |> lib.mapAttrsToList (
+        userId: user:
+        lib.mapAttrsToList (appId: app: {
+          name = genWrapperPath userId appId;
+          value.source = lib.getExe app.launchOptions;
+        }) user.apps
+      )
+      |> lib.flatten
+      |> lib.listToAttrs;
 
     home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run ${lib.getExe steam-config-patcher} ${lib.escapeShellArgs arguments}
