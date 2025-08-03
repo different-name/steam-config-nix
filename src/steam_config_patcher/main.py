@@ -154,6 +154,9 @@ def main() -> None:
             raise ValueError(f"{vdf_path_str} is not a valid JSON object")
 
         vdf_path = Path(vdf_path_str)
+        if not vdf_path.exists():
+            logging.warning(f"VDF file \"{vdf_path}\" not found, skipping")
+            continue
         vdf_root = load_vdf(vdf_path)
 
         modified_values = overwrite_keys(vdf_root, data)
