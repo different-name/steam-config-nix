@@ -143,17 +143,16 @@ in
       ];
     };
 
-    xdg.dataFile =
-      cfg.users
-      |> lib.mapAttrsToList (
-        userId: user:
-        lib.mapAttrsToList (appId: app: {
-          name = genWrapperPath userId appId;
-          value.source = lib.getExe app.launchOptions;
-        }) user.apps
-      )
-      |> lib.flatten
-      |> lib.listToAttrs;
+    xdg.dataFile = lib.listToAttrs (
+      lib.flatten (
+        lib.mapAttrsToList (
+          userId: user:
+          lib.mapAttrsToList (appId: app: {
+            name = genWrapperPath userId appId;
+            value.source = lib.getExe app.launchOptions;
+          }) user.apps
+        ) cfg.users)
+      );
 
     home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run ${lib.getExe steam-config-patcher} ${lib.escapeShellArgs arguments}
