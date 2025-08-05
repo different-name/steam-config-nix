@@ -150,9 +150,10 @@ in
           lib.mapAttrsToList (appId: app: {
             name = genWrapperPath userId appId;
             value.source = lib.getExe app.launchOptions;
-          }) user.apps
-        ) cfg.users)
-      );
+          }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
+        ) cfg.users
+      )
+    );
 
     home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run ${lib.getExe steam-config-patcher} ${lib.escapeShellArgs arguments}
