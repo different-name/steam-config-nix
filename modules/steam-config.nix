@@ -62,12 +62,12 @@ let
   cfg = config.programs.steam.config;
   steamDir = "${config.home.homeDirectory}/.steam/steam";
 
-  arguments = lib.cli.toGNUCommandLine { } {
+  steam-config-patcher = inputs.self.packages.${pkgs.system}.steam-config-patcher;
+
+  arguments = lib.cli.toGNUCommandLineShell { } {
     json = builtins.toJSON (config.programs.steam.config.extraConfig);
     close-steam = cfg.closeSteam;
   };
-
-  steam-config-patcher = inputs.self.packages.${pkgs.system}.steam-config-patcher;
 in
 {
   imports = [
@@ -156,7 +156,7 @@ in
     );
 
     home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      run ${lib.getExe steam-config-patcher} ${lib.escapeShellArgs arguments}
+      run ${lib.getExe steam-config-patcher} ${arguments}
     '';
   };
 }
