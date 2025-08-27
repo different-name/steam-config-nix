@@ -17,14 +17,10 @@
         system:
         let
           pkgs = inputs.nixpkgs.legacyPackages.${system};
-          steamConfigPackages = lib.packagesFromDirectoryRecursive {
-            callPackage = lib.callPackageWith (
-              pkgs // steamConfigPackages // pkgs.python3 // pkgs.python3Packages
-            );
-            directory = ./pkgs;
-          };
         in
-        steamConfigPackages
+        {
+          steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
+        }
       );
 
       homeModules.default =
