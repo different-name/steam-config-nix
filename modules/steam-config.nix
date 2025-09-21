@@ -16,7 +16,7 @@ let
   genLaunchOptionPackage =
     appId: launchOptions:
     pkgs.writeShellScriptBin (genWrapperName appId) ''
-      exec ${lib.replaceString "%command%" ''"$@"'' launchOptions}
+      exec env ${lib.replaceString "%command%" ''"$@"'' launchOptions}
     '';
 
   mkSteamAppsOption =
