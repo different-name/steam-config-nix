@@ -52,9 +52,9 @@ programs.steam.config = {
     };
   }
 
-  # Configuration per user's steamID3
-  # Your steamID3 can be found using https://steamid.io/lookup or in ~/.steam/steam/userdata
-  users."987654321".apps = {
+  # Configuration per user's SteamID64
+  # You can find your SteamID64 through https://steamid.io/lookup
+  users."98765432123456789".apps = {
     # Per user config only supports launchOptions, compat tools must be set globally
     "438100".launchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
 
