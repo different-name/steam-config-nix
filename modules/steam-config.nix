@@ -64,6 +64,17 @@ let
 
   steam-config-patcher = inputs.self.packages.${pkgs.system}.steam-config-patcher;
 
+  # Get a Steam3ID from a Steam64ID
+  # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
+  getId3 =
+    userId:
+    let
+      steamId64Ident = 76561197960265728;
+      userIdInt = lib.strings.toIntBase10 userId;
+      isSteam64 = userId != "*" && userIdInt >= steamId64Ident;
+    in
+    if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
+
   arguments = lib.cli.toGNUCommandLineShell { } {
     json = builtins.toJSON (config.programs.steam.config.extraConfig);
     close-steam = cfg.closeSteam;
@@ -97,9 +108,8 @@ in
       default = { };
       description = ''
         Per user configuration for a Steam app
-        User IDs are in steamID3 format, without [] or the U:1: prefix
-        For example [U:1:987654321] -> 987654321
-        User IDs can be found through https://steamid.io/lookup or in ~/.steam/steam/userdata
+        User IDs are in SteamID64 format, for example 98765432123456789
+        You can find your SteamID64 through https://steamid.io/lookup
       '';
     };
 
@@ -132,14 +142,20 @@ in
           }
         )
 
-        (lib.mapAttrs' (userId: user: {
-          name = "${steamDir}/userdata/${userId}/config/localconfig.vdf";
-          value = {
-            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (appId: app: {
-              LaunchOptions = "${config.xdg.dataHome}/${genWrapperPath userId appId} %command%";
-            }) user.apps;
-          };
-        }) cfg.users)
+        (lib.mapAttrs' (
+          userId: user:
+          let
+            steamID = getId3 userId;
+          in
+          {
+            name = "${steamDir}/userdata/${steamID}/config/localconfig.vdf";
+            value = {
+              UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (appId: app: {
+                LaunchOptions = "${config.xdg.dataHome}/${genWrapperPath steamID appId} %command%";
+              }) user.apps;
+            };
+          }
+        ) cfg.users)
       ];
     };
 
@@ -148,7 +164,7 @@ in
         lib.mapAttrsToList (
           userId: user:
           lib.mapAttrsToList (appId: app: {
-            name = genWrapperPath userId appId;
+            name = genWrapperPath (getId3 userId) appId;
             value.source = lib.getExe app.launchOptions;
           }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
         ) cfg.users
