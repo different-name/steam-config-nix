@@ -58,7 +58,7 @@ programs.steam.config = {
     # Per user config only supports launchOptions, compat tools must be set globally
     "438100".launchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
 
-    "620".launchOptions = "%command% -vulkan";
+    "620".launchOptions = "-vulkan";
 
     # you can also use a package instead of a string, %command% will be passed to it
     # here's an example script that skips the Warhammer 40k Darktide launcher
