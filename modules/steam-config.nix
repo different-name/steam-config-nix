@@ -15,9 +15,14 @@ let
 
   genLaunchOptionPackage =
     appId: launchOptions:
-    pkgs.writeShellScriptBin (genWrapperName appId) ''
-      exec env ${lib.replaceString "%command%" ''"$@"'' launchOptions}
-    '';
+    let
+      launchCommand =
+        if lib.strings.hasInfix "%command%" launchOptions then
+          lib.replaceString "%command%" ''"$@"'' launchOptions
+        else
+          ''"$@" ${launchOptions}'';
+    in
+    pkgs.writeShellScriptBin (genWrapperName appId) "exec env ${launchCommand}";
 
   mkSteamAppsOption =
     {
@@ -34,7 +39,7 @@ let
                 launchOptions = lib.mkOption {
                   type = types.nullOr (types.coercedTo types.str (genLaunchOptionPackage name) types.package);
                   default = null;
-                  example = "%command% -vulkan";
+                  example = "-vulkan";
                   description = "Game launch options";
                 };
               })
