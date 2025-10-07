@@ -13,6 +13,13 @@ let
   genWrapperPath =
     userId: appId: "steam-config-nix/${lib.replaceString "*" "common" userId}/${genWrapperName appId}";
 
+  export = n: v:
+    if isNull v
+    then "unset ${n}"
+    else ''export ${n}="${toString v}"'';
+
+  exportAll = lib.concatMapAttrsStringSep "\n" export;
+
   genLaunchOptionPackage =
     appId: launchOptions:
     let
@@ -32,7 +39,7 @@ let
     lib.mkOption {
       type = types.attrsOf (
         types.submodule (
-          { name, ... }:
+          { config, name, ... }:
           {
             options = lib.mergeAttrsList [
               (lib.optionalAttrs launchOptions {
@@ -41,6 +48,67 @@ let
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
+                };
+                env = lib.mkOption {
+                  type =
+                    with types;
+                    lazyAttrsOf (nullOr (oneOf [
+                      str
+                      path
+                      int
+                      float
+                      bool
+                    ]));
+                  default = { };
+                  example = lib.literalExpression ''
+                    {
+                      WINEDLLOVERRIDES = "winmm,version=n,b";
+                      "TZ" = null;
+                    }
+                  '';
+                  description = ''
+                    Environment variables to export in the launch script.
+                    You can also unset variables by setting their value to `null`.
+                  '';
+                };
+                wrappers = lib.mkOption {
+                  type = types.listOf (types.coercedTo types.package lib.getExe types.str);
+                  default = [ ];
+                  example = lib.literalExpression ''
+                    [
+                      (lib.getExe' pkgs.mangohud "mangohud")
+
+                      pkgs.myWrapperProgram
+
+                      # Need to enable gamemode module in NixOS
+                      "gamemoderun"
+                    ]
+                  '';
+                  description = ''
+                    Executables to wrap the game with.
+                  '';
+                };
+                args = lib.mkOption {
+                  type = types.listOf types.str;
+                  default = [ ];
+                  example = lib.literalExpression ''
+                    ["-modded" "--launcher-skip" "-skipStartScreen"]
+                  '';
+                  description = ''
+                    CLI arguments to pass to the game.
+                  '';
+                };
+                extraConfig = lib.mkOption {
+                  type = types.lines;
+                  default = "";
+                  example = ''
+                    if [[ "$*" != *"--no-vr"* ]]; then
+                      export PROTON_ENABLE_WAYLAND=1
+                    fi
+                  '';
+                  description = ''
+                    Additional bash code to execute before the game.
+                  '';
                 };
               })
 
@@ -53,6 +121,22 @@ let
                 };
               })
             ];
+
+            config = lib.mkIf launchOptions {
+              launchOptions = lib.mkIf (!(config.env == {} && config.wrappers == [] && config.args == [])) (
+                lib.mkDefault (let
+                  prefix = lib.escapeShellArgs config.wrappers;
+                  suffix = lib.escapeShellArgs config.args;
+                in
+                  pkgs.writeShellScriptBin (genWrapperName name) ''
+                    ${exportAll config.env}
+
+                    ${config.extraConfig}
+
+                    exec env ${prefix} "$@" ${suffix}
+                  '')
+              );
+            };
           }
         )
       );
