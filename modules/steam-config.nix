@@ -97,6 +97,18 @@ let
                     CLI arguments to pass to the game.
                   '';
                 };
+                extraConfig = lib.mkOption {
+                  type = types.lines;
+                  default = "";
+                  example = ''
+                    wget -N https://github.com/Luatrauma/Luatrauma.AutoUpdater/releases/download/latest/Luatrauma.AutoUpdater.linux-x64
+                    chmod +x Luatrauma.AutoUpdater.linux-x64
+                    steam-run ./Luatrauma.AutoUpdater.linux-x64
+                  '';
+                  description = ''
+                    Additional bash code to execute before the game.
+                  '';
+                };
               })
 
               (lib.optionalAttrs compatTool {
@@ -117,6 +129,8 @@ let
                 in
                   pkgs.writeShellScriptBin (genWrapperName name) ''
                     ${exportAll config.env}
+
+                    ${config.extraConfig}
 
                     exec env ${prefix} "$@" ${suffix}
                   '')
