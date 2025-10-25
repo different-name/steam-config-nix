@@ -31,6 +31,72 @@ let
     in
     pkgs.writeShellScriptBin (genWrapperName appId) "exec env ${launchCommand}";
 
+    launchOptionsSubmodule = types.submodule {
+      options = {
+        env = lib.mkOption {
+          type =
+            with types;
+            lazyAttrsOf (nullOr (oneOf [
+              str
+              path
+              int
+              float
+              bool
+            ]));
+          default = { };
+          example = lib.literalExpression ''
+            {
+              WINEDLLOVERRIDES = "winmm,version=n,b";
+              "TZ" = null;
+            }
+          '';
+          description = ''
+            Environment variables to export in the launch script.
+            You can also unset variables by setting their value to `null`.
+          '';
+        };
+        wrappers = lib.mkOption {
+          type = types.listOf (types.coercedTo types.package lib.getExe types.str);
+          default = [ ];
+          example = lib.literalExpression ''
+            [
+                (lib.getExe' pkgs.mangohud "mangohud")
+
+                pkgs.myWrapperProgram
+
+                # Need to enable gamemode module in NixOS
+                "gamemoderun"
+              ]
+            '';
+            description = ''
+              Executables to wrap the game with.
+            '';
+        };
+        args = lib.mkOption {
+          type = types.listOf types.str;
+          default = [ ];
+          example = lib.literalExpression ''
+            ["-modded" "--launcher-skip" "-skipStartScreen"]
+          '';
+          description = ''
+            CLI arguments to pass to the game.
+          '';
+        };
+        extraConfig = lib.mkOption {
+          type = types.lines;
+          default = "";
+          example = ''
+            if [[ "$*" != *"--no-vr"* ]]; then
+              export PROTON_ENABLE_WAYLAND=1
+            fi
+          '';
+          description = ''
+            Additional bash code to execute before the game.
+          '';
+        };
+      };
+    };
+
   mkSteamAppsOption =
     {
       launchOptions ? false,
@@ -44,71 +110,22 @@ let
             options = lib.mergeAttrsList [
               (lib.optionalAttrs launchOptions {
                 launchOptions = lib.mkOption {
-                  type = types.nullOr (types.coercedTo types.str (genLaunchOptionPackage name) types.package);
+                  type = with types; nullOr (
+                    oneOf [
+                      package
+                      launchOptionsSubmodule
+                      (coercedTo singleLineStr (genLaunchOptionPackage name) package)
+                    ]
+                  );
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
                 };
-                env = lib.mkOption {
-                  type =
-                    with types;
-                    lazyAttrsOf (nullOr (oneOf [
-                      str
-                      path
-                      int
-                      float
-                      bool
-                    ]));
-                  default = { };
-                  example = lib.literalExpression ''
-                    {
-                      WINEDLLOVERRIDES = "winmm,version=n,b";
-                      "TZ" = null;
-                    }
-                  '';
-                  description = ''
-                    Environment variables to export in the launch script.
-                    You can also unset variables by setting their value to `null`.
-                  '';
-                };
-                wrappers = lib.mkOption {
-                  type = types.listOf (types.coercedTo types.package lib.getExe types.str);
-                  default = [ ];
-                  example = lib.literalExpression ''
-                    [
-                      (lib.getExe' pkgs.mangohud "mangohud")
-
-                      pkgs.myWrapperProgram
-
-                      # Need to enable gamemode module in NixOS
-                      "gamemoderun"
-                    ]
-                  '';
-                  description = ''
-                    Executables to wrap the game with.
-                  '';
-                };
-                args = lib.mkOption {
-                  type = types.listOf types.str;
-                  default = [ ];
-                  example = lib.literalExpression ''
-                    ["-modded" "--launcher-skip" "-skipStartScreen"]
-                  '';
-                  description = ''
-                    CLI arguments to pass to the game.
-                  '';
-                };
-                extraConfig = lib.mkOption {
-                  type = types.lines;
-                  default = "";
-                  example = ''
-                    if [[ "$*" != *"--no-vr"* ]]; then
-                      export PROTON_ENABLE_WAYLAND=1
-                    fi
-                  '';
-                  description = ''
-                    Additional bash code to execute before the game.
-                  '';
+                finalScript = lib.mkOption {
+                  type = types.nullOr types.package;
+                  visible = false;
+                  default = config.launchOptions;
+                  description = "The final script the game will run on launch";
                 };
               })
 
@@ -123,15 +140,15 @@ let
             ];
 
             config = lib.mkIf launchOptions {
-              launchOptions = lib.mkIf (!(config.env == {} && config.wrappers == [] && config.args == [])) (
+              finalScript = lib.mkIf (!lib.isDerivation config.launchOptions) (
                 lib.mkDefault (let
-                  prefix = lib.escapeShellArgs config.wrappers;
-                  suffix = lib.escapeShellArgs config.args;
+                  prefix = lib.escapeShellArgs config.launchOptions.wrappers;
+                  suffix = lib.escapeShellArgs config.launchOptions.args;
                 in
                   pkgs.writeShellScriptBin (genWrapperName name) ''
-                    ${exportAll config.env}
+                    ${exportAll config.launchOptions.env}
 
-                    ${config.extraConfig}
+                    ${config.launchOptions.extraConfig}
 
                     exec env ${prefix} "$@" ${suffix}
                   '')
@@ -209,7 +226,7 @@ in
     };
   };
 
-  config = lib.mkIf (cfg.enable) {
+  config = lib.mkIf cfg.enable {
     programs.steam.config = {
       users."*".apps = lib.mapAttrs (_: app: { inherit (app) launchOptions; }) cfg.apps;
 
@@ -254,8 +271,8 @@ in
           userId: user:
           lib.mapAttrsToList (appId: app: {
             name = genWrapperPath (getId3 userId) appId;
-            value.source = lib.getExe app.launchOptions;
-          }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
+            value.source = lib.getExe app.finalScript;
+          }) (lib.filterAttrs (_: app: app.finalScript != null) user.apps)
         ) cfg.users
       )
     );
