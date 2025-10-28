@@ -40,6 +40,10 @@ def load_json(json_input: str) -> Dict[Path, Dict[str, Any]]:
         if not isinstance(data, dict):
             raise ValueError(f"JSON input is not a valid object")
 
+        data = data.get("KeyValues")
+        if data is None:
+            raise ValueError(f"JSON input does not contain KeyValues Data")
+
         final_data: Dict[Path, Dict[str, Any]] = {}
         exact_paths: Dict[Path, Dict[str, Any]] = {}
 

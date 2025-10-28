@@ -290,38 +290,42 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    programs.steam.config.finalConfig = lib.mkMerge [
-      (
-        let
-          compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
-        in
-        lib.mkIf (compatToolConfigs != { }) {
-          "${cfg.steamDir}/config/config.vdf" = {
-            InstallConfigStore.Software.Valve.Steam = {
-              CompatToolMapping = lib.mapAttrs (_: app: {
-                name = app.compatTool;
-                config = "";
-                priority = "250";
-              }) compatToolConfigs;
-            };
-          };
-        }
-      )
-
-      (lib.mapAttrs' (_: user: {
-        name =
+    programs.steam.config.finalConfig = {
+      "KeyValues" = lib.mkMerge [
+        (
           let
-            userDir = lib.replaceString "shared" "*" (toString user.id);
+            compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
           in
-          "${cfg.steamDir}/userdata/${userDir}/config/localconfig.vdf";
-        value = {
-          UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
-            name = toString app.id;
-            value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
-          }) user.apps;
-        };
-      }) usersAppsConfig)
-    ];
+          lib.mkIf (compatToolConfigs != { }) {
+            "${cfg.steamDir}/config/config.vdf" = {
+              InstallConfigStore.Software.Valve.Steam = {
+                CompatToolMapping = lib.mapAttrs (_: app: {
+                  name = app.compatTool;
+                  config = "";
+                  priority = "250";
+                }) compatToolConfigs;
+              };
+            };
+          }
+        )
+
+        (lib.mapAttrs' (_: user: {
+          name =
+            let
+              userDir = lib.replaceString "shared" "*" (toString user.id);
+            in
+            "${cfg.steamDir}/userdata/${userDir}/config/localconfig.vdf";
+          value = {
+            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
+              name = toString app.id;
+              value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
+            }) user.apps;
+          };
+        }) usersAppsConfig)
+      ];
+
+      # "Binary KeyValues" = { };
+    };
 
     home.file = lib.listToAttrs (
       lib.flatten (
