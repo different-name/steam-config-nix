@@ -9,15 +9,24 @@ let
   inherit (lib) types;
   nestedAttrsOfStrings = types.lazyAttrsOf (types.either types.str nestedAttrsOfStrings);
 
+  cfg = config.programs.steam.config;
+
+  # Get a Steam3ID from a Steam64ID
+  # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
+  getId3 =
+    userId:
+    let
+      steamId64Ident = 76561197960265728;
+      userIdInt = lib.strings.toIntBase10 userId;
+      isSteam64 = userId != "*" && userIdInt >= steamId64Ident;
+    in
+    if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
+
   genWrapperName = appId: "app-${appId}-wrapped";
   genWrapperPath =
     userId: appId: "steam-config-nix/${lib.replaceString "*" "common" userId}/${genWrapperName appId}";
 
-  export = n: v:
-    if isNull v
-    then "unset ${n}"
-    else ''export ${n}="${toString v}"'';
-
+  export = n: v: if isNull v then "unset ${n}" else ''export ${n}="${toString v}"'';
   exportAll = lib.concatMapAttrsStringSep "\n" export;
 
   genLaunchOptionPackage =
@@ -31,71 +40,73 @@ let
     in
     pkgs.writeShellScriptBin (genWrapperName appId) "exec env ${launchCommand}";
 
-    launchOptionsSubmodule = types.submodule {
-      options = {
-        env = lib.mkOption {
-          type =
-            with types;
-            lazyAttrsOf (nullOr (oneOf [
+  launchOptionsSubmodule = types.submodule {
+    options = {
+      env = lib.mkOption {
+        type =
+          with types;
+          lazyAttrsOf (
+            nullOr (oneOf [
               str
               path
               int
               float
               bool
-            ]));
-          default = { };
-          example = lib.literalExpression ''
-            {
-              WINEDLLOVERRIDES = "winmm,version=n,b";
-              "TZ" = null;
-            }
-          '';
-          description = ''
-            Environment variables to export in the launch script.
-            You can also unset variables by setting their value to `null`.
-          '';
-        };
-        wrappers = lib.mkOption {
-          type = types.listOf (types.coercedTo types.package lib.getExe types.str);
-          default = [ ];
-          example = lib.literalExpression ''
-            [
-                (lib.getExe' pkgs.mangohud "mangohud")
+            ])
+          );
+        default = { };
+        example = lib.literalExpression ''
+          {
+            WINEDLLOVERRIDES = "winmm,version=n,b";
+            "TZ" = null;
+          }
+        '';
+        description = ''
+          Environment variables to export in the launch script.
+          You can also unset variables by setting their value to `null`.
+        '';
+      };
+      wrappers = lib.mkOption {
+        type = types.listOf (types.coercedTo types.package lib.getExe types.str);
+        default = [ ];
+        example = lib.literalExpression ''
+          [
+              (lib.getExe' pkgs.mangohud "mangohud")
 
-                pkgs.myWrapperProgram
+              pkgs.myWrapperProgram
 
-                # Need to enable gamemode module in NixOS
-                "gamemoderun"
-              ]
-            '';
-            description = ''
-              Executables to wrap the game with.
-            '';
-        };
-        args = lib.mkOption {
-          type = types.listOf types.str;
-          default = [ ];
-          example = lib.literalExpression ''
-            ["-modded" "--launcher-skip" "-skipStartScreen"]
-          '';
-          description = ''
-            CLI arguments to pass to the game.
-          '';
-        };
-        extraConfig = lib.mkOption {
-          type = types.lines;
-          default = "";
-          example = ''
-            if [[ "$*" != *"--no-vr"* ]]; then
-              export PROTON_ENABLE_WAYLAND=1
-            fi
-          '';
-          description = ''
-            Additional bash code to execute before the game.
-          '';
-        };
+              # Need to enable gamemode module in NixOS
+              "gamemoderun"
+            ]
+        '';
+        description = ''
+          Executables to wrap the game with.
+        '';
+      };
+      args = lib.mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = lib.literalExpression ''
+          ["-modded" "--launcher-skip" "-skipStartScreen"]
+        '';
+        description = ''
+          CLI arguments to pass to the game.
+        '';
+      };
+      extraConfig = lib.mkOption {
+        type = types.lines;
+        default = "";
+        example = ''
+          if [[ "$*" != *"--no-vr"* ]]; then
+            export PROTON_ENABLE_WAYLAND=1
+          fi
+        '';
+        description = ''
+          Additional bash code to execute before the game.
+        '';
       };
     };
+  };
 
   mkSteamAppsOption =
     {
@@ -110,13 +121,13 @@ let
             options = lib.mergeAttrsList [
               (lib.optionalAttrs launchOptions {
                 launchOptions = lib.mkOption {
-                  type = with types; nullOr (
-                    oneOf [
+                  type =
+                    with types;
+                    nullOr (oneOf [
                       package
                       launchOptionsSubmodule
                       (coercedTo singleLineStr (genLaunchOptionPackage name) package)
-                    ]
-                  );
+                    ]);
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
@@ -141,17 +152,19 @@ let
 
             config = lib.mkIf launchOptions {
               finalScript = lib.mkIf (!lib.isDerivation config.launchOptions) (
-                lib.mkDefault (let
-                  prefix = lib.escapeShellArgs config.launchOptions.wrappers;
-                  suffix = lib.escapeShellArgs config.launchOptions.args;
-                in
+                lib.mkDefault (
+                  let
+                    prefix = lib.escapeShellArgs config.launchOptions.wrappers;
+                    suffix = lib.escapeShellArgs config.launchOptions.args;
+                  in
                   pkgs.writeShellScriptBin (genWrapperName name) ''
                     ${exportAll config.launchOptions.env}
 
                     ${config.launchOptions.extraConfig}
 
                     exec env ${prefix} "$@" ${suffix}
-                  '')
+                  ''
+                )
               );
             };
           }
@@ -164,27 +177,6 @@ let
         App IDs can be found through https://steamdb.info/ or through the game's store page URL
       '';
     };
-
-  cfg = config.programs.steam.config;
-  steamDir = "${config.home.homeDirectory}/.steam/steam";
-
-  steam-config-patcher = inputs.self.packages.${pkgs.system}.steam-config-patcher;
-
-  # Get a Steam3ID from a Steam64ID
-  # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
-  getId3 =
-    userId:
-    let
-      steamId64Ident = 76561197960265728;
-      userIdInt = lib.strings.toIntBase10 userId;
-      isSteam64 = userId != "*" && userIdInt >= steamId64Ident;
-    in
-    if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
-
-  arguments = lib.cli.toGNUCommandLineShell { } {
-    json = builtins.toJSON (config.programs.steam.config.extraConfig);
-    close-steam = cfg.closeSteam;
-  };
 in
 {
   imports = [
@@ -196,6 +188,22 @@ in
 
   options.programs.steam.config = {
     enable = lib.mkEnableOption "Steam user config store management";
+
+    package = lib.mkOption {
+      default = inputs.self.packages.${pkgs.system}.steam-config-patcher;
+      description = ''
+        The steam-config-patcher package to use.
+      '';
+      type = types.package;
+    };
+
+    steamDir = lib.mkOption {
+      type = types.path;
+      default = "${config.home.homeDirectory}/.steam/steam";
+      description = ''
+        Path to the Steam directory 
+      '';
+    };
     closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
 
     apps = mkSteamAppsOption {
@@ -219,7 +227,7 @@ in
       '';
     };
 
-    extraConfig = lib.mkOption {
+    finalConfig = lib.mkOption {
       type = nestedAttrsOfStrings;
       visible = false;
       default = { };
@@ -230,13 +238,13 @@ in
     programs.steam.config = {
       users."*".apps = lib.mapAttrs (_: app: { inherit (app) launchOptions; }) cfg.apps;
 
-      extraConfig = lib.mkMerge [
+      finalConfig = lib.mkMerge [
         (
           let
             compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
           in
           lib.mkIf (compatToolConfigs != { }) {
-            "${steamDir}/config/config.vdf" = {
+            "${cfg.steamDir}/config/config.vdf" = {
               InstallConfigStore.Software.Valve.Steam = {
                 CompatToolMapping = lib.mapAttrs (_: app: {
                   name = app.compatTool;
@@ -254,7 +262,7 @@ in
             steamID = getId3 userId;
           in
           {
-            name = "${steamDir}/userdata/${steamID}/config/localconfig.vdf";
+            name = "${cfg.steamDir}/userdata/${steamID}/config/localconfig.vdf";
             value = {
               UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (appId: app: {
                 LaunchOptions = "${config.xdg.dataHome}/${genWrapperPath steamID appId} %command%";
@@ -277,8 +285,15 @@ in
       )
     );
 
-    home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      run ${lib.getExe steam-config-patcher} ${arguments}
-    '';
+    home.activation.steam-config-patcher =
+      let
+        arguments = lib.cli.toGNUCommandLineShell { } {
+          json = builtins.toJSON config.programs.steam.config.finalConfig;
+          close-steam = cfg.closeSteam;
+        };
+      in
+      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        run ${lib.getExe cfg.package} ${arguments}
+      '';
   };
 }
