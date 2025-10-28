@@ -120,11 +120,6 @@ programs.steam.package = pkgs.steam.override {
 };
 ```
 
-## Goals
-
-- Beta participation config
-- Manage non steam games
-
 ## Acknowledgements
 
 - https://github.com/FeralInteractive/gamemode/issues/177 for the idea
