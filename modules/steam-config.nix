@@ -19,7 +19,7 @@ let
     let
       userDir = lib.replaceString "*" "shared" (toSteamId3 userId);
     in
-    "${dataDir}/users/${userDir}/app-wrappers/${appId}";
+    "${dataDir}/users/${userDir}/app-wrappers/${toString appId}";
 
   # Get a Steam3ID from a Steam64ID
   # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
@@ -32,7 +32,7 @@ let
     in
     if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
 
-  writeWrapperBin = appId: text: pkgs.writeShellScriptBin "app-${appId}-wrapped" text;
+  writeWrapperBin = appId: text: pkgs.writeShellScriptBin "steam-app-wrapper-${toString appId}" text;
 
   writeLaunchOptionsStrBin =
     appId: launchOptions:
@@ -127,9 +127,21 @@ let
     lib.mkOption {
       type = types.attrsOf (
         types.submodule (
-          { name, ... }:
+          { config, name, ... }:
           {
             options = lib.mergeAttrsList [
+              {
+                id = lib.mkOption {
+                  type = types.int;
+                  default = lib.strings.toIntBase10 name;
+                  example = 438100;
+                  description = ''
+                    The ID for this app.
+                    App IDs can be found through https://steamdb.info/ or through the game's store page URL.
+                  '';
+                };
+              }
+
               (lib.optionalAttrs launchOptions {
                 launchOptions = lib.mkOption {
                   type =
@@ -137,12 +149,12 @@ let
                     nullOr (oneOf [
                       package
                       launchOptionsSubmodule
-                      (coercedTo singleLineStr (writeLaunchOptionsStrBin name) package)
+                      (coercedTo singleLineStr (writeLaunchOptionsStrBin config.id) package)
                     ]);
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
-                  apply = value: if lib.isDerivation value then value else writeLaunchOptionsSetBin name value;
+                  apply = value: if lib.isDerivation value then value else writeLaunchOptionsSetBin config.id value;
                 };
               })
 
@@ -165,6 +177,31 @@ let
         App IDs can be found through https://steamdb.info/ or through the game's store page URL.
       '';
     };
+
+  # from home-manager's firefox module
+  # https://github.com/nix-community/home-manager/blob/e82585308aef3d4cc2c36c7b6946051c8cdf24ef/modules/programs/firefox/mkFirefoxModule.nix#L151-L175
+  mkNoDuplicateAssertion =
+    entities: entityKind:
+    (
+      let
+        findDuplicateIds =
+          entities: lib.filterAttrs (_: entityNames: lib.length entityNames != 1) (lib.zipAttrs entities);
+
+        duplicates = findDuplicateIds (
+          lib.mapAttrsToList (entityName: entity: { "${toString entity.id}" = entityName; }) entities
+        );
+
+        mkMsg =
+          entityId: entityNames: "  - ID ${entityId} is used by " + lib.concatStringsSep ", " entityNames;
+      in
+      {
+        assertion = duplicates == { };
+        message = ''
+          Must not have a Steam ${entityKind} with an existing ID but
+        ''
+        + lib.concatMapAttrsStringSep "\n" mkMsg duplicates;
+      }
+    );
 in
 {
   imports = [
@@ -198,11 +235,22 @@ in
 
     users = lib.mkOption {
       type = types.attrsOf (
-        types.submodule {
-          options = {
-            apps = mkSteamAppsOption { launchOptions = true; };
-          };
-        }
+        types.submodule (
+          { config, ... }:
+          {
+            imports = [ (pkgs.path + "/nixos/modules/misc/assertions.nix") ];
+
+            options = {
+              apps = mkSteamAppsOption { launchOptions = true; };
+            };
+
+            config = {
+              assertions = [
+                (mkNoDuplicateAssertion config.apps "app")
+              ];
+            };
+          }
+        )
       );
       default = { };
       description = ''
@@ -220,8 +268,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = lib.concatMap (user: user.assertions) (lib.attrValues cfg.users);
+
     programs.steam.config = {
-      users."*".apps = lib.mapAttrs (_: app: { inherit (app) launchOptions; }) cfg.apps;
+      users."*".apps = lib.mapAttrs (_: app: { inherit (app) id launchOptions; }) cfg.apps;
 
       finalConfig = lib.mkMerge [
         (
@@ -249,8 +299,9 @@ in
           {
             name = "${cfg.steamDir}/userdata/${steamID}/config/localconfig.vdf";
             value = {
-              UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (appId: app: {
-                LaunchOptions = "${config.xdg.dataHome}/${makeWrapperPath steamID appId} %command%";
+              UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
+                name = toString app.id;
+                value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
               }) user.apps;
             };
           }
@@ -262,8 +313,8 @@ in
       lib.flatten (
         lib.mapAttrsToList (
           userId: user:
-          lib.mapAttrsToList (appId: app: {
-            name = makeWrapperPath (toSteamId3 userId) appId;
+          lib.mapAttrsToList (_: app: {
+            name = makeWrapperPath (toSteamId3 userId) app.id;
             value.source = lib.getExe app.launchOptions;
           }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
         ) cfg.users
