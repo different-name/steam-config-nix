@@ -15,11 +15,7 @@ let
   dataDir = "${config.xdg.dataHome}/steam-config-nix";
 
   makeWrapperPath =
-    userId: appId:
-    let
-      userDir = lib.replaceString "*" "shared" (toSteamId3 userId);
-    in
-    "${dataDir}/users/${userDir}/app-wrappers/${toString appId}";
+    userId: appId: "${dataDir}/users/${toString userId}/app-wrappers/${toString appId}";
 
   # Get a Steam3ID from a Steam64ID
   # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
@@ -27,10 +23,9 @@ let
     userId:
     let
       steamId64Ident = 76561197960265728;
-      userIdInt = lib.strings.toIntBase10 userId;
-      isSteam64 = userId != "*" && userIdInt >= steamId64Ident;
+      isSteam64 = userId >= steamId64Ident;
     in
-    if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
+    if isSteam64 then toString (userId - steamId64Ident) else userId;
 
   writeWrapperBin = appId: text: pkgs.writeShellScriptBin "steam-app-wrapper-${toString appId}" text;
 
@@ -202,6 +197,15 @@ let
         + lib.concatMapAttrsStringSep "\n" mkMsg duplicates;
       }
     );
+
+  usersAppsConfig = cfg.users // {
+    shared = {
+      id = "shared";
+      apps = lib.mapAttrs (_: app: {
+        inherit (app) id launchOptions;
+      }) cfg.apps;
+    };
+  };
 in
 {
   imports = [
@@ -209,6 +213,13 @@ in
       programs.steam.localconfig has been removed in favor of programs.steam.config
       See the steam-config-nix readme for new usage instructions
     '')
+
+    {
+      assertions = [
+        (mkNoDuplicateAssertion cfg.users "user")
+      ]
+      ++ (lib.concatMap (user: user.assertions) (lib.attrValues cfg.users));
+    }
   ];
 
   options.programs.steam.config = {
@@ -236,25 +247,36 @@ in
     users = lib.mkOption {
       type = types.attrsOf (
         types.submodule (
-          { config, ... }:
+          { config, name, ... }:
           {
-            imports = [ (pkgs.path + "/nixos/modules/misc/assertions.nix") ];
+            imports = [
+              (pkgs.path + "/nixos/modules/misc/assertions.nix")
+            ];
 
             options = {
+              id = lib.mkOption {
+                type = types.int;
+                default = lib.strings.toIntBase10 name;
+                apply = toSteamId3;
+                example = 98765432123456789;
+                description = ''
+                  The ID for this user in SteamID64 format.
+                  You can find your SteamID64 through https://steamid.io/lookup
+                '';
+              };
+
               apps = mkSteamAppsOption { launchOptions = true; };
             };
 
-            config = {
-              assertions = [
-                (mkNoDuplicateAssertion config.apps "app")
-              ];
-            };
+            config.assertions = [
+              (mkNoDuplicateAssertion config.apps "app")
+            ];
           }
         )
       );
       default = { };
       description = ''
-        Per user configuration for a Steam app
+        Per user configuration for a Steam app.
         User IDs are in SteamID64 format, for example 98765432123456789
         You can find your SteamID64 through https://steamid.io/lookup
       '';
@@ -268,56 +290,44 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    assertions = lib.concatMap (user: user.assertions) (lib.attrValues cfg.users);
-
-    programs.steam.config = {
-      users."*".apps = lib.mapAttrs (_: app: { inherit (app) id launchOptions; }) cfg.apps;
-
-      finalConfig = lib.mkMerge [
-        (
-          let
-            compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
-          in
-          lib.mkIf (compatToolConfigs != { }) {
-            "${cfg.steamDir}/config/config.vdf" = {
-              InstallConfigStore.Software.Valve.Steam = {
-                CompatToolMapping = lib.mapAttrs (_: app: {
-                  name = app.compatTool;
-                  config = "";
-                  priority = "250";
-                }) compatToolConfigs;
-              };
+    programs.steam.config.finalConfig = lib.mkMerge [
+      (
+        let
+          compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
+        in
+        lib.mkIf (compatToolConfigs != { }) {
+          "${cfg.steamDir}/config/config.vdf" = {
+            InstallConfigStore.Software.Valve.Steam = {
+              CompatToolMapping = lib.mapAttrs (_: app: {
+                name = app.compatTool;
+                config = "";
+                priority = "250";
+              }) compatToolConfigs;
             };
-          }
-        )
+          };
+        }
+      )
 
-        (lib.mapAttrs' (
-          userId: user:
-          let
-            steamID = toSteamId3 userId;
-          in
-          {
-            name = "${cfg.steamDir}/userdata/${steamID}/config/localconfig.vdf";
-            value = {
-              UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
-                name = toString app.id;
-                value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
-              }) user.apps;
-            };
-          }
-        ) cfg.users)
-      ];
-    };
+      (lib.mapAttrs' (_: user: {
+        name = "${cfg.steamDir}/userdata/${toString user.id}/config/localconfig.vdf";
+        value = {
+          UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
+            name = toString app.id;
+            value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
+          }) user.apps;
+        };
+      }) usersAppsConfig)
+    ];
 
     home.file = lib.listToAttrs (
       lib.flatten (
         lib.mapAttrsToList (
-          userId: user:
+          _: user:
           lib.mapAttrsToList (_: app: {
-            name = makeWrapperPath (toSteamId3 userId) app.id;
+            name = makeWrapperPath user.id app.id;
             value.source = lib.getExe app.launchOptions;
           }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
-        ) cfg.users
+        ) usersAppsConfig
       )
     );
 
