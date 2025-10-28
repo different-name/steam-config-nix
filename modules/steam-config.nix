@@ -309,7 +309,11 @@ in
       )
 
       (lib.mapAttrs' (_: user: {
-        name = "${cfg.steamDir}/userdata/${toString user.id}/config/localconfig.vdf";
+        name =
+          let
+            userDir = lib.replaceString "shared" "*" (toString user.id);
+          in
+          "${cfg.steamDir}/userdata/${userDir}/config/localconfig.vdf";
         value = {
           UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
             name = toString app.id;
