@@ -6,10 +6,9 @@ import copy
 from deepmerge import always_merger
 from pathlib import Path
 from srctools import Keyvalues, AtomicWriter
-from typing import Union, Tuple, Dict, Any
+from typing import Tuple, Dict, Any
 import psutil
 import shutil
-from tempfile import NamedTemporaryFile
 import logging
 
 
@@ -71,11 +70,15 @@ def load_vdf(path: Path) -> Keyvalues:
 
 
 def overwrite_key(root: Keyvalues, path: Tuple[str, ...], value: str) -> bool:
+    if len(path) <= 0:
+        raise ValueError("path must contain at least 1 element")
+
     if len(path) > 1:
         parent_path = path[:-1]
         leaf_key = path[-1]
         parent_blocks = list(root.find_all(*parent_path))
     else:
+        parent_path = None
         leaf_key = path[0]
         parent_blocks = [root]
 
@@ -94,15 +97,16 @@ def overwrite_key(root: Keyvalues, path: Tuple[str, ...], value: str) -> bool:
 
     if set_value:
         block = root
-        for key in parent_path:
-            block = block.ensure_exists(key)
+        if parent_path is not None:
+            for key in parent_path:
+                block = block.ensure_exists(key)
         block.set_key(leaf_key, value)
 
     return deleted_values or set_value
 
 
 def overwrite_keys(root: Keyvalues, obj: Dict[str, Any]) -> bool:
-    def _recurse(data: Union[Dict[str, Any], str], path: Tuple[str, ...]) -> bool:
+    def _recurse(data: Any, path: Tuple[str, ...]) -> bool:
         if isinstance(data, dict):
             modified_values = False
             for key, value in data.items():
