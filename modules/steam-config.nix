@@ -17,7 +17,7 @@ let
   makeWrapperPath =
     userId: appId: "${dataDir}/users/${toString userId}/app-wrappers/${toString appId}";
 
-  # Get a Steam3ID from a Steam64ID
+  # Get a SteamID3 from a SteamID64
   # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
   toSteamId3 =
     userId:
@@ -260,7 +260,7 @@ in
                 apply = toSteamId3;
                 example = 98765432123456789;
                 description = ''
-                  The ID for this user in SteamID64 format.
+                  The ID for this user in SteamID64 or SteamID3 format.
                   You can find your SteamID64 through https://steamid.io/lookup
                 '';
               };
@@ -277,7 +277,7 @@ in
       default = { };
       description = ''
         Per user configuration for a Steam app.
-        User IDs are in SteamID64 format, for example 98765432123456789
+        User IDs are in SteamID64 or SteamID3 format, for example 98765432123456789
         You can find your SteamID64 through https://steamid.io/lookup
       '';
     };
