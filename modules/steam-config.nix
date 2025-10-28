@@ -83,9 +83,7 @@ let
               "gamemoderun"
             ]
         '';
-        description = ''
-          Executables to wrap the game with.
-        '';
+        description = "Executables to wrap the game with.";
       };
       args = lib.mkOption {
         type = types.listOf types.str;
@@ -93,9 +91,7 @@ let
         example = lib.literalExpression ''
           ["-modded" "--launcher-skip" "-skipStartScreen"]
         '';
-        description = ''
-          CLI arguments to pass to the game.
-        '';
+        description = "CLI arguments to pass to the game.";
       };
       extraConfig = lib.mkOption {
         type = types.lines;
@@ -105,9 +101,7 @@ let
             export PROTON_ENABLE_WAYLAND=1
           fi
         '';
-        description = ''
-          Additional bash code to execute before the game.
-        '';
+        description = "Additional bash code to execute before the game.";
       };
     };
   };
@@ -178,8 +172,8 @@ let
 
       default = { };
       description = ''
-        Configuration for a Steam app
-        App IDs can be found through https://steamdb.info/ or through the game's store page URL
+        Configuration for a Steam app.
+        App IDs can be found through https://steamdb.info/ or through the game's store page URL.
       '';
     };
 in
@@ -196,18 +190,14 @@ in
 
     package = lib.mkOption {
       default = inputs.self.packages.${pkgs.system}.steam-config-patcher;
-      description = ''
-        The steam-config-patcher package to use.
-      '';
+      description = "The steam-config-patcher package to use.";
       type = types.package;
     };
 
     steamDir = lib.mkOption {
       type = types.path;
       default = "${config.home.homeDirectory}/.steam/steam";
-      description = ''
-        Path to the Steam directory 
-      '';
+      description = "Path to the Steam directory.";
     };
 
     closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
