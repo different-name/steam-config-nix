@@ -33,7 +33,8 @@ let
     if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
 
   writeWrapperBin = appId: text: pkgs.writeShellScriptBin "app-${appId}-wrapped" text;
-  writeLaunchOptionsBin =
+
+  writeLaunchOptionsStrBin =
     appId: launchOptions:
     let
       launchCommand =
@@ -43,6 +44,18 @@ let
           ''"$@" ${launchOptions}'';
     in
     writeWrapperBin appId "exec env ${launchCommand}";
+
+  writeLaunchOptionsSetBin =
+    appId: launchOptionsSet:
+    let
+      prefix = lib.escapeShellArgs launchOptionsSet.wrappers;
+      suffix = lib.escapeShellArgs launchOptionsSet.args;
+    in
+    writeWrapperBin appId ''
+      ${exportAll launchOptionsSet.env}
+      ${launchOptionsSet.extraConfig}
+      exec env ${prefix} "$@" ${suffix}
+    '';
 
   launchOptionsSubmodule = types.submodule {
     options = {
@@ -114,7 +127,7 @@ let
     lib.mkOption {
       type = types.attrsOf (
         types.submodule (
-          { config, name, ... }:
+          { name, ... }:
           {
             options = lib.mergeAttrsList [
               (lib.optionalAttrs launchOptions {
@@ -124,18 +137,12 @@ let
                     nullOr (oneOf [
                       package
                       launchOptionsSubmodule
-                      (coercedTo singleLineStr (writeLaunchOptionsBin name) package)
+                      (coercedTo singleLineStr (writeLaunchOptionsStrBin name) package)
                     ]);
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
-                };
-
-                finalScript = lib.mkOption {
-                  type = types.nullOr types.package;
-                  visible = false;
-                  default = config.launchOptions;
-                  description = "The final script the game will run on launch";
+                  apply = value: if lib.isDerivation value then value else writeLaunchOptionsSetBin name value;
                 };
               })
 
@@ -148,24 +155,6 @@ let
                 };
               })
             ];
-
-            config = lib.mkIf launchOptions {
-              finalScript = lib.mkIf (!lib.isDerivation config.launchOptions) (
-                lib.mkDefault (
-                  let
-                    prefix = lib.escapeShellArgs config.launchOptions.wrappers;
-                    suffix = lib.escapeShellArgs config.launchOptions.args;
-                  in
-                  writeWrapperBin name ''
-                    ${exportAll config.launchOptions.env}
-
-                    ${config.launchOptions.extraConfig}
-
-                    exec env ${prefix} "$@" ${suffix}
-                  ''
-                )
-              );
-            };
           }
         )
       );
@@ -275,8 +264,8 @@ in
           userId: user:
           lib.mapAttrsToList (appId: app: {
             name = makeWrapperPath (toSteamId3 userId) appId;
-            value.source = lib.getExe app.finalScript;
-          }) (lib.filterAttrs (_: app: app.finalScript != null) user.apps)
+            value.source = lib.getExe app.launchOptions;
+          }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
         ) cfg.users
       )
     );
