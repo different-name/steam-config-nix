@@ -46,7 +46,9 @@ programs.steam.config = {
       compatTool = "proton_experimental";
     };
 
-    "1058830" = {
+    spin-rhythm = {
+      # The id property can be used instead of using the app ID as the key
+      id = 1058830;
       compatTool = "GE-Proton";
       launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
     };
@@ -54,52 +56,61 @@ programs.steam.config = {
 
   # Configuration per user's SteamID64
   # You can find your SteamID64 through https://steamid.io/lookup
-  users."98765432123456789".apps = {
-    # Per user config only supports launchOptions, compat tools must be set globally
-    "438100".launchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
+  users = {
+    "98765432123456789".apps = {
+      # Per user config only supports launchOptions, compat tools must be set globally
+      "438100".launchOptions = ''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command%'';
 
-    "620".launchOptions = "-vulkan";
 
-    # You can also use abstracted Nix options
-    "553850".launchOptions = {
-      # Environment variables to export
-      env = {
-        PROTON_USE_NTSYNC = true;
-        # This unsets the variable
-        TZ = null;
+      # You can also use abstracted Nix options
+      "553850".launchOptions = {
+        # Environment variables to export
+        env = {
+          PROTON_USE_NTSYNC = true;
+          # This unsets the variable
+          TZ = null;
+        };
+        # Arguments for the game's executable (%command% <...>)
+        args = [
+          "-force-vulkan"
+          "--use-d3d11"
+          "+connect_lobby"
+          "-1"
+        ];
+        # Programs to wrap the game with (<...> %command%)
+        wrappers = [
+          (lib.getExe' pkgs.mangohud "mangohud")
+          "gamemoderun"
+        ];
+        # Extra bash code to run before executing the game
+        extraConfig = ''
+          if [[ "$*" == *"-force-vulkan"* ]]; then
+            export PROTON_ENABLE_WAYLAND=1
+          fi
+        '';
       };
-      # Arguments for the game's executable (%command% <...>)
-      args = [
-        "-force-vulkan"
-        "--use-d3d11"
-        "+connect_lobby"
-        "-1"
-      ];
-      # Programs to wrap the game with (<...> %command%)
-      wrappers = [
-        (lib.getExe' pkgs.mangohud "mangohud")
-        "gamemoderun"
-      ];
-      # Extra bash code to run before executing the game
-      extraConfig = ''
-        if [[ "$*" == *"-force-vulkan"* ]]; then
-          export PROTON_ENABLE_WAYLAND=1
-        fi
+
+      "1144200".launchOptions.env.WINEDLLOVERRIDES = "d3dcompiler_47=n;dxgi=n";
+
+      # you can also use a package instead of a string, %command% will be passed to it
+      # here's an example script that skips the Warhammer 40k Darktide launcher
+      "1361210".launchOptions = pkgs.writeShellScriptBin "darktide-wrapper" ''
+        args=()
+        for arg in "$@"; do
+          args+=( "''${arg//\/launcher\/Launcher.exe/\/binaries\/Darktide.exe}" )
+        done
+
+        exec "''${args[@]}"
       '';
     };
+  };
 
-    "1144200".launchOptions.env.WINEDLLOVERRIDES = "d3dcompiler_47=n;dxgi=n";
-
-    # you can also use a package instead of a string, %command% will be passed to it
-    # here's an example script that skips the Warhammer 40k Darktide launcher
-    "1361210".launchOptions = pkgs.writeShellScriptBin "darktide-wrapper" ''
-      args=()
-      for arg in "$@"; do
-        args+=( "''${arg//\/launcher\/Launcher.exe/\/binaries\/Darktide.exe}" )
-      done
-
-      exec "''${args[@]}"
-    '';
+  diffy = {
+    # The id property can be used instead of using the user ID as the key
+    id = 12345678987654321;
+    apps = {
+      "620".launchOptions = "-vulkan";
+    };
   };
 };
 ```
