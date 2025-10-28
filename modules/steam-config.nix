@@ -7,13 +7,23 @@
 }:
 let
   inherit (lib) types;
+  inherit (lib.hm.shell) exportAll;
   nestedAttrsOfStrings = types.lazyAttrsOf (types.either types.str nestedAttrsOfStrings);
 
   cfg = config.programs.steam.config;
 
+  dataDir = "${config.xdg.dataHome}/steam-config-nix";
+
+  makeWrapperPath =
+    userId: appId:
+    let
+      userDir = lib.replaceString "*" "shared" (toSteamId3 userId);
+    in
+    "${dataDir}/users/${userDir}/app-wrappers/${appId}";
+
   # Get a Steam3ID from a Steam64ID
   # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
-  getId3 =
+  toSteamId3 =
     userId:
     let
       steamId64Ident = 76561197960265728;
@@ -22,14 +32,8 @@ let
     in
     if isSteam64 then toString (userIdInt - steamId64Ident) else userId;
 
-  genWrapperName = appId: "app-${appId}-wrapped";
-  genWrapperPath =
-    userId: appId: "steam-config-nix/${lib.replaceString "*" "common" userId}/${genWrapperName appId}";
-
-  export = n: v: if isNull v then "unset ${n}" else ''export ${n}="${toString v}"'';
-  exportAll = lib.concatMapAttrsStringSep "\n" export;
-
-  genLaunchOptionPackage =
+  writeWrapperBin = appId: text: pkgs.writeShellScriptBin "app-${appId}-wrapped" text;
+  writeLaunchOptionsBin =
     appId: launchOptions:
     let
       launchCommand =
@@ -38,7 +42,7 @@ let
         else
           ''"$@" ${launchOptions}'';
     in
-    pkgs.writeShellScriptBin (genWrapperName appId) "exec env ${launchCommand}";
+    writeWrapperBin appId "exec env ${launchCommand}";
 
   launchOptionsSubmodule = types.submodule {
     options = {
@@ -126,12 +130,13 @@ let
                     nullOr (oneOf [
                       package
                       launchOptionsSubmodule
-                      (coercedTo singleLineStr (genLaunchOptionPackage name) package)
+                      (coercedTo singleLineStr (writeLaunchOptionsBin name) package)
                     ]);
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
                 };
+
                 finalScript = lib.mkOption {
                   type = types.nullOr types.package;
                   visible = false;
@@ -157,7 +162,7 @@ let
                     prefix = lib.escapeShellArgs config.launchOptions.wrappers;
                     suffix = lib.escapeShellArgs config.launchOptions.args;
                   in
-                  pkgs.writeShellScriptBin (genWrapperName name) ''
+                  writeWrapperBin name ''
                     ${exportAll config.launchOptions.env}
 
                     ${config.launchOptions.extraConfig}
@@ -204,6 +209,7 @@ in
         Path to the Steam directory 
       '';
     };
+
     closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
 
     apps = mkSteamAppsOption {
@@ -259,13 +265,13 @@ in
         (lib.mapAttrs' (
           userId: user:
           let
-            steamID = getId3 userId;
+            steamID = toSteamId3 userId;
           in
           {
             name = "${cfg.steamDir}/userdata/${steamID}/config/localconfig.vdf";
             value = {
               UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs (appId: app: {
-                LaunchOptions = "${config.xdg.dataHome}/${genWrapperPath steamID appId} %command%";
+                LaunchOptions = "${config.xdg.dataHome}/${makeWrapperPath steamID appId} %command%";
               }) user.apps;
             };
           }
@@ -273,12 +279,12 @@ in
       ];
     };
 
-    xdg.dataFile = lib.listToAttrs (
+    home.file = lib.listToAttrs (
       lib.flatten (
         lib.mapAttrsToList (
           userId: user:
           lib.mapAttrsToList (appId: app: {
-            name = genWrapperPath (getId3 userId) appId;
+            name = makeWrapperPath (toSteamId3 userId) appId;
             value.source = lib.getExe app.finalScript;
           }) (lib.filterAttrs (_: app: app.finalScript != null) user.apps)
         ) cfg.users
