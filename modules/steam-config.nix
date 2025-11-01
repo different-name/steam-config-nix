@@ -226,7 +226,7 @@ in
     enable = lib.mkEnableOption "Steam user config store management";
 
     package = lib.mkOption {
-      default = inputs.self.packages.${pkgs.system}.steam-config-patcher;
+      default = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.steam-config-patcher;
       description = "The steam-config-patcher package to use.";
       type = types.package;
     };
