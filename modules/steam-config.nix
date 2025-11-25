@@ -149,7 +149,12 @@ let
                   default = null;
                   example = "-vulkan";
                   description = "Game launch options";
-                  apply = value: if lib.isDerivation value then value else writeLaunchOptionsSetBin config.id value;
+                  apply =
+                    value:
+                    if (lib.isDerivation value) || value == null then
+                      value
+                    else
+                      writeLaunchOptionsSetBin config.id value;
                 };
               })
 
