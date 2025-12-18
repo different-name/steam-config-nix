@@ -307,7 +307,7 @@ in
                 CompatToolMapping = lib.mapAttrs (_: app: {
                   name = app.compatTool;
                   config = "";
-                  priority = "250";
+                  priority = if (app.id == 0) then "75" else "250";
                 }) compatToolConfigs;
               };
             };
