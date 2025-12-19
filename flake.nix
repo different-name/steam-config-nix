@@ -2,7 +2,7 @@
   description = "Manage Steam launch options and other local config declaratively through Home Manager";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     systems.url = "github:nix-systems/default";
   };
 
