@@ -7,8 +7,12 @@
 }:
 let
   inherit (lib) types;
-  inherit (lib.hm.shell) exportAll;
   nestedAttrsOfStrings = types.lazyAttrsOf (types.either types.str nestedAttrsOfStrings);
+
+  # modified from home-manager lib.shell.exportAll
+  # https://github.com/nix-community/home-manager/blob/89c9508bbe9b40d36b3dc206c2483ef176f15173/modules/lib/shell.nix#L36-L42
+  exportUnset = n: v: if v == null then "unset ${n}" else ''export ${n}="${toString v}"'';
+  exportAll = lib.concatMapAttrsStringSep "\n" exportUnset;
 
   cfg = config.programs.steam.config;
 
@@ -17,7 +21,7 @@ let
   makeWrapperPath =
     userId: appId: "${dataDir}/users/${toString userId}/app-wrappers/${toString appId}";
 
-  # Get a SteamID3 from a SteamID64
+  # get a SteamID3 from a SteamID64
   # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
   toSteamId3 =
     userId:
