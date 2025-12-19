@@ -56,6 +56,9 @@ let
       exec env ${prefix} "$@" ${suffix}
     '';
 
+  getSteamUserDir =
+    userId: "${cfg.steamDir}/userdata/${lib.replaceString "shared" "*" (toString userId)}";
+
   launchOptionsSubmodule = types.submodule {
     options = {
       env = lib.mkOption {
@@ -300,58 +303,11 @@ in
         You can find your SteamID64 through https://steamid.io/lookup
       '';
     };
-
-    finalConfig = lib.mkOption {
-      type = nestedAttrsOfStrings;
-      visible = false;
-      default = { };
-    };
   };
 
   config = lib.mkIf cfg.enable {
     programs.steam.config = {
       apps."0".compatTool = cfg.defaultCompatTool;
-
-      finalConfig = {
-        "KeyValues" = lib.mkMerge [
-          (
-            let
-              compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
-            in
-            lib.mkIf (compatToolConfigs != { }) {
-              "${cfg.steamDir}/config/config.vdf" = {
-                InstallConfigStore.Software.Valve.Steam = {
-                  CompatToolMapping = lib.mapAttrs' (_: app: {
-                    name = toString app.id;
-                    value = {
-                      name = app.compatTool;
-                      config = "";
-                      # app ID 0 represents the default compatibility tool for all games, which should have a priority of 75
-                      priority = if (app.id == 0) then "75" else "250";
-                    };
-                  }) compatToolConfigs;
-                };
-              };
-            }
-          )
-
-          (lib.mapAttrs' (_: user: {
-            name =
-              let
-                userDir = lib.replaceString "shared" "*" (toString user.id);
-              in
-              "${cfg.steamDir}/userdata/${userDir}/config/localconfig.vdf";
-            value = {
-              UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
-                name = toString app.id;
-                value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
-              }) user.apps;
-            };
-          }) usersAppsConfig)
-        ];
-
-        # "Binary KeyValues" = { };
-      };
     };
 
     home.file = lib.listToAttrs (
@@ -368,13 +324,50 @@ in
 
     home.activation.steam-config-patcher =
       let
-        arguments = lib.cli.toGNUCommandLineShell { } {
-          json = builtins.toJSON config.programs.steam.config.finalConfig;
+        compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
+
+        config-vdfData = {
+          "${cfg.steamDir}/config/config.vdf" = {
+            InstallConfigStore.Software.Valve.Steam = {
+              CompatToolMapping = lib.mapAttrs' (_: app: {
+                name = toString app.id;
+                value = {
+                  name = app.compatTool;
+                  config = "";
+                  # app ID 0 represents the default compatibility tool for all games, which should have a priority of 75
+                  priority = if (app.id == 0) then "75" else "250";
+                };
+              }) compatToolConfigs;
+            };
+          };
+        };
+
+        localconfig-vdfData = lib.mapAttrs' (_: user: {
+          name = "${getSteamUserDir user.id}/config/localconfig.vdf";
+          value = {
+            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
+              name = toString app.id;
+              value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
+            }) user.apps;
+          };
+        }) usersAppsConfig;
+
+        configUpdates = {
+          KeyValues = lib.mergeAttrsList [
+            config-vdfData
+            localconfig-vdfData
+          ];
+
+          # "Binary KeyValues" = { };
+        };
+
+        patcherArgs = lib.cli.toGNUCommandLineShell { } {
+          json = builtins.toJSON configUpdates;
           close-steam = cfg.closeSteam;
         };
       in
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        run ${lib.getExe cfg.package} ${arguments}
+        run ${lib.getExe cfg.package} ${patcherArgs}
       '';
   };
 }
