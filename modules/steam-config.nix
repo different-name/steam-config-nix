@@ -163,7 +163,7 @@ let
                   type = types.nullOr types.str;
                   default = null;
                   example = "proton_experimental";
-                  description = "Compatibility tool to use, referenced by display name";
+                  description = "Compatibility tool to use for this app";
                 };
               })
             ];
@@ -244,6 +244,16 @@ in
 
     closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
 
+    defaultCompatTool = lib.mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "proton_experimental";
+      description = ''
+        Default compatibility tool to use for Steam Play
+        This option sets the default compatibility tool in Steam, but does not set the nix module defaults
+      '';
+    };
+
     apps = mkSteamAppsOption {
       launchOptions = true;
       compatTool = true;
@@ -295,41 +305,46 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    programs.steam.config.finalConfig = {
-      "KeyValues" = lib.mkMerge [
-        (
-          let
-            compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
-          in
-          lib.mkIf (compatToolConfigs != { }) {
-            "${cfg.steamDir}/config/config.vdf" = {
-              InstallConfigStore.Software.Valve.Steam = {
-                CompatToolMapping = lib.mapAttrs (_: app: {
-                  name = app.compatTool;
-                  config = "";
-                  priority = if (app.id == 0) then "75" else "250";
-                }) compatToolConfigs;
-              };
-            };
-          }
-        )
+    programs.steam.config = {
+      apps."0".compatTool = cfg.defaultCompatTool;
 
-        (lib.mapAttrs' (_: user: {
-          name =
+      finalConfig = {
+        "KeyValues" = lib.mkMerge [
+          (
             let
-              userDir = lib.replaceString "shared" "*" (toString user.id);
+              compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
             in
-            "${cfg.steamDir}/userdata/${userDir}/config/localconfig.vdf";
-          value = {
-            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
-              name = toString app.id;
-              value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
-            }) user.apps;
-          };
-        }) usersAppsConfig)
-      ];
+            lib.mkIf (compatToolConfigs != { }) {
+              "${cfg.steamDir}/config/config.vdf" = {
+                InstallConfigStore.Software.Valve.Steam = {
+                  CompatToolMapping = lib.mapAttrs (_: app: {
+                    name = app.compatTool;
+                    config = "";
+                    # app ID 0 represents the default compatibility tool for all games, which should have a priority of 75
+                    priority = if (app.id == 0) then "75" else "250";
+                  }) compatToolConfigs;
+                };
+              };
+            }
+          )
 
-      # "Binary KeyValues" = { };
+          (lib.mapAttrs' (_: user: {
+            name =
+              let
+                userDir = lib.replaceString "shared" "*" (toString user.id);
+              in
+              "${cfg.steamDir}/userdata/${userDir}/config/localconfig.vdf";
+            value = {
+              UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
+                name = toString app.id;
+                value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
+              }) user.apps;
+            };
+          }) usersAppsConfig)
+        ];
+
+        # "Binary KeyValues" = { };
+      };
     };
 
     home.file = lib.listToAttrs (
