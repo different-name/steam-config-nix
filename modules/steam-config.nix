@@ -317,11 +317,14 @@ in
             lib.mkIf (compatToolConfigs != { }) {
               "${cfg.steamDir}/config/config.vdf" = {
                 InstallConfigStore.Software.Valve.Steam = {
-                  CompatToolMapping = lib.mapAttrs (_: app: {
-                    name = app.compatTool;
-                    config = "";
-                    # app ID 0 represents the default compatibility tool for all games, which should have a priority of 75
-                    priority = if (app.id == 0) then "75" else "250";
+                  CompatToolMapping = lib.mapAttrs' (_: app: {
+                    name = toString app.id;
+                    value = {
+                      name = app.compatTool;
+                      config = "";
+                      # app ID 0 represents the default compatibility tool for all games, which should have a priority of 75
+                      priority = if (app.id == 0) then "75" else "250";
+                    };
                   }) compatToolConfigs;
                 };
               };
