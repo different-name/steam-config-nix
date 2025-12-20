@@ -8,7 +8,7 @@ dependencies = [
     "pydantic",
     "psutil",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "GPL-3.0" }
 
 [project.scripts]
