@@ -5,8 +5,8 @@ description = "Patch Steam vdf files using JSON input"
 authors = [{ name = "different-name", email = "hello@different-name.dev" }]
 dependencies = [
     "srctools",
+    "pydantic",
     "psutil",
-    "deepmerge",
 ]
 requires-python = ">=3.9"
 license = { text = "GPL-3.0" }

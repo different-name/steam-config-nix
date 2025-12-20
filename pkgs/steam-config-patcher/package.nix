@@ -4,7 +4,7 @@
   setuptools,
   srctools,
   psutil,
-  deepmerge,
+  pydantic,
   ...
 }:
 buildPythonApplication {
@@ -25,7 +25,7 @@ buildPythonApplication {
   propagatedBuildInputs = [
     srctools
     psutil
-    deepmerge
+    pydantic
   ];
 
   meta = {
