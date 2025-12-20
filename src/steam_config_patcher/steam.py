@@ -1,4 +1,6 @@
 from pathlib import Path
+import time
+
 import psutil
 
 
@@ -18,6 +20,7 @@ def steam_is_closed(close_if_running=False) -> bool:
             if close_if_running:
                 proc.terminate()
                 proc.wait(timeout=30)
+                time.sleep(2)
                 closed = True
 
     return closed
