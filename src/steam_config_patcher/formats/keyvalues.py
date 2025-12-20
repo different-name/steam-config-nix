@@ -55,9 +55,14 @@ def patch_keyvalues(config_patch: ConfigPatch):
     with config_patch.file_path.open(encoding="utf-8") as read_file:
         kv = Keyvalues.parse(read_file, config_patch.file_path)
 
-    modified = False
-    for key_path, value in list(iterate_leaves(config_patch.data)):
-        modified = modified or overwrite_key(kv, key_path, value)
+    # update the kv object with the desired values, tracking if anything was modified
+    # if we need to write changes, steam will need to be closed beforehand
+    modified = any(
+        [
+            overwrite_key(kv, key_path, value)
+            for key_path, value in list(iterate_leaves(config_patch.data))
+        ]
+    )
 
     if modified and steam_is_closed(close_if_running=config_patch.close_steam):
         with AtomicWriter(config_patch.file_path, encoding="utf-8") as write_file:
