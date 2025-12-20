@@ -18,9 +18,6 @@ let
 
   dataDir = "${config.xdg.dataHome}/steam-config-nix";
 
-  makeWrapperPath =
-    userId: appId: "${dataDir}/users/${toString userId}/app-wrappers/${toString appId}";
-
   # get a SteamID3 from a SteamID64
   # https://gist.github.com/bcahue/4eae86ae1d10364bb66d
   toSteamId3 =
@@ -55,9 +52,6 @@ let
       ${launchOptionsSet.extraConfig}
       exec env ${prefix} "$@" ${suffix}
     '';
-
-  getSteamUserDir =
-    userId: "${cfg.steamDir}/userdata/${lib.replaceString "shared" "*" (toString userId)}";
 
   launchOptionsSubmodule = types.submodule {
     options = {
@@ -122,58 +116,60 @@ let
   };
 
   mkSteamAppsOption =
+    userId:
     {
-      launchOptions ? false,
-      compatTool ? false,
+      supportCompatTool ? false,
     }:
     lib.mkOption {
       type = types.attrsOf (
         types.submodule (
           { config, name, ... }:
           {
-            options = lib.mergeAttrsList [
-              {
-                id = lib.mkOption {
-                  type = types.int;
-                  default = lib.strings.toIntBase10 name;
-                  example = 438100;
-                  description = ''
-                    The ID for this app.
-                    App IDs can be found through https://steamdb.info/ or through the game's store page URL.
-                  '';
-                };
-              }
+            options = {
+              id = lib.mkOption {
+                type = types.int;
+                default = lib.strings.toIntBase10 name;
+                example = 438100;
+                description = ''
+                  The ID for this app.
+                  App IDs can be found through https://steamdb.info/ or through the game's store page URL.
+                '';
+              };
 
-              (lib.optionalAttrs launchOptions {
-                launchOptions = lib.mkOption {
-                  type =
-                    with types;
-                    nullOr (oneOf [
-                      package
-                      launchOptionsSubmodule
-                      (coercedTo singleLineStr (writeLaunchOptionsStrBin config.id) package)
-                    ]);
-                  default = null;
-                  example = "-vulkan";
-                  description = "Game launch options";
-                  apply =
-                    value:
-                    if (lib.isDerivation value) || value == null then
-                      value
-                    else
-                      writeLaunchOptionsSetBin config.id value;
-                };
-              })
+              launchOptions = lib.mkOption {
+                type =
+                  with types;
+                  nullOr (oneOf [
+                    package
+                    launchOptionsSubmodule
+                    (coercedTo singleLineStr (writeLaunchOptionsStrBin config.id) package)
+                  ]);
+                default = null;
+                example = "-vulkan";
+                description = "Game launch options";
+                apply =
+                  value:
+                  if (lib.isDerivation value) || value == null then
+                    value
+                  else
+                    writeLaunchOptionsSetBin config.id value;
+              };
 
-              (lib.optionalAttrs compatTool {
-                compatTool = lib.mkOption {
-                  type = types.nullOr types.str;
-                  default = null;
-                  example = "proton_experimental";
-                  description = "Compatibility tool to use for this app";
-                };
-              })
-            ];
+              wrapperPath = lib.mkOption {
+                type = types.nullOr types.path;
+                default = "${dataDir}/users/${toString userId}/app-wrappers/${toString config.id}";
+                example = "/home/diffy/1361210-wrapper";
+                description = "A stable path outside of the nix store to link the app wrapper script";
+              };
+            }
+            // (lib.optionalAttrs supportCompatTool {
+              compatTool = lib.mkOption {
+                type = types.nullOr types.str;
+                default = null;
+                example = "proton_experimental";
+                description = "Compatibility tool to use for this app";
+              };
+            });
           }
         )
       );
@@ -209,15 +205,6 @@ let
         + lib.concatMapAttrsStringSep "\n" mkMsg duplicates;
       }
     );
-
-  usersAppsConfig = cfg.users // {
-    shared = {
-      id = "shared";
-      apps = lib.mapAttrs (_: app: {
-        inherit (app) id launchOptions;
-      }) cfg.apps;
-    };
-  };
 in
 {
   imports = [
@@ -261,10 +248,7 @@ in
       '';
     };
 
-    apps = mkSteamAppsOption {
-      launchOptions = true;
-      compatTool = true;
-    };
+    apps = mkSteamAppsOption "shared" { supportCompatTool = true; };
 
     users = lib.mkOption {
       type = types.attrsOf (
@@ -287,7 +271,7 @@ in
                 '';
               };
 
-              apps = mkSteamAppsOption { launchOptions = true; };
+              apps = mkSteamAppsOption config.id { };
             };
 
             config.assertions = [
@@ -306,68 +290,31 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    programs.steam.config = {
-      apps."0".compatTool = cfg.defaultCompatTool;
-    };
-
-    home.file = lib.listToAttrs (
-      lib.flatten (
-        lib.mapAttrsToList (
-          _: user:
-          lib.mapAttrsToList (_: app: {
-            name = makeWrapperPath user.id app.id;
-            value.source = lib.getExe app.launchOptions;
-          }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
-        ) usersAppsConfig
-      )
-    );
-
-    home.activation.steam-config-patcher =
+    home.file =
       let
-        compatToolConfigs = lib.filterAttrs (_: app: app.compatTool != null) cfg.apps;
-
-        config-vdfData = {
-          "${cfg.steamDir}/config/config.vdf" = {
-            InstallConfigStore.Software.Valve.Steam = {
-              CompatToolMapping = lib.mapAttrs' (_: app: {
-                name = toString app.id;
-                value = {
-                  name = app.compatTool;
-                  config = "";
-                  # app ID 0 represents the default compatibility tool for all games, which should have a priority of 75
-                  priority = if (app.id == 0) then "75" else "250";
-                };
-              }) compatToolConfigs;
-            };
+        userAppConfigs = cfg.users // {
+          shared = {
+            id = "shared";
+            apps = lib.mapAttrs (_: app: {
+              inherit (app) id launchOptions wrapperPath;
+            }) cfg.apps;
           };
-        };
-
-        localconfig-vdfData = lib.mapAttrs' (_: user: {
-          name = "${getSteamUserDir user.id}/config/localconfig.vdf";
-          value = {
-            UserLocalConfigStore.Software.Valve.Steam.Apps = lib.mapAttrs' (_: app: {
-              name = toString app.id;
-              value.LaunchOptions = "${makeWrapperPath user.id app.id} %command%";
-            }) user.apps;
-          };
-        }) usersAppsConfig;
-
-        configUpdates = {
-          KeyValues = lib.mergeAttrsList [
-            config-vdfData
-            localconfig-vdfData
-          ];
-
-          # "Binary KeyValues" = { };
-        };
-
-        patcherArgs = lib.cli.toGNUCommandLineShell { } {
-          json = builtins.toJSON configUpdates;
-          close-steam = cfg.closeSteam;
         };
       in
-      lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        run ${lib.getExe cfg.package} ${patcherArgs}
-      '';
+      lib.listToAttrs (
+        lib.flatten (
+          lib.mapAttrsToList (
+            _: user:
+            lib.mapAttrsToList (_: app: {
+              name = app.wrapperPath;
+              value.source = lib.getExe app.launchOptions;
+            }) (lib.filterAttrs (_: app: app.launchOptions != null) user.apps)
+          ) userAppConfigs
+        )
+      );
+
+    home.activation.steam-config-patcher = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      run ${lib.getExe cfg.package} ${lib.escapeShellArg (builtins.toJSON cfg)}
+    '';
   };
 }
