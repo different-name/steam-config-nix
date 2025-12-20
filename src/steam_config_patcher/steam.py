@@ -19,7 +19,10 @@ def steam_is_closed(close_if_running=False) -> bool:
             closed = False
             if close_if_running:
                 proc.terminate()
-                proc.wait(timeout=30)
+                try:
+                    proc.wait(timeout=30)
+                except psutil.TimeoutExpired:
+                    proc.kill()
                 time.sleep(2)
                 closed = True
 
