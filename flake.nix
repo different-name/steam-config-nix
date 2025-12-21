@@ -3,33 +3,32 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+
     systems.url = "github:nix-systems/default";
   };
 
   outputs =
     inputs:
-    let
-      inherit (inputs.nixpkgs) lib;
-      eachSystem = lib.genAttrs (import inputs.systems);
-    in
-    {
-      packages = eachSystem (
-        system:
-        let
-          pkgs = inputs.nixpkgs.legacyPackages.${system};
-        in
-        {
-          steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
-        }
-      );
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = import inputs.systems;
 
-      homeModules.default =
+      perSystem =
+        { self', pkgs, ... }:
         {
-          config,
-          lib,
-          pkgs,
-          ...
-        }@args:
-        import ./modules/steam-config.nix (args // { inherit inputs; });
+          packages = {
+            default = self'.packages.steam-config-patcher;
+            steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
+          };
+        };
+
+      flake.homeModules = {
+        default = inputs.self.homeModules.steam-config-nix;
+        steam-config-nix = import ./modules/steam-config.nix inputs.self;
+      };
     };
 }
