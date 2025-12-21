@@ -1,6 +1,6 @@
 [project]
 name = "steam-config-patcher"
-version = "0.1.0"
+version = "0.2.0"
 description = "Patch Steam vdf files using JSON input"
 authors = [{ name = "different-name", email = "hello@different-name.dev" }]
 dependencies = [
