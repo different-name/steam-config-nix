@@ -129,10 +129,14 @@ let
               id = lib.mkOption {
                 type = types.int;
                 default = lib.strings.toIntBase10 name;
+                defaultText = lib.literalExpression "lib.strings.toIntBase10 <name>";
                 example = 438100;
                 description = ''
-                  The ID for this app.
-                  App IDs can be found through https://steamdb.info/ or through the game's store page URL.
+                  The Steam App ID.
+
+                  App IDs can be found through the game's store page URL.
+
+                  If an ID is not provided, the app's `<name>` will be used.
                 '';
               };
 
@@ -145,8 +149,69 @@ let
                     (coercedTo singleLineStr (writeLaunchOptionsStrBin config.id) package)
                   ]);
                 default = null;
-                example = "-vulkan";
-                description = "Game launch options";
+                description = ''
+                  The Launch options to use.
+
+                  Launch options can be provided as:
+
+                  **`singleLineStr`**
+
+                  ```nix
+                  '''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command% --use-d3d11'''
+                  ```
+
+                  **`package`**
+
+                  ```nix
+                  pkgs.writeShellScriptBin "vrchat-wrapper" '''
+                    export PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc"
+                    unset TZ
+
+                    if [[ "$*" == *"-force-vulkan"* ]]; then
+                      export PROTON_ENABLE_WAYLAND=1
+                    fi
+
+                    exec ''${lib.getExe pkgs.gamemode} "${"''\${args[@]}"}" --use-d3d11
+                  ''';
+                  ```
+
+                  **`launchOptionsSubmodule`**
+
+                  ```nix
+                  {
+                    # Environment variables
+                    env = {
+                      PROTON_USE_NTSYNC = true;
+                      TZ = null; # This unsets the variable
+                    };
+
+                    # Arguments for the game's executable (%command% <...>)
+                    args = [
+                      "-force-vulkan"
+                    ];
+
+                    # Programs to wrap the game with (<...> %command%)
+                    wrappers = [
+                      (lib.getExe pkgs.gamemode)
+                      "mangohud"
+                    ];
+
+                    # Extra bash code to run before executing the game
+                    extraConfig = '''
+                      if [[ "$*" == *"-force-vulkan"* ]]; then
+                        export PROTON_ENABLE_WAYLAND=1
+                      fi
+                    ''';
+                  };
+                  ```'';
+                example = lib.literalExpression ''
+                  {
+                    env.WINEDLLOVERRIDES = "winmm,version=n,b";
+                    args = [
+                      "--launcher-skip"
+                      "-skipStartScreen"
+                    ];
+                  };'';
                 apply =
                   value:
                   if (lib.isDerivation value) || value == null then
@@ -157,9 +222,14 @@ let
 
               wrapperPath = lib.mkOption {
                 type = types.nullOr types.path;
-                default = "${dataDir}/users/${toString userId}/app-wrappers/${toString config.id}";
+                default =
+                  if config.launchOptions != null then
+                    "${dataDir}/users/${toString userId}/app-wrappers/${toString config.id}"
+                  else
+                    null;
+                defaultText = lib.literalExpression "\${config.xdg.dataHome}/steam-config-nix/users/<user-id>/app-wrappers/<app-id>";
                 example = "/home/diffy/1361210-wrapper";
-                description = "A stable path outside of the nix store to link the app wrapper script";
+                description = "A stable path outside of the nix store to link the app wrapper script.";
               };
             }
             // (lib.optionalAttrs supportCompatTool {
@@ -167,7 +237,7 @@ let
                 type = types.nullOr types.str;
                 default = null;
                 example = "proton_experimental";
-                description = "Compatibility tool to use for this app";
+                description = "Compatibility tool to use.";
               };
             });
           }
@@ -175,10 +245,18 @@ let
       );
 
       default = { };
-      description = ''
-        Configuration for a Steam app.
-        App IDs can be found through https://steamdb.info/ or through the game's store page URL.
-      '';
+      example = lib.literalExpression ''
+        {
+          # App IDs can be provided through the `id` property
+          spin-rhythm = {
+            id = 1058830;
+            launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
+          };
+
+          # Or be provided through the `<name>`
+          "620".launchOptions = "-vulkan";
+        };'';
+      description = "Configuration per Steam app.";
     };
 
   # from home-manager's firefox module
@@ -222,10 +300,10 @@ in
   ];
 
   options.programs.steam.config = {
-    enable = lib.mkEnableOption "Steam user config store management";
+    enable = lib.mkEnableOption "declarative Steam configuration";
 
     package = lib.mkOption {
-      default = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.steam-config-patcher;
+      default = self.packages.${pkgs.stdenv.hostPlatform.system}.steam-config-patcher;
       description = "The steam-config-patcher package to use.";
       type = types.package;
     };
@@ -233,18 +311,21 @@ in
     steamDir = lib.mkOption {
       type = types.path;
       default = "${config.home.homeDirectory}/.steam/steam";
+      defaultText = lib.literalExpression "\${config.home.homeDirectory}/.steam/steam";
       description = "Path to the Steam directory.";
+      example = "/home/diffy/.local/share/Steam";
     };
 
-    closeSteam = lib.mkEnableOption "automatic closing of Steam when writing configuration changes";
+    closeSteam = lib.mkEnableOption "automatic Steam shutdown before writing configuration changes";
 
     defaultCompatTool = lib.mkOption {
       type = types.nullOr types.str;
       default = null;
       example = "proton_experimental";
       description = ''
-        Default compatibility tool to use for Steam Play
-        This option sets the default compatibility tool in Steam, but does not set the nix module defaults
+        Default compatibility tool to use for Steam Play.
+
+        This option sets the default compatibility tool in Steam, but does not set the nix module defaults.
       '';
     };
 
@@ -263,11 +344,13 @@ in
               id = lib.mkOption {
                 type = types.int;
                 default = lib.strings.toIntBase10 name;
+                defaultText = lib.literalExpression "lib.strings.toIntBase10 <name>";
                 apply = toSteamId3;
                 example = 98765432123456789;
                 description = ''
-                  The ID for this user in SteamID64 or SteamID3 format.
-                  You can find your SteamID64 through https://steamid.io/lookup
+                  The Steam User ID in SteamID64 or SteamID3 format.
+
+                  User IDs can be found through through [https://steamid.io/lookup](https://steamid.io/lookup).
                 '';
               };
 
@@ -281,11 +364,19 @@ in
         )
       );
       default = { };
-      description = ''
-        Per user configuration for a Steam app.
-        User IDs are in SteamID64 or SteamID3 format, for example 98765432123456789
-        You can find your SteamID64 through https://steamid.io/lookup
-      '';
+      description = "Configuration per Steam User.";
+      example = {
+        # User IDs can be provided through the `id` property
+        diffy = {
+          id = 98765432123456789;
+          apps."620".launchOptions = "-vulkan";
+        };
+
+        # Or be provided through the `<name>`
+        "12345678987654321" = {
+          apps."620".launchOptions = "--launcher-skip";
+        };
+      };
     };
   };
 
