@@ -23,6 +23,7 @@
           packages = {
             default = self'.packages.steam-config-patcher;
             steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
+            docs = pkgs.callPackage (import ./pkgs/docs/package.nix inputs.self) { };
           };
         };
 
