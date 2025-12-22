@@ -9,7 +9,7 @@
 }:
 buildPythonApplication {
   pname = "steam-config-patcher";
-  version = "0.2.0";
+  version = "0.2.1";
 
   src = builtins.path {
     path = ../../src;
