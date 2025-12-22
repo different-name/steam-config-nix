@@ -32,7 +32,7 @@ class UserSchema(BaseModel):
 class InputSchema(BaseModel):
     closeSteam: bool
     steamDir: str
-    defaultCompatTool: str
+    defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
     users: dict[str, UserSchema]
 
@@ -60,12 +60,14 @@ def parse_input() -> PatcherConfig:
     return PatcherConfig(
         close_steam=validated_input.closeSteam,
         steam_dir=steam_dir,
-        default_compat_tool=validated_input.defaultCompatTool,
         compat_tool_mapping={
             app.id: CompatToolConfig(
                 name=app.compatTool, priority=250 if app.id != 0 else 75
             )
-            for app in validated_input.apps.values()
+            for app in [
+                *validated_input.apps.values(),
+                AppSchema(id=0, compatTool=validated_input.defaultCompatTool),
+            ]
             if app.compatTool
         },
         users={

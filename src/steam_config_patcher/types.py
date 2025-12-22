@@ -18,7 +18,6 @@ class CompatToolConfig:
 class PatcherConfig:
     close_steam: bool
     steam_dir: Path
-    default_compat_tool: str
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]
 
