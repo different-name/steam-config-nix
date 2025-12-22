@@ -1,10 +1,10 @@
 import argparse
 from itertools import chain
 import logging
-from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel, Field
+from srctools import steam
 
 from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_user_ids
@@ -31,7 +31,6 @@ class UserSchema(BaseModel):
 
 class InputSchema(BaseModel):
     closeSteam: bool
-    steamDir: str
     defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
     users: dict[str, UserSchema]
@@ -53,9 +52,7 @@ def parse_input() -> PatcherConfig:
 
     validated_input = InputSchema.model_validate_json(args.cfg_json)
 
-    steam_dir = Path(validated_input.steamDir)
-    if not steam_dir.is_dir():
-        raise FileNotFoundError(f"Steam dir not found or not a directory: {steam_dir}")
+    steam_dir = steam.get_steam_install_path()
 
     return PatcherConfig(
         close_steam=validated_input.closeSteam,
