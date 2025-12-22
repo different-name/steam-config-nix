@@ -1,6 +1,6 @@
 # steam-config-nix
 
-Manage Steam launch options and compatibility tools declaratively through [Home Manager](https://github.com/nix-community/home-manager)
+Manage Steam launch options, compat tools and other local config declaratively through your nix config
 
 > [!WARNING]
 > This flake is in early development and may be unstable
@@ -23,9 +23,17 @@ steam-config-nix = {
 };
 ```
 
-Then import the [Home Manager](https://github.com/nix-community/home-manager) module
+`steam-config-nix` provides both NixOS and [Home Manager](https://github.com/nix-community/home-manager) modules, so pick one depending on your preference
 
 ```nix
+# NixOS
+imports = [
+  inputs.steam-config-nix.nixosModules.default
+];
+```
+
+```nix
+# Home Manager
 imports = [
   inputs.steam-config-nix.homeModules.default
 ];

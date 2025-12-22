@@ -1,5 +1,5 @@
 {
-  description = "Manage Steam launch options and other local config declaratively through Home Manager";
+  description = "Manage Steam launch options, compat tools and other local config declaratively through your nix config";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
@@ -27,9 +27,16 @@
           };
         };
 
-      flake.homeModules = {
-        default = inputs.self.homeModules.steam-config-nix;
-        steam-config-nix = import ./modules/steam-config.nix inputs.self;
+      flake = {
+        nixosModules = {
+          default = inputs.self.nixosModules.steam-config-nix;
+          steam-config-nix = import ./modules/nixos.nix inputs.self;
+        };
+
+        homeModules = {
+          default = inputs.self.homeModules.steam-config-nix;
+          steam-config-nix = import ./modules/home-manager.nix inputs.self;
+        };
       };
     };
 }
