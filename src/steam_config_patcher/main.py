@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_user_ids
-from steam_config_patcher.types import CompatToolConfig, PatcherConfig, UserConfig
+from steam_config_patcher.types import CompatToolConfig, PatcherConfig, UserConfig, SteamConfig
 
 
 class AppSchema(BaseModel):
@@ -29,9 +29,25 @@ class UserSchema(BaseModel):
     apps: dict[str, UserAppSchema] = Field(default_factory=dict)
 
 
+class RestartSchema(BaseModel):
+    enable: bool
+    additionalArgs: list[str]
+    executable: str
+    launchPrefix: list[str]
+
+
+class AutoCloseSchema(BaseModel):
+    enable: bool
+    restart: RestartSchema
+
+
+class SteamSchema(BaseModel):
+    dir: str
+    autoClose: AutoCloseSchema
+
+
 class InputSchema(BaseModel):
-    closeSteam: bool
-    steamDir: str
+    steam: SteamSchema
     defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
     users: dict[str, UserSchema]
@@ -53,13 +69,19 @@ def parse_input() -> PatcherConfig:
 
     validated_input = InputSchema.model_validate_json(args.cfg_json)
 
-    steam_dir = Path(validated_input.steamDir)
+    steam_dir = Path(validated_input.steam.dir)
     if not steam_dir.is_dir():
         raise FileNotFoundError(f"Steam dir not found or not a directory: {steam_dir}")
 
     return PatcherConfig(
-        close_steam=validated_input.closeSteam,
-        steam_dir=steam_dir,
+        steam_config = SteamConfig(
+            dir = steam_dir,
+            auto_close = validated_input.steam.autoClose.enable,
+            auto_restart = validated_input.steam.autoClose.restart.enable,
+            restart_args = validated_input.steam.autoClose.restart.additionalArgs,
+            restart_exe = validated_input.steam.autoClose.restart.executable,
+            launch_prefix = validated_input.steam.autoClose.restart.launchPrefix
+        ),
         compat_tool_mapping={
             app.id: CompatToolConfig(
                 name=app.compatTool, priority=250 if app.id != 0 else 75

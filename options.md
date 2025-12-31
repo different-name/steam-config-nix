@@ -230,29 +230,6 @@ null or absolute path
 
 
 
-## programs\.steam\.config\.closeSteam
-
-
-
-Whether to enable automatic Steam shutdown before writing configuration changes\.
-
-
-
-*Type:*
-boolean
-
-
-
-*Default:*
-` false `
-
-
-
-*Example:*
-` true `
-
-
-
 ## programs\.steam\.config\.defaultCompatTool
 
 
@@ -278,7 +255,132 @@ null or string
 
 
 
-## programs\.steam\.config\.steamDir
+## programs\.steam\.config\.steam\.autoClose\.enable
+
+
+
+Whether to enable automatic Steam shutdown before writing configuration changes\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+*Example:*
+` true `
+
+
+
+## programs\.steam\.config\.steam\.autoClose\.restart\.enable
+
+
+
+Whether to enable Steam will be restarted after writing changes to configuration\.
+
+Will by default restart Steam with the same arguments, environment and working directory as the process that was closed\.
+
+This will not be able to (by default) restart Steam in e\.g\. a Gamescope session in a different TTY\.
+\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+*Example:*
+` true `
+
+
+
+## programs\.steam\.config\.steam\.autoClose\.restart\.additionalArgs
+
+
+
+Additional arguments to be passed when restarting Steam\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+` [ ] `
+
+
+
+*Example:*
+
+```
+[
+  "-silent"
+]
+```
+
+
+
+## programs\.steam\.config\.steam\.autoClose\.restart\.executable
+
+
+
+Path to the steam executable\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` lib.getExe <osConfig/config>.programs.steam.package `
+
+
+
+*Example:*
+` "/usr/games/steam" `
+
+
+
+## programs\.steam\.config\.steam\.autoClose\.restart\.launchPrefix
+
+
+
+Arguments that will be passed before the executable\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+` [ (lib.getExe' pkgs.systemd "systemd-run") "--scope" "--user" ] `
+
+
+
+*Example:*
+` [ (lib.getExe' pkgs.systemd "systemd-run") "--scope" "--user" ] `
+
+
+
+## programs\.steam\.config\.steam\.dir
 
 
 

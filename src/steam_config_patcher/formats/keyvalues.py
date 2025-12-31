@@ -64,6 +64,10 @@ def patch_keyvalues(config_patch: ConfigPatch):
         ]
     )
 
-    if modified and steam_is_closed(close_if_running=config_patch.close_steam):
-        with AtomicWriter(config_patch.file_path, encoding="utf-8") as write_file:
-            kv.serialise(write_file)
+    if modified:
+        is_closed, restart_steam = steam_is_closed(close_if_running=config_patch.steam_config.auto_close)
+        if is_closed:
+            with AtomicWriter(config_patch.file_path, encoding="utf-8") as write_file:
+                kv.serialise(write_file)
+            if config_patch.steam_config.auto_restart:
+                restart_steam(config_patch.steam_config)
