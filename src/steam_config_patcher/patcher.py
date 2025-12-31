@@ -4,7 +4,7 @@ from steam_config_patcher.types import ConfigPatch, PatcherConfig, UserConfig
 
 def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
     return ConfigPatch(
-        file_path=cfg.steam_dir.joinpath("config", "config.vdf"),
+        file_path=cfg.steam_config.dir.joinpath("config", "config.vdf"),
         file_format="keyvalues",
         data={
             "InstallConfigStore": {
@@ -24,7 +24,7 @@ def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
                 }
             }
         },
-        close_steam=cfg.close_steam,
+        steam_config=cfg.steam_config,
     )
 
 
@@ -32,7 +32,7 @@ def generate_localconfig_vdf_patch(
     cfg: PatcherConfig, user_id: int, user_config: UserConfig
 ) -> ConfigPatch:
     return ConfigPatch(
-        file_path=cfg.steam_dir.joinpath(
+        file_path=cfg.steam_config.dir.joinpath(
             "userdata", str(user_id), "config", "localconfig.vdf"
         ),
         file_format="keyvalues",
@@ -50,7 +50,7 @@ def generate_localconfig_vdf_patch(
                 }
             }
         },
-        close_steam=cfg.close_steam,
+        steam_config=cfg.steam_config,
     )
 
 

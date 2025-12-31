@@ -4,7 +4,7 @@ self:
   config,
   pkgs,
   ...
-}:
+}@inputs:
 let
   inherit (lib) types;
   nestedAttrsOfStrings = types.lazyAttrsOf (types.either types.str nestedAttrsOfStrings);
@@ -308,15 +308,53 @@ in
       type = types.package;
     };
 
-    steamDir = lib.mkOption {
-      type = types.path;
-      default = "${config.home.homeDirectory}/.steam/steam";
-      defaultText = lib.literalExpression "\${config.home.homeDirectory}/.steam/steam";
-      description = "Path to the Steam directory.";
-      example = "/home/diffy/.local/share/Steam";
-    };
+    steam = {
 
-    closeSteam = lib.mkEnableOption "automatic Steam shutdown before writing configuration changes";
+      dir = lib.mkOption {
+        type = types.path;
+        default = "${config.home.homeDirectory}/.steam/steam";
+        defaultText = lib.literalExpression "\${config.home.homeDirectory}/.steam/steam";
+        description = "Path to the Steam directory.";
+        example = "/home/diffy/.local/share/Steam";
+      };
+
+      autoClose = {
+        enable = lib.mkEnableOption "automatic Steam shutdown before writing configuration changes";
+		restart = {
+          enable = lib.mkEnableOption ''
+            Steam will be restarted after writing changes to configuration.
+
+            Will by default restart Steam with the same arguments, environment and working directory as the process that was closed.
+
+            This will not be able to (by default) restart Steam in e.g. a Gamescope session in a different TTY.
+          '';
+          # It would be nice if we could find some way to stop arguments from being duplicated when Steam gets restarted with this method multiple times.
+          additionalArgs = lib.mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            example = [ "-silent" ];
+            description = "Additional arguments to be passed when restarting Steam.";
+          };
+          launchPrefix = lib.mkOption {
+            type = types.listOf types.str;
+            # In order for the Steam process to launch properly when the python script is started via a systemd service (like e.g. when using home.activation to run it).
+            default = [ (lib.getExe' pkgs.systemd "systemd-run") "--scope" "--user" ];
+            defaultText = lib.literalExpression ''[ (lib.getExe' pkgs.systemd "systemd-run") "--scope" "--user" ]'';
+            example = lib.literalExpression ''[ (lib.getExe' pkgs.systemd "systemd-run") "--scope" "--user" ]'';
+			description = "Arguments that will be passed before the executable.";
+          };
+          executable = lib.mkOption {
+            type = types.str;
+            # We probably want to use the "system" package of Steam as options like "programs.steam.extraCompatPackages" seem to affect "programs.steam.package" directly.
+            default = let steamPkg = if (builtins.hasAttr "osConfig" inputs) then inputs.osConfig.programs.steam.package else inputs.config.programs.steam.package; in lib.getExe steamPkg;
+            defaultText = lib.literalExpression "lib.getExe <osConfig/config>.programs.steam.package";
+            example = "/usr/games/steam";
+            description = "Path to the steam executable.";
+          };
+        };
+      };
+
+    };
 
     defaultCompatTool = lib.mkOption {
       type = types.nullOr types.str;

@@ -8,7 +8,7 @@ Manage Steam launch options and compatibility tools declaratively through [Home 
 > Please report bugs or request features via the [issues tab](https://github.com/different-name/steam-launch.nix/issues)
 
 > [!IMPORTANT]  
-> **Steam must be closed** when writing to the Steam config files, either close Steam manually before activating your configuration, or enable `programs.steam.config.closeSteam` to close Steam on activation
+> **Steam must be closed** when writing to the Steam config files, either close Steam manually before activating your configuration, or enable `programs.steam.config.steam.autoClose.enable` to close Steam on activation
 >
 > With this option, Steam will not be closed unless a new game is configured or a compatibility tool is changed
 
@@ -40,7 +40,7 @@ See [options.md](options.md) for all available options
 ```nix
 programs.steam.config = {
   enable = true;
-  closeSteam = true;
+  steam.autoClose.enable = true;
   defaultCompatTool = "GE-Proton";
 
   apps = {
