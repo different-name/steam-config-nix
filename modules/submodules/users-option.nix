@@ -2,7 +2,7 @@
   dataDir,
   rootOptionPath ? [ ],
 }:
-{ lib, ... }:
+{ lib, pkgs, ... }:
 let
   inherit (lib) types;
   inherit (import ../lib.nix lib) toSteamId3;
@@ -38,6 +38,8 @@ in
                 '';
               };
             };
+
+            config._module.args = { inherit pkgs; };
           }
         )
       );
