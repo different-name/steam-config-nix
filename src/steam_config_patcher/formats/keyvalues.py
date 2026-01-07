@@ -5,6 +5,8 @@ from srctools import AtomicWriter, Keyvalues
 from steam_config_patcher.steam import steam_is_closed
 from steam_config_patcher.types import ConfigPatch, NestedStrDict
 
+from typing import Optional, Callable
+
 KeyPath = tuple[*tuple[str, ...], str]
 
 
@@ -48,7 +50,7 @@ def overwrite_key(kv: Keyvalues, key_path: KeyPath, value: str) -> bool:
     return modified
 
 
-def patch_keyvalues(config_patch: ConfigPatch):
+def patch_keyvalues(config_patch: ConfigPatch) -> Optional[Callable]:
     if not config_patch.file_path.is_file():
         return
 
@@ -63,7 +65,14 @@ def patch_keyvalues(config_patch: ConfigPatch):
             for key_path, value in list(iterate_leaves(config_patch.data))
         ]
     )
+ 
+    if modified:
+        is_closed, restart_steam = steam_is_closed(close_if_running=(config_patch.shutdown_behavior != None))
 
-    if modified and steam_is_closed(close_if_running=config_patch.close_steam):
-        with AtomicWriter(config_patch.file_path, encoding="utf-8") as write_file:
-            kv.serialise(write_file)
+        if is_closed:
+            with AtomicWriter(config_patch.file_path, encoding="utf-8") as write_file:
+                kv.serialise(write_file)
+            if config_patch.shutdown_behavior != "close":
+                return restart_steam
+
+    return None

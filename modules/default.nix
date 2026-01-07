@@ -54,7 +54,7 @@ let
   };
 in
 {
-  imports = [ (import ./submodules/root-options.nix { inherit self dataDir; }) ];
+  imports = [ (import ./submodules/root-options.nix { inherit self dataDir format; }) ];
 
   config = lib.mkIf cfg.enable (
     lib.mkMerge [

@@ -1,7 +1,19 @@
-{ self, dataDir }:
-{ lib, pkgs, ... }:
+{
+  self,
+  dataDir,
+  format,
+}:
+{
+  lib,
+  pkgs,
+  config,
+  osConfig,
+  ...
+}:
 let
   inherit (lib) types;
+
+  cfg = config.programs.steam.config;
 
   rootOptionPath = [
     "programs"
@@ -30,7 +42,38 @@ in
       description = "The steam-config-patcher package to use.";
     };
 
-    closeSteam = lib.mkEnableOption "automatic Steam shutdown before writing configuration changes";
+    shutdownBehavior = lib.mkOption {
+      type = types.nullOr (
+        types.either (types.enum [
+          "close"
+          "restart"
+        ]) (types.listOf types.str)
+      );
+      default = null;
+    };
+
+    restartCmdline =
+      let
+        steamPkg =
+          if (format == "home-manager") then
+            osConfig.programs.steam.package
+          else
+            config.programs.steam.package;
+      in
+      lib.mkOption {
+        type = types.listOf types.str;
+        default = lib.optionals (cfg.shutdownBehavior == null) (
+          [
+            (lib.getExe' pkgs.systemd "systemd-run")
+            "--user"
+            "--scope"
+          ]
+          ++ (if (cfg.shutdownBehavior == "restart") then [ (lib.getExe steamPkg) ] else cfg.shutdownBehavior)
+        );
+        readOnly = true;
+        internal = true;
+        visible = false;
+      };
 
     defaultCompatTool = lib.mkOption {
       type = types.nullOr types.str;

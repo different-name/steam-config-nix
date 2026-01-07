@@ -30,7 +30,8 @@ class UserSchema(BaseModel):
 
 
 class InputSchema(BaseModel):
-    closeSteam: bool
+    shutdownBehavior: Optional[str | list[str]]
+    restartCmdline: list[str]
     defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
     users: dict[str, UserSchema]
@@ -55,7 +56,8 @@ def parse_input() -> PatcherConfig:
     steam_dir = steam.get_steam_install_path()
 
     return PatcherConfig(
-        close_steam=validated_input.closeSteam,
+        shutdown_behavior=validated_input.shutdownBehavior if type(validated_input.shutdownBehavior) != list else "restart",
+        restart_cmdline=validated_input.restartCmdline,
         steam_dir=steam_dir,
         compat_tool_mapping={
             app.id: CompatToolConfig(

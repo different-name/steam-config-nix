@@ -1,3 +1,5 @@
+from typing import Optional, Callable
+
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
 from steam_config_patcher.types import ConfigPatch, PatcherConfig, UserConfig
 
@@ -24,7 +26,7 @@ def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
                 }
             }
         },
-        close_steam=cfg.close_steam,
+        shutdown_behavior=cfg.shutdown_behavior,
     )
 
 
@@ -50,7 +52,7 @@ def generate_localconfig_vdf_patch(
                 }
             }
         },
-        close_steam=cfg.close_steam,
+        shutdown_behavior=cfg.shutdown_behavior,
     )
 
 
@@ -63,7 +65,14 @@ def patch_config_files(cfg: PatcherConfig):
         ],
     ]
 
+    restart_steam: Optional[Callable] = None
+
     for config_patch in config_patches:
         match config_patch.file_format:
             case "keyvalues":
-                patch_keyvalues(config_patch)
+                value = patch_keyvalues(config_patch)
+                if restart_steam == None:
+                    restart_steam = value
+
+    if restart_steam != None:
+        restart_steam(cfg.restart_cmdline)

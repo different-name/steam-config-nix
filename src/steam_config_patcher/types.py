@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, Union, Optional
 
 
 @dataclass
@@ -16,7 +16,8 @@ class CompatToolConfig:
 
 @dataclass
 class PatcherConfig:
-    close_steam: bool
+    shutdown_behavior: Optional[str]
+    restart_cmdline: list[str]
     steam_dir: Path
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]
@@ -30,4 +31,4 @@ class ConfigPatch:
     file_path: Path
     file_format: Literal["keyvalues"]
     data: NestedStrDict
-    close_steam: bool
+    shutdown_behavior: Optional[str]

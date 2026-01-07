@@ -3,6 +3,9 @@ import time
 
 import psutil
 
+from typing import Callable, Optional
+import subprocess
+
 
 def get_steam_user_ids(steam_dir: Path) -> list[int]:
     return [
@@ -11,11 +14,16 @@ def get_steam_user_ids(steam_dir: Path) -> list[int]:
         if p.is_dir() and p.name.isdigit() and p.name != "0"
     ]
 
+def steam_is_closed(close_if_running=False) -> tuple[bool, Callable]:
 
-def steam_is_closed(close_if_running=False) -> bool:
+    steam_cmdline: Optional[list[str]] = None
+
     closed = True
     for proc in psutil.process_iter(["name"]):
         if proc.name() == "steam":
+    
+            steam_cmdline = proc.cmdline()[2:] or []
+
             closed = False
             if close_if_running:
                 proc.terminate()
@@ -26,4 +34,10 @@ def steam_is_closed(close_if_running=False) -> bool:
                 time.sleep(2)
                 closed = True
 
-    return closed
+    def restart(restart_cmdline): 
+        if not closed or steam_cmdline == None:
+            return
+ 
+        subprocess.Popen(args=restart_cmdline+steam_cmdline)
+
+    return closed, restart
