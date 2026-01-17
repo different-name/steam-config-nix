@@ -7,11 +7,11 @@ let
   dataHome =
     assert builtins.isString format;
     if format == "nixos" then
-      "/etc"
+      "/var/lib"
     else if format == "home-manager" then
       config.xdg.dataHome
     else
-      builtins.throw "unexpected format, must be one of: nixos, home-manager";
+      throw "unexpected format, must be one of: nixos, home-manager";
 
   dataDir = "${dataHome}/steam-config-nix";
 
@@ -28,18 +28,16 @@ let
     // cfg.users
   );
 
-  launchOptionLinks = lib.listToAttrs (
+  launchOptionLinks = lib.concatMap (
+    user:
     lib.concatMap (
-      user:
-      lib.concatMap (
-        app:
-        lib.optional (app.launchOptions != null) {
-          name = lib.removePrefix "${dataHome}/" app.wrapperPath;
-          value.source = lib.getExe app.launchOptions;
-        }
-      ) (lib.attrValues user.apps)
-    ) finalUsersConfig
-  );
+      app:
+      lib.optional (app.launchOptions != null) {
+        target = lib.removePrefix "${dataHome}/" app.wrapperPath;
+        source = lib.getExe app.launchOptions;
+      }
+    ) (lib.attrValues user.apps)
+  ) finalUsersConfig;
 
   description = "Steam config patcher script";
   restartTriggers = [ cfgJson ];
@@ -59,7 +57,9 @@ in
   config = lib.mkIf cfg.enable (
     lib.mkMerge [
       (lib.optionalAttrs (format == "nixos") {
-        environment.etc = launchOptionLinks;
+        systemd.tmpfiles.rules = map (
+          { target, source }: "L+ /var/lib/${lib.escapeShellArg target} - - - - ${lib.escapeShellArg source}"
+        ) launchOptionLinks;
 
         # we use a system service instead of a user service due to https://github.com/NixOS/nixpkgs/issues/246611
         # nixos user services also don't restart on rebuild, requiring a user activation script
@@ -80,7 +80,15 @@ in
       })
 
       (lib.optionalAttrs (format == "home-manager") {
-        xdg.dataFile = launchOptionLinks;
+        xdg.dataFile = lib.listToAttrs (
+          map (
+            { target, source }:
+            {
+              name = lib.removePrefix dataHome target;
+              value = { inherit source; };
+            }
+          ) launchOptionLinks
+        );
 
         systemd.user.services."steam-config-patcher" = {
           Unit = {
