@@ -35,7 +35,7 @@ package
 
 
 *Default:*
-` <derivation steam-config-patcher-0.2.0> `
+` <derivation steam-config-patcher-0.2.1> `
 
 
 
@@ -67,7 +67,7 @@ attribute set of (submodule)
 
   # Or be provided through the `<name>`
   "620".launchOptions = "-vulkan";
-};
+}
 ````
 
 
@@ -202,31 +202,8 @@ null or package or (submodule) or (package or (optionally newline-terminated) si
     "--launcher-skip"
     "-skipStartScreen"
   ];
-};
+}
 ```
-
-
-
-## programs\.steam\.config\.apps\.\<name>\.wrapperPath
-
-
-
-A stable path outside of the nix store to link the app wrapper script\.
-
-
-
-*Type:*
-null or absolute path
-
-
-
-*Default:*
-` ${config.xdg.dataHome}/steam-config-nix/users/<user-id>/app-wrappers/<app-id> `
-
-
-
-*Example:*
-` "/home/diffy/1361210-wrapper" `
 
 
 
@@ -278,29 +255,6 @@ null or string
 
 
 
-## programs\.steam\.config\.steamDir
-
-
-
-Path to the Steam directory\.
-
-
-
-*Type:*
-absolute path
-
-
-
-*Default:*
-` ${config.home.homeDirectory}/.steam/steam `
-
-
-
-*Example:*
-` "/home/diffy/.local/share/Steam" `
-
-
-
 ## programs\.steam\.config\.users
 
 
@@ -321,25 +275,20 @@ attribute set of (submodule)
 
 *Example:*
 
-```
+````
 {
-  "12345678987654321" = {
-    apps = {
-      "620" = {
-        launchOptions = "--launcher-skip";
-      };
-    };
-  };
+  # User IDs can be provided through the `id` property
   diffy = {
-    apps = {
-      "620" = {
-        launchOptions = "-vulkan";
-      };
-    };
     id = 98765432123456789;
+    apps."620".launchOptions = "-vulkan";
+  };
+
+  # Or be provided through the `<name>`
+  "12345678987654321" = {
+    apps."620".launchOptions = "--launcher-skip";
   };
 }
-```
+````
 
 
 
@@ -373,7 +322,7 @@ attribute set of (submodule)
 
   # Or be provided through the `<name>`
   "620".launchOptions = "-vulkan";
-};
+}
 ````
 
 
@@ -485,31 +434,8 @@ null or package or (submodule) or (package or (optionally newline-terminated) si
     "--launcher-skip"
     "-skipStartScreen"
   ];
-};
+}
 ```
-
-
-
-## programs\.steam\.config\.users\.\<name>\.apps\.\<name>\.wrapperPath
-
-
-
-A stable path outside of the nix store to link the app wrapper script\.
-
-
-
-*Type:*
-null or absolute path
-
-
-
-*Default:*
-` ${config.xdg.dataHome}/steam-config-nix/users/<user-id>/app-wrappers/<app-id> `
-
-
-
-*Example:*
-` "/home/diffy/1361210-wrapper" `
 
 
 
