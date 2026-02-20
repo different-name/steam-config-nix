@@ -1,5 +1,6 @@
 import argparse
 import logging
+from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel
@@ -13,7 +14,6 @@ from steam_config_patcher.types import CompatToolConfig, PatcherConfig, UserConf
 class AppSchema(BaseModel):
     id: int
     launchOptions: Optional[str] = None
-    wrapperPath: Optional[str] = None
     compatTool: Optional[str] = None
 
 
@@ -33,11 +33,12 @@ def parse_input() -> PatcherConfig:
     )
     parser.add_argument(
         "cfg_json",
-        help="configuration JSON to parse",
+        help="path to configuration JSON file to parse",
     )
     args = parser.parse_args()
 
-    validated_input = InputSchema.model_validate_json(args.cfg_json)
+    json_text = Path(args.cfg_json).read_text(encoding="utf-8")
+    validated_input = InputSchema.model_validate_json(json_text)
 
     steam_dir = steam.get_steam_install_path()
 
@@ -57,9 +58,9 @@ def parse_input() -> PatcherConfig:
         users={
             user_id: UserConfig(
                 launch_options={
-                    app.id: f"{app.wrapperPath} %command%"
+                    app.id: app.launchOptions
                     for app in validated_input.apps.values()
-                    if app.wrapperPath
+                    if app.launchOptions
                 }
             )
             for user_id in get_steam_user_ids(steam_dir)

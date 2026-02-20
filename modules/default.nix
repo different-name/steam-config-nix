@@ -10,7 +10,6 @@ let
   inherit (import ../lib.nix lib) exportAll;
 
   dataHome =
-    assert builtins.isString format;
     if format == "nixos" then
       "/var/lib"
     else if format == "home-manager" then
@@ -36,36 +35,6 @@ in
   options.programs.steam.config =
     let
       dataDir = "${dataHome}/steam-config-nix";
-
-      writeWrapperBin = appId: text: pkgs.writeShellScriptBin "steam-app-wrapper-${toString appId}" text;
-
-      writeLaunchOptionsStrBin =
-        appId: launchOptions:
-        let
-          launchCommand =
-            if lib.strings.hasInfix "%command%" launchOptions then
-              lib.replaceString "%command%" ''"$@"'' launchOptions
-            else
-              ''"$@" ${launchOptions}'';
-        in
-        writeWrapperBin appId "exec env ${launchCommand}";
-
-      writeLaunchOptionsSetBin =
-        appId: launchOptionsSet:
-        let
-          inherit (launchOptionsSet) env wrappers args;
-        in
-        writeWrapperBin appId ''
-          ${exportAll env}
-
-          declare -a wrappers=(${lib.escapeShellArgs wrappers})
-          declare -a game_command=("$@")
-          declare -a args=(${lib.escapeShellArgs args})
-
-          ${launchOptionsSet.preHook}
-
-          exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
-        '';
 
       launchOptionsSubmodule = types.submodule {
         imports = lib.singleton (lib.mkRenamedOptionModule [ "extraConfig" ] [ "preHook" ]);
@@ -95,6 +64,7 @@ in
               You can also unset variables by setting their value to `null`.
             '';
           };
+
           wrappers = lib.mkOption {
             type = types.listOf (types.coercedTo types.package lib.getExe types.str);
             default = [ ];
@@ -110,6 +80,7 @@ in
             '';
             description = "Executables to wrap the game with.";
           };
+
           args = lib.mkOption {
             type = types.listOf types.str;
             default = [ ];
@@ -118,6 +89,7 @@ in
             '';
             description = "CLI arguments to pass to the game.";
           };
+
           preHook = lib.mkOption {
             type = types.lines;
             default = "";
@@ -198,23 +170,18 @@ in
                     nullOr (oneOf [
                       package
                       launchOptionsSubmodule
-                      (coercedTo singleLineStr (writeLaunchOptionsStrBin config.id) package)
+                      singleLineStr
                     ]);
+
                   default = null;
+
                   description = ''
-                    The Launch options to use.
+                    App launch options, see example for usage.
 
-                    Launch options can be provided as either:
+                    If `launchOptionsStr` is defined, that will be used instead.
+                  '';
 
-                    **`singleLineStr`**
-
-                    ```nix
-                    '''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command% --use-d3d11'''
-                    ```
-
-                    **`launchOptionsSubmodule`**
-
-                    ```nix
+                  example = lib.literalExpression ''
                     {
                       # Environment variables
                       env = {
@@ -249,27 +216,36 @@ in
                           game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
                         done
                       ''';
-                    };
-                    ```'';
-                  example = lib.literalExpression ''
-                    {
-                      env.WINEDLLOVERRIDES = "winmm,version=n,b";
-                      args = [
-                        "--launcher-skip"
-                        "-skipStartScreen"
-                      ];
-                    }'';
+                    };'';
+
                   apply =
                     value:
-                    if (lib.isDerivation value) || value == null then
-                      value
+                    if lib.isDerivation value then
+                      throw ''
+                        steam-config-nix: launchOptions no longer supports derivations.
+                        Migrate to the launchOptions.extraConfig option, which will allows for the same flexibility.
+                        See https://github.com/different-name/steam-config-nix/discussions/34
+                      ''
+                    else if lib.typeOf value == "string" then
+                      throw "steam-config-nix: launchOptions no longer supports string values, use launchOptionsStr instead."
                     else
-                      writeLaunchOptionsSetBin config.id value;
+                      value;
+                };
+
+                launchOptionsStr = lib.mkOption {
+                  type = types.nullOr types.singleLineStr;
+                  default = null;
+                  description = ''
+                    Traditional Steam launch options.
+                                      
+                    If this is defined it will be used instead of the `launchOption` option.
+                  '';
                 };
 
                 wrapperPath = lib.mkOption {
-                  type = types.nullOr types.path;
                   visible = false;
+                  internal = true;
+                  readOnly = true;
                   default =
                     if config.launchOptions != null then "${dataDir}/app-wrappers/${toString config.id}" else null;
                 };
@@ -298,37 +274,49 @@ in
     let
       cfg = config.programs.steam.config;
 
+      mkLaunchOptionsWrapper =
+        app:
+        pkgs.writeShellScriptBin "steam-app-wrapper-${toString app.id}" (
+          if app.launchOptionsStr == null then
+            ''
+              ${exportAll app.launchOptions.env}
+
+              declare -a wrappers=(${lib.escapeShellArgs app.launchOptions.wrappers})
+              declare -a game_command=("$@")
+              declare -a args=(${lib.escapeShellArgs app.launchOptions.args})
+
+              ${app.launchOptions.preHook}
+
+              exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
+            ''
+          else
+            "exec env ${lib.replaceString "%command%" ''"$@"'' app.launchOptionsStr}"
+        );
+
       launchOptionApps = lib.filter (app: app.launchOptions != null) (lib.attrValues cfg.apps);
       launchOptionLinks = map (app: {
         target = app.wrapperPath;
-        source = lib.getExe app.launchOptions;
+        source = lib.getExe (mkLaunchOptionsWrapper app);
       }) launchOptionApps;
 
-      patcherJson = builtins.toJSON {
+      patcherConfig = builtins.toJSON {
         inherit (cfg) closeSteam defaultCompatTool;
         apps = lib.mapAttrs (_: app: {
-          inherit (app) id compatTool wrapperPath;
-          launchOptions = {
-            inherit (app.launchOptions)
-              env
-              wrappers
-              args
-              preHook
-              ;
-          };
+          inherit (app) id compatTool;
+          launchOptions = if app.wrapperPath == null then null else "${app.wrapperPath} %command%";
         }) cfg.apps;
       };
 
       service = {
         description = "Steam config patcher script";
-        restartTriggers = [ patcherJson ];
+        restartTriggers = [ (lib.hashString "md5" patcherConfig) ];
 
         config = {
           Type = "oneshot";
           RemainAfterExit = true; # allows service to be restarted by restartTriggers
           ExecStart = lib.escapeShellArgs [
             (lib.getExe cfg.package)
-            patcherJson
+            (pkgs.writeText "steam-config-patcher-cfg" patcherConfig)
           ];
         };
       };
