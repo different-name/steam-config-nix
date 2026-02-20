@@ -8,14 +8,6 @@ self: format:
 let
   inherit (lib) types;
   inherit (import ../lib.nix lib) exportAll;
-
-  dataHome =
-    if format == "nixos" then
-      "/var/lib"
-    else if format == "home-manager" then
-      config.xdg.dataHome
-    else
-      throw "unexpected format, must be one of: nixos, home-manager";
 in
 {
   imports = lib.singleton (
@@ -34,6 +26,14 @@ in
 
   options.programs.steam.config =
     let
+      dataHome =
+        if format == "nixos" then
+          "/var/lib"
+        else if format == "home-manager" then
+          config.xdg.dataHome
+        else
+          throw "unexpected `format`, must be one of: nixos, home-manager";
+
       dataDir = "${dataHome}/steam-config-nix";
 
       launchOptionsSubmodule = types.submodule {
@@ -56,7 +56,7 @@ in
             example = lib.literalExpression ''
               {
                 WINEDLLOVERRIDES = "winmm,version=n,b";
-                "TZ" = null;
+                TZ = null;
               }
             '';
             description = ''
@@ -70,13 +70,10 @@ in
             default = [ ];
             example = lib.literalExpression ''
               [
-                  (lib.getExe' pkgs.mangohud "mangohud")
-
-                  pkgs.myWrapperProgram
-
-                  # Need to enable gamemode module in NixOS
-                  "gamemoderun"
-                ]
+                (lib.getExe' pkgs.mangohud "mangohud")
+                pkgs.myWrapperProgram
+                "gamemoderun"
+              ]
             '';
             description = "Executables to wrap the game with.";
           };
@@ -85,9 +82,13 @@ in
             type = types.listOf types.str;
             default = [ ];
             example = lib.literalExpression ''
-              ["-modded" "--launcher-skip" "-skipStartScreen"]
+              [
+                "-modded"
+                "--launcher-skip"
+                "-skipStartScreen"
+              ]
             '';
-            description = "CLI arguments to pass to the game.";
+            description = "Arguments to pass to the game.";
           };
 
           preHook = lib.mkOption {
@@ -164,16 +165,34 @@ in
                   description = "Compatibility tool to use.";
                 };
 
+                /*
+                  this is currently an option that accept the launchOptions submodule, a package or a singleLineStr
+                  this is only to provide informational error messages for those who have not migrated to the new options
+                  this should be removed after a while and the launchOptions options should be declared directly, instead of through a submodule
+                */
                 launchOptions = lib.mkOption {
                   type =
                     with types;
                     nullOr (oneOf [
-                      package
                       launchOptionsSubmodule
-                      singleLineStr
+                      singleLineStr # use the launchOptionsStr option instead
+                      package # packages are no longer supported
                     ]);
 
                   default = null;
+
+                  apply =
+                    value:
+                    if lib.isDerivation value then
+                      throw ''
+                        steam-config-nix: launchOptions no longer supports derivations.
+                        Migrate to the launchOptions.preHook option, which will allows for the same flexibility.
+                        See https://github.com/different-name/steam-config-nix/discussions/34
+                      ''
+                    else if lib.typeOf value == "string" then
+                      throw "steam-config-nix: launchOptions no longer supports string values, use launchOptionsStr instead."
+                    else
+                      value;
 
                   description = ''
                     App launch options, see example for usage.
@@ -212,24 +231,11 @@ in
                           export PROTON_ENABLE_WAYLAND=1
                         fi
 
-                        for i in "''${!game_command[@]}"; do
-                          game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
+                        for i in "'''''${!game_command[@]}"; do
+                          game_command[i]="'''''${game_command[i]//\/Launcher.exe/\/game.exe}"
                         done
                       ''';
                     };'';
-
-                  apply =
-                    value:
-                    if lib.isDerivation value then
-                      throw ''
-                        steam-config-nix: launchOptions no longer supports derivations.
-                        Migrate to the launchOptions.preHook option, which will allows for the same flexibility.
-                        See https://github.com/different-name/steam-config-nix/discussions/34
-                      ''
-                    else if lib.typeOf value == "string" then
-                      throw "steam-config-nix: launchOptions no longer supports string values, use launchOptionsStr instead."
-                    else
-                      value;
                 };
 
                 launchOptionsStr = lib.mkOption {
@@ -341,7 +347,7 @@ in
 
           systemd.targets.multi-user.wants =
             let
-              normalUsers = lib.filter (user: user.isNormalUser) (lib.attrValues (config.users.users));
+              normalUsers = lib.filter (user: user.isNormalUser) (lib.attrValues config.users.users);
             in
             map (user: "steam-config-patcher@${user.name}.service") normalUsers;
         })

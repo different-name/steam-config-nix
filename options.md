@@ -35,7 +35,7 @@ package
 
 
 *Default:*
-` <derivation steam-config-patcher-0.2.1> `
+` <derivation steam-config-patcher-0.2.3> `
 
 
 
@@ -133,7 +133,7 @@ If ` launchOptionsStr ` is defined, that will be used instead\.
 
 
 *Type:*
-null or package or (submodule) or (optionally newline-terminated) single-line string
+null or (submodule) or (optionally newline-terminated) single-line string or package
 
 
 
@@ -175,8 +175,8 @@ null or package or (submodule) or (optionally newline-terminated) single-line st
       export PROTON_ENABLE_WAYLAND=1
     fi
 
-    for i in "${!game_command[@]}"; do
-      game_command[i]="${game_command[i]//\/Launcher.exe/\/game.exe}"
+    for i in "''${!game_command[@]}"; do
+      game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
     done
   '';
 };
