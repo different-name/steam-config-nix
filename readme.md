@@ -46,33 +46,32 @@ See [options.md](options.md) for all available options
 #### Quickstart example
 
 ```nix
-programs.steam.config = {
-  enable = true;
-  closeSteam = true;
-  defaultCompatTool = "GE-Proton";
+{
+  programs.steam.config = {
+    enable = true;
+    closeSteam = true;
+    defaultCompatTool = "GE-Proton";
 
-  apps = {
-    cyberpunk-2077 = {
-      id = 1091500;
-      compatTool = "GE-Proton";
-      launchOptions = {
-        env.WINEDLLOVERRIDES = "winmm,version=n,b";
-        args = [
-          "--launcher-skip"
-          "-skipStartScreen"
-        ];
+    apps = {
+      cyberpunk-2077 = {
+        id = 1091500;
+        compatTool = "GE-Proton";
+        launchOptions = {
+          env.WINEDLLOVERRIDES = "winmm,version=n,b";
+          args = [
+            "--launcher-skip"
+            "-skipStartScreen"
+          ];
+        };
+      };
+
+      vrchat = {
+        id = 438100;
+        launchOptions.env.TZ = null;
       };
     };
   };
-
-  users.diffy = {
-    id = 12345678987654321;
-    apps.vrchat = {
-      id = 438100;
-      launchOptions.env.TZ = null;
-    };
-  };
-};
+}
 ```
 
 ### Global Configuration
@@ -82,13 +81,15 @@ It is not possible to perform any global configuration of games through Steam co
 To set environment variables for all Steam games, override `extraProfile` in the Steam package:
 
 ```nix
-programs.steam.package = pkgs.steam.override {
-  extraProfile = ''
-    export PROTON_ENABLE_WAYLAND=1
-    export PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc"
-    unset TZ
-  '';
-};
+{
+  programs.steam.package = pkgs.steam.override {
+    extraProfile = ''
+      export PROTON_ENABLE_WAYLAND=1
+      export PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc"
+      unset TZ
+    '';
+  };
+}
 ```
 
 ## Acknowledgements

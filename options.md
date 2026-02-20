@@ -126,34 +126,25 @@ signed integer
 
 
 
-The Launch options to use\.
+App launch options, see example for usage\.
 
-Launch options can be provided as:
+If ` launchOptionsStr ` is defined, that will be used instead\.
 
-**` singleLineStr `**
 
-```nix
-''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command% --use-d3d11''
-```
 
-**` package `**
+*Type:*
+null or package or (submodule) or (optionally newline-terminated) single-line string
 
-```nix
-pkgs.writeShellScriptBin "vrchat-wrapper" ''
-  export PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc"
-  unset TZ
 
-  if [[ "$*" == *"-force-vulkan"* ]]; then
-    export PROTON_ENABLE_WAYLAND=1
-  fi
 
-  exec ${lib.getExe pkgs.gamemode} "''${args[@]}" --use-d3d11
-'';
-```
+*Default:*
+` null `
 
-**` launchOptionsSubmodule `**
 
-```nix
+
+*Example:*
+
+````
 {
   # Environment variables
   env = {
@@ -172,38 +163,44 @@ pkgs.writeShellScriptBin "vrchat-wrapper" ''
     "mangohud"
   ];
 
-  # Extra bash code to run before executing the game
-  extraConfig = ''
+  /*
+    Extra bash code to run before executing the game
+    These variables are available in scope for you to read / modify in this hook:
+      `wrappers`: values from the wrappers option
+      `game_command`: the %command% passed from steam
+      `args`: values from the args option
+  */
+  preHook = ''
     if [[ "$*" == *"-force-vulkan"* ]]; then
       export PROTON_ENABLE_WAYLAND=1
     fi
+
+    for i in "${!game_command[@]}"; do
+      game_command[i]="${game_command[i]//\/Launcher.exe/\/game.exe}"
+    done
   '';
 };
-```
+````
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.launchOptionsStr
+
+
+
+Traditional Steam launch options\.
+
+If this is defined it will be used instead of the ` launchOption ` option\.
 
 
 
 *Type:*
-null or package or (submodule) or (package or (optionally newline-terminated) single-line string convertible to it)
+null or (optionally newline-terminated) single-line string
 
 
 
 *Default:*
 ` null `
-
-
-
-*Example:*
-
-```
-{
-  env.WINEDLLOVERRIDES = "winmm,version=n,b";
-  args = [
-    "--launcher-skip"
-    "-skipStartScreen"
-  ];
-}
-```
 
 
 
@@ -252,214 +249,5 @@ null or string
 
 *Example:*
 ` "proton_experimental" `
-
-
-
-## programs\.steam\.config\.users
-
-
-
-Configuration per Steam User\.
-
-
-
-*Type:*
-attribute set of (submodule)
-
-
-
-*Default:*
-` { } `
-
-
-
-*Example:*
-
-````
-{
-  # User IDs can be provided through the `id` property
-  diffy = {
-    id = 98765432123456789;
-    apps."620".launchOptions = "-vulkan";
-  };
-
-  # Or be provided through the `<name>`
-  "12345678987654321" = {
-    apps."620".launchOptions = "--launcher-skip";
-  };
-}
-````
-
-
-
-## programs\.steam\.config\.users\.\<name>\.apps
-
-
-
-Configuration per Steam app\.
-
-
-
-*Type:*
-attribute set of (submodule)
-
-
-
-*Default:*
-` { } `
-
-
-
-*Example:*
-
-````
-{
-  # App IDs can be provided through the `id` property
-  spin-rhythm = {
-    id = 1058830;
-    launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
-  };
-
-  # Or be provided through the `<name>`
-  "620".launchOptions = "-vulkan";
-}
-````
-
-
-
-## programs\.steam\.config\.users\.\<name>\.apps\.\<name>\.id
-
-
-
-The Steam App ID\.
-
-App IDs can be found through the game’s store page URL\.
-
-If an ID is not provided, the app’s ` <name> ` will be used\.
-
-
-
-*Type:*
-signed integer
-
-
-
-*Default:*
-` lib.strings.toIntBase10 <name> `
-
-
-
-*Example:*
-` 438100 `
-
-
-
-## programs\.steam\.config\.users\.\<name>\.apps\.\<name>\.launchOptions
-
-
-
-The Launch options to use\.
-
-Launch options can be provided as:
-
-**` singleLineStr `**
-
-```nix
-''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command% --use-d3d11''
-```
-
-**` package `**
-
-```nix
-pkgs.writeShellScriptBin "vrchat-wrapper" ''
-  export PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc"
-  unset TZ
-
-  if [[ "$*" == *"-force-vulkan"* ]]; then
-    export PROTON_ENABLE_WAYLAND=1
-  fi
-
-  exec ${lib.getExe pkgs.gamemode} "''${args[@]}" --use-d3d11
-'';
-```
-
-**` launchOptionsSubmodule `**
-
-```nix
-{
-  # Environment variables
-  env = {
-    PROTON_USE_NTSYNC = true;
-    TZ = null; # This unsets the variable
-  };
-
-  # Arguments for the game's executable (%command% <...>)
-  args = [
-    "-force-vulkan"
-  ];
-
-  # Programs to wrap the game with (<...> %command%)
-  wrappers = [
-    (lib.getExe pkgs.gamemode)
-    "mangohud"
-  ];
-
-  # Extra bash code to run before executing the game
-  extraConfig = ''
-    if [[ "$*" == *"-force-vulkan"* ]]; then
-      export PROTON_ENABLE_WAYLAND=1
-    fi
-  '';
-};
-```
-
-
-
-*Type:*
-null or package or (submodule) or (package or (optionally newline-terminated) single-line string convertible to it)
-
-
-
-*Default:*
-` null `
-
-
-
-*Example:*
-
-```
-{
-  env.WINEDLLOVERRIDES = "winmm,version=n,b";
-  args = [
-    "--launcher-skip"
-    "-skipStartScreen"
-  ];
-}
-```
-
-
-
-## programs\.steam\.config\.users\.\<name>\.id
-
-
-
-The Steam User ID in SteamID64 or SteamID3 format\.
-
-User IDs can be found through through [https://steamid\.io/lookup](https://steamid\.io/lookup)\.
-
-
-
-*Type:*
-signed integer
-
-
-
-*Default:*
-` lib.strings.toIntBase10 <name> `
-
-
-
-*Example:*
-` 98765432123456789 `
 
 

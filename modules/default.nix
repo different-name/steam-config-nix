@@ -223,7 +223,7 @@ in
                     if lib.isDerivation value then
                       throw ''
                         steam-config-nix: launchOptions no longer supports derivations.
-                        Migrate to the launchOptions.extraConfig option, which will allows for the same flexibility.
+                        Migrate to the launchOptions.preHook option, which will allows for the same flexibility.
                         See https://github.com/different-name/steam-config-nix/discussions/34
                       ''
                     else if lib.typeOf value == "string" then
