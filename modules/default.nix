@@ -62,12 +62,14 @@ in
           declare -a game_command=("$@")
           declare -a args=(${lib.escapeShellArgs args})
 
-          ${launchOptionsSet.extraConfig}
+          ${launchOptionsSet.preHook}
 
           exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
         '';
 
       launchOptionsSubmodule = types.submodule {
+        imports = lib.singleton (lib.mkRenamedOptionModule [ "extraConfig" ] [ "preHook" ]);
+
         options = {
           env = lib.mkOption {
             type =
@@ -116,7 +118,7 @@ in
             '';
             description = "CLI arguments to pass to the game.";
           };
-          extraConfig = lib.mkOption {
+          preHook = lib.mkOption {
             type = types.lines;
             default = "";
             example = ''
@@ -238,7 +240,7 @@ in
                           `game_command`: the %command% passed from steam
                           `args`: values from the args option
                       */
-                      extraConfig = '''
+                      preHook = '''
                         if [[ "$*" == *"-force-vulkan"* ]]; then
                           export PROTON_ENABLE_WAYLAND=1
                         fi
@@ -303,7 +305,18 @@ in
       }) launchOptionApps;
 
       patcherJson = builtins.toJSON {
-        inherit (cfg) closeSteam defaultCompatTool apps;
+        inherit (cfg) closeSteam defaultCompatTool;
+        apps = lib.mapAttrs (_: app: {
+          inherit (app) id compatTool wrapperPath;
+          launchOptions = {
+            inherit (app.launchOptions)
+              env
+              wrappers
+              args
+              preHook
+              ;
+          };
+        }) cfg.apps;
       };
 
       service = {
