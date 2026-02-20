@@ -27,13 +27,18 @@ let
   writeLaunchOptionsSetBin =
     appId: launchOptionsSet:
     let
-      prefix = lib.escapeShellArgs launchOptionsSet.wrappers;
-      suffix = lib.escapeShellArgs launchOptionsSet.args;
+      inherit (launchOptionsSet) env wrappers args;
     in
     writeWrapperBin appId ''
-      ${exportAll launchOptionsSet.env}
+      ${exportAll env}
+
+      declare -a wrappers=(${lib.escapeShellArgs wrappers})
+      declare -a game_command=("$@")
+      declare -a args=(${lib.escapeShellArgs args})
+
       ${launchOptionsSet.extraConfig}
-      exec env ${prefix} "$@" ${suffix}
+
+      exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
     '';
 
   launchOptionsSubmodule = types.submodule {
@@ -89,11 +94,23 @@ let
         type = types.lines;
         default = "";
         example = ''
-          if [[ "$*" != *"--no-vr"* ]]; then
+          if [[ "$*" == *"-force-vulkan"* ]]; then
             export PROTON_ENABLE_WAYLAND=1
           fi
+
+          for i in "''${!game_command[@]}"; do
+            game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
+          done
         '';
-        description = "Additional bash code to execute before the game.";
+        description = ''
+          Extra bash code to run before executing the game
+
+          These variables are available in scope for you to read / modify in this hook:
+
+           - `wrappers`: values from the wrappers option
+           - `game_command`: the %command% passed from steam
+           - `args`: values from the args option
+        '';
       };
     };
   };
@@ -132,27 +149,12 @@ in
                 description = ''
                   The Launch options to use.
 
-                  Launch options can be provided as:
+                  Launch options can be provided as either:
 
                   **`singleLineStr`**
 
                   ```nix
                   '''env -u TZ PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc" %command% --use-d3d11'''
-                  ```
-
-                  **`package`**
-
-                  ```nix
-                  pkgs.writeShellScriptBin "vrchat-wrapper" '''
-                    export PRESSURE_VESSEL_FILESYSTEMS_RW="$XDG_RUNTIME_DIR/wivrn/comp_ipc"
-                    unset TZ
-
-                    if [[ "$*" == *"-force-vulkan"* ]]; then
-                      export PROTON_ENABLE_WAYLAND=1
-                    fi
-
-                    exec ''${lib.getExe pkgs.gamemode} "${"''\${args[@]}"}" --use-d3d11
-                  ''';
                   ```
 
                   **`launchOptionsSubmodule`**
@@ -176,11 +178,21 @@ in
                       "mangohud"
                     ];
 
-                    # Extra bash code to run before executing the game
+                    /*
+                      Extra bash code to run before executing the game
+                      These variables are available in scope for you to read / modify in this hook:
+                        `wrappers`: values from the wrappers option
+                        `game_command`: the %command% passed from steam
+                        `args`: values from the args option
+                    */
                     extraConfig = '''
                       if [[ "$*" == *"-force-vulkan"* ]]; then
                         export PROTON_ENABLE_WAYLAND=1
                       fi
+
+                      for i in "''${!game_command[@]}"; do
+                        game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
+                      done
                     ''';
                   };
                   ```'';
