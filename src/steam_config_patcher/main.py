@@ -1,9 +1,8 @@
 import argparse
-from itertools import chain
 import logging
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from srctools import steam
 
 from steam_config_patcher.patcher import patch_config_files
@@ -18,22 +17,10 @@ class AppSchema(BaseModel):
     compatTool: Optional[str] = None
 
 
-class UserAppSchema(BaseModel):
-    id: int
-    launchOptions: Optional[str] = None
-    wrapperPath: Optional[str] = None
-
-
-class UserSchema(BaseModel):
-    id: int
-    apps: dict[str, UserAppSchema] = Field(default_factory=dict)
-
-
 class InputSchema(BaseModel):
     closeSteam: bool
     defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
-    users: dict[str, UserSchema]
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -71,14 +58,7 @@ def parse_input() -> PatcherConfig:
             user_id: UserConfig(
                 launch_options={
                     app.id: f"{app.wrapperPath} %command%"
-                    for app in chain(
-                        validated_input.apps.values(),
-                        *(
-                            u.apps.values()
-                            for u in validated_input.users.values()
-                            if u.id == user_id
-                        ),
-                    )
+                    for app in validated_input.apps.values()
                     if app.wrapperPath
                 }
             )
