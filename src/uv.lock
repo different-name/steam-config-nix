@@ -245,12 +245,13 @@ wheels = [
 
 [[package]]
 name = "steam-config-patcher"
-version = "0.2.3"
+version = "0.2.4"
 source = { editable = "." }
 dependencies = [
     { name = "psutil" },
     { name = "pydantic" },
     { name = "srctools" },
+    { name = "vdf" },
 ]
 
 [package.metadata]
@@ -258,6 +259,7 @@ requires-dist = [
     { name = "psutil" },
     { name = "pydantic" },
     { name = "srctools" },
+    { name = "vdf" },
 ]
 
 [[package]]
@@ -291,4 +293,13 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/92/d6/0d6db1f8766e9b5e7ec259666c40ceae6bbb9326caf50e08717639e167b7/useful_types-0.2.1.tar.gz", hash = "sha256:870a0bcc8fcb7d0b2f14055438c1cab7e248fded942b0943a4d7019e7fbbdacd", size = 4748, upload-time = "2024-04-20T08:58:15.195Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/23/c194fd6c6258727f694e22b106c262c7d2678049dbc2d2045743e235f43a/useful_types-0.2.1-py3-none-any.whl", hash = "sha256:0dca32763d7271b5c8c7c395c44c10d09dba47a41aec97dcb085041ad096e0e9", size = 5382, upload-time = "2024-04-20T08:58:13.759Z" },
+]
+
+[[package]]
+name = "vdf"
+version = "3.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/44/7f/74192f47d67c8bf3c47bf0d8487b3457614c2c98d58b6617721d217f3f79/vdf-3.4.tar.gz", hash = "sha256:fd5419f41e07a1009e5ffd027c7dcbe43d1f7e8ef453aeaa90d9d04b807de2af", size = 11132, upload-time = "2021-05-22T09:26:05.252Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/60/6456b687cf55cf60020dcd01f9bc51561c3cc84f05fd8e0feb71ce60f894/vdf-3.4-py2.py3-none-any.whl", hash = "sha256:68c1a125cc49e343d535af2dd25074e9cb0908c6607f073947c4a04bbe234534", size = 10357, upload-time = "2021-05-22T09:26:03.948Z" },
 ]

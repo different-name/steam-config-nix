@@ -1,9 +1,9 @@
 [project]
 name = "steam-config-patcher"
-version = "0.2.3"
+version = "0.2.4"
 description = "Patch Steam vdf files using JSON input"
 authors = [{ name = "different-name", email = "hello@different-name.dev" }]
-dependencies = ["srctools", "pydantic", "psutil"]
+dependencies = ["srctools", "pydantic", "psutil", "vdf"]
 requires-python = ">=3.10"
 license = { text = "GPL-3.0" }
 

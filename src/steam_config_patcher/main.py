@@ -8,7 +8,12 @@ from srctools import steam
 
 from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_user_ids
-from steam_config_patcher.types import CompatToolConfig, PatcherConfig, UserConfig
+from steam_config_patcher.types import (
+    CompatToolConfig,
+    NonSteamAppConfig,
+    PatcherConfig,
+    UserConfig,
+)
 
 
 class AppSchema(BaseModel):
@@ -17,10 +22,21 @@ class AppSchema(BaseModel):
     compatTool: Optional[str] = None
 
 
+class NonSteamAppSchema(AppSchema):
+    name: str
+    target: str
+    startIn: Optional[str]
+    icon: Optional[str]
+    isHidden: bool
+    allowOverlay: bool
+    inVrLibrary: bool
+
+
 class InputSchema(BaseModel):
     closeSteam: bool
     defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
+    nonSteamApps: dict[str, NonSteamAppSchema]
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -51,6 +67,7 @@ def parse_input() -> PatcherConfig:
             )
             for app in [
                 *validated_input.apps.values(),
+                *validated_input.nonSteamApps.values(),
                 AppSchema(id=0, compatTool=validated_input.defaultCompatTool),
             ]
             if app.compatTool
@@ -61,7 +78,21 @@ def parse_input() -> PatcherConfig:
                     app.id: app.launchOptions
                     for app in validated_input.apps.values()
                     if app.launchOptions
-                }
+                },
+                non_steam_apps={
+                    app.id: NonSteamAppConfig(
+                        name=app.name,
+                        target=app.target,
+                        start_in=app.startIn or "",
+                        icon=app.icon or "",
+                        launch_options=app.launchOptions or "",
+                        is_hidden=app.isHidden,
+                        allow_desktop_config=True,
+                        allow_overlay=app.allowOverlay,
+                        in_vr_library=app.inVrLibrary,
+                    )
+                    for app in validated_input.nonSteamApps.values()
+                },
             )
             for user_id in get_steam_user_ids(steam_dir)
         },

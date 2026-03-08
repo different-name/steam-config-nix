@@ -17,7 +17,8 @@ let
       throw "unexpected `format`, must be one of: nixos, home-manager";
   dataDir = "${dataHome}/steam-config-nix";
 
-  appModule = import ./submodules/app.nix { inherit lib pkgs dataDir; };
+  steamAppModule = import ./submodules/steam-app.nix { inherit lib pkgs dataDir; };
+  nonSteamAppModule = import ./submodules/non-steam-app.nix { inherit lib pkgs dataDir; };
 in
 {
   imports = lib.singleton (
@@ -57,7 +58,24 @@ in
     };
 
     apps = lib.mkOption {
-      type = types.attrsOf (types.submodule appModule);
+      type = types.attrsOf (types.submodule steamAppModule);
+      default = { };
+      example = lib.literalExpression ''
+        {
+          # App IDs can be provided through the `id` property
+          spin-rhythm = {
+            id = 1058830;
+            launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
+          };
+
+          # Or be provided through the `<name>`
+          "620".launchOptions = "-vulkan";
+        }'';
+      description = "Configuration per Steam app.";
+    };
+
+    nonSteamApps = lib.mkOption {
+      type = types.attrsOf (types.submodule nonSteamAppModule);
       default = { };
       example = lib.literalExpression ''
         {
@@ -78,19 +96,26 @@ in
     let
       cfg = config.programs.steam.config;
 
-      launchOptionApps = lib.filter (app: app.wrapper.package != null) (lib.attrValues cfg.apps);
-      launchOptionLinks = map (app: {
+      # wrapper symlinks
+
+      allApps = (lib.attrValues cfg.apps) ++ (lib.attrValues cfg.nonSteamApps);
+      launchOptionApps = lib.filter (app: app.wrapper.package != null) allApps;
+      wrapperLinks = map (app: {
         target = app.wrapper.path;
         source = lib.getExe app.wrapper.package;
       }) launchOptionApps;
 
+      # patcher config
+
+      mapFinalConfigs = lib.mapAttrs (_: value: value.finalConfig);
+
       patcherConfig = builtins.toJSON {
         inherit (cfg) closeSteam defaultCompatTool;
-        apps = lib.mapAttrs (_: app: {
-          inherit (app) id compatTool;
-          launchOptions = app.wrapper.exec;
-        }) cfg.apps;
+        apps = mapFinalConfigs cfg.apps;
+        nonSteamApps = mapFinalConfigs cfg.nonSteamApps;
       };
+
+      # patcher service
 
       service = {
         description = "Steam config patcher script";
@@ -112,7 +137,7 @@ in
         (lib.optionalAttrs (format == "nixos") {
           systemd.tmpfiles.rules = map (
             link: "L+ ${lib.escapeShellArg link.target} - - - - ${lib.escapeShellArg link.source}"
-          ) launchOptionLinks;
+          ) wrapperLinks;
 
           # system service instead of a user service due to https://github.com/NixOS/nixpkgs/issues/246611
           # nixos user services also don't restart on rebuild, requiring a user activation script
@@ -134,7 +159,7 @@ in
 
         (lib.optionalAttrs (format == "home-manager") {
           home.file = lib.listToAttrs (
-            map (link: lib.nameValuePair link.target { inherit (link) source; }) launchOptionLinks
+            map (link: lib.nameValuePair link.target { inherit (link) source; }) wrapperLinks
           );
 
           systemd.user.services."steam-config-patcher" = {
