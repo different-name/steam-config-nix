@@ -3,6 +3,7 @@
   buildPythonApplication,
   setuptools,
   srctools,
+  vdf,
   psutil,
   pydantic,
   ...
@@ -24,6 +25,15 @@ buildPythonApplication {
 
   propagatedBuildInputs = [
     srctools
+    # patching vdf to support the int format that shortcuts.vdf uses
+    (vdf.overridePythonAttrs (old: {
+      patches = (old.patches or [ ]) ++ [
+        (builtins.path {
+          path = ./vdf-int-fix.diff;
+          name = "vdf-int-fix";
+        })
+      ];
+    }))
     psutil
     pydantic
   ];

@@ -3,14 +3,14 @@ from typing import Iterator
 from srctools import AtomicWriter, Keyvalues
 
 from steam_config_patcher.steam import steam_is_closed
-from steam_config_patcher.types import ConfigPatch, NestedStrDict
+from steam_config_patcher.types import ConfigPatch, KeyValuesType, KeyValuesValue
 
 KeyPath = tuple[*tuple[str, ...], str]
 
 
 def iterate_leaves(
-    d: NestedStrDict, key_path: tuple[str, ...] = ()
-) -> Iterator[tuple[KeyPath, str]]:
+    d: KeyValuesType, key_path: tuple[str, ...] = ()
+) -> Iterator[tuple[KeyPath, KeyValuesValue]]:
     for k, v in d.items():
         new_path = key_path + (k,)
         if isinstance(v, dict):
@@ -19,8 +19,9 @@ def iterate_leaves(
             yield new_path, v
 
 
-def overwrite_key(kv: Keyvalues, key_path: KeyPath, value: str) -> bool:
+def overwrite_key(kv: Keyvalues, key_path: KeyPath, value: KeyValuesValue) -> bool:
     modified = False
+    value = str(value)
 
     existing_blocks = list(kv.find_all(*key_path))
 

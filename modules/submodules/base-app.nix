@@ -3,7 +3,7 @@
   pkgs,
   dataDir,
 }:
-{ name, config, ... }:
+{ config, ... }:
 let
   inherit (lib) types;
 
@@ -122,20 +122,6 @@ let
 in
 {
   options = {
-    id = lib.mkOption {
-      type = types.int;
-      default = lib.strings.toIntBase10 name;
-      defaultText = lib.literalExpression "lib.strings.toIntBase10 <name>";
-      example = 438100;
-      description = ''
-        The Steam App ID.
-
-        App IDs can be found through the game's store page URL.
-
-        If an ID is not provided, the app's `<name>` will be used.
-      '';
-    };
-
     compatTool = lib.mkOption {
       type = types.nullOr types.str;
       default = null;
@@ -251,5 +237,19 @@ in
       internal = true;
       readOnly = true;
     };
+
+    finalConfig = lib.mkOption {
+      type = types.attrs;
+      visible = false;
+      internal = true;
+    };
+  };
+
+  config.finalConfig = {
+    inherit (config)
+      id # option must be defined by module importing base app
+      compatTool
+      ;
+    launchOptions = config.wrapper.exec;
   };
 }

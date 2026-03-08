@@ -4,8 +4,22 @@ from typing import Literal, Union
 
 
 @dataclass
+class NonSteamAppConfig:
+    name: str
+    target: str
+    start_in: str
+    icon: str
+    launch_options: str
+    is_hidden: bool
+    allow_desktop_config: bool
+    allow_overlay: bool
+    in_vr_library: bool
+
+
+@dataclass
 class UserConfig:
     launch_options: dict[int, str]
+    non_steam_apps: dict[int, NonSteamAppConfig]
 
 
 @dataclass
@@ -22,12 +36,13 @@ class PatcherConfig:
     users: dict[int, UserConfig]
 
 
-NestedStrDict = dict[str, Union[str, "NestedStrDict"]]
+KeyValuesValue = str | int
+KeyValuesType = dict[str, Union[KeyValuesValue, "KeyValuesType"]]
 
 
 @dataclass
 class ConfigPatch:
     file_path: Path
-    file_format: Literal["keyvalues"]
-    data: NestedStrDict
+    file_format: Literal["keyvalues", "binary-keyvalues"]
+    data: KeyValuesType
     close_steam: bool
