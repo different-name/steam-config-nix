@@ -17,7 +17,7 @@ let
     seed:
     let
       # fromHexString only supports a max value of 2^63, so this has to be trimmed
-      hex = lib.substring 0 15 (lib.hashString "md5" seed);
+      hex = lib.substring 0 15 (builtins.hashString "md5" seed);
       base10 = lib.fromHexString hex;
       remainder = modulo base10 (appIdMax - appIdMin + 1);
     in

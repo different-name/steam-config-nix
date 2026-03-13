@@ -119,7 +119,7 @@ in
 
       service = {
         description = "Steam config patcher script";
-        restartTriggers = [ (lib.hashString "md5" patcherConfig) ];
+        restartTriggers = [ (builtins.hashString "md5" patcherConfig) ];
 
         config = {
           Type = "oneshot";
