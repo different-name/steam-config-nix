@@ -78,8 +78,9 @@ def generate_shortcuts_vdf_patch(
 
     # hacky way to see which index we should use based on app id and existing shortcuts
     shortcuts = kv.get("shortcuts") or {}
+    keys = [int(k) for k in shortcuts.keys()]
+    max_index = max(keys) if keys else -1
     index_mapping: dict[int, int] = {}
-    max_index = max([int(k) for k in shortcuts.keys()])
     index_offset = 1
 
     for app_id in user_config.non_steam_apps.keys():
