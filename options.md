@@ -62,11 +62,11 @@ attribute set of (submodule)
   # App IDs can be provided through the `id` property
   spin-rhythm = {
     id = 1058830;
-    launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
+    launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
   };
 
   # Or be provided through the `<name>`
-  "620".launchOptions = "-vulkan";
+  "620".launchOptionsStr = "-vulkan";
 }
 ````
 
@@ -155,12 +155,14 @@ null or (submodule) or (optionally newline-terminated) single-line string or pac
   # Arguments for the game's executable (%command% <...>)
   args = [
     "-force-vulkan"
+    "-provider" "Portal" # Arguments with a space must be escaped separately, instead of "-provider Portal"
   ];
 
   # Programs to wrap the game with (<...> %command%)
   wrappers = [
     (lib.getExe pkgs.gamemode)
     "mangohud"
+    "gamescope" "-W" "1920" "-H" "1080" "--"
   ];
 
   /*
@@ -277,11 +279,11 @@ attribute set of (submodule)
   # App IDs can be provided through the `id` property
   spin-rhythm = {
     id = 1058830;
-    launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
+    launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
   };
 
   # Or be provided through the `<name>`
-  "620".launchOptions = "-vulkan";
+  "620".launchOptionsStr = "-vulkan";
 }
 ````
 
@@ -462,12 +464,14 @@ null or (submodule) or (optionally newline-terminated) single-line string or pac
   # Arguments for the game's executable (%command% <...>)
   args = [
     "-force-vulkan"
+    "-provider" "Portal" # Arguments with a space must be escaped separately, instead of "-provider Portal"
   ];
 
   # Programs to wrap the game with (<...> %command%)
   wrappers = [
     (lib.getExe pkgs.gamemode)
     "mangohud"
+    "gamescope" "-W" "1920" "-H" "1080" "--"
   ];
 
   /*
