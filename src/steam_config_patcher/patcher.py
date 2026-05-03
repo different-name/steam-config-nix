@@ -1,5 +1,6 @@
 import vdf
 
+from steam_config_patcher.files import apply_file_drops
 from steam_config_patcher.formats.binary_keyvalues import patch_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
 from steam_config_patcher.types import ConfigPatch, PatcherConfig, UserConfig
@@ -119,6 +120,10 @@ def generate_shortcuts_vdf_patch(
 
 
 def patch_config_files(cfg: PatcherConfig):
+    # File drops first -- they don't need Steam closed and are independent of
+    # the vdf-patching path below.
+    apply_file_drops(cfg.file_drops)
+
     config_patches = [
         generate_config_vdf_patch(cfg),
         *[

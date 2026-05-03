@@ -64,10 +64,24 @@ See [options.md](options.md) for all available options
           ];
         };
       };
-
       vrchat = {
         id = 438100;
         launchOptions.env.TZ = null;
+      };
+
+      "620" = {
+        # Drop files into the install dir or Proton prefix. Backups of
+        # replaced files land next to the original with a
+        # `.steam-config-nix-backup` suffix on first apply.
+        files = {
+          # Stub a file with empty content.
+          "path/to/intro.bik".empty = true;
+          # First-apply config the in-game overlay edits in place.
+          "some-config.ini" = {
+            source = ./some-config.ini;
+            mode = "init";
+          };
+        };
       };
     };
   };
