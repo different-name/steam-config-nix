@@ -10,16 +10,26 @@ from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_user_ids
 from steam_config_patcher.types import (
     CompatToolConfig,
+    FileOpConfig,
+    FilesConfig,
     NonSteamAppConfig,
     PatcherConfig,
     UserConfig,
 )
 
 
+class FileOpSchema(BaseModel):
+    target: str
+    source: str
+    mode: str  # "replace" | "create" | "init"; validated by FileOpConfig
+    location: str  # "install" | "prefix"; validated by FileOpConfig
+
+
 class AppSchema(BaseModel):
     id: int
     launchOptions: Optional[str] = None
     compatTool: Optional[str] = None
+    files: list[FileOpSchema] = []
 
 
 class NonSteamAppSchema(AppSchema):
@@ -96,6 +106,22 @@ def parse_input() -> PatcherConfig:
             )
             for user_id in get_steam_user_ids(steam_dir)
         },
+        file_drops=[
+            FilesConfig(
+                app_id=app.id,
+                files=[
+                    FileOpConfig(
+                        target=op.target,
+                        source=Path(op.source),
+                        mode=op.mode,  # type: ignore[arg-type]
+                        location=op.location,  # type: ignore[arg-type]
+                    )
+                    for op in app.files
+                ],
+            )
+            for app in validated_input.apps.values()
+            if app.files
+        ],
     )
 
 
