@@ -22,6 +22,38 @@ let
       remainder = modulo base10 (appIdMax - appIdMin + 1);
     in
     remainder + appIdMin;
+
+  artworkSubmodule = {
+    options = {
+      cover = lib.mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Vertical cover image (portrait, 600x900). Displayed in library grid view.";
+        example = lib.literalExpression "./cover.jpg";
+      };
+
+      banner = lib.mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Horizontal banner image (460x215). Displayed on hover and in last played slot.";
+        example = lib.literalExpression "./banner.jpg";
+      };
+
+      hero = lib.mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Hero/background image (1920x620). Displayed at the top of the game page.";
+        example = lib.literalExpression "./hero.jpg";
+      };
+
+      logo = lib.mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        description = "Logo image (PNG with transparency). Displayed over the hero image.";
+        example = lib.literalExpression "./logo.png";
+      };
+    };
+  };
 in
 {
   imports = [ baseAppModule ];
@@ -77,8 +109,28 @@ in
     icon = lib.mkOption {
       type = types.nullOr types.path;
       default = null;
-      description = "Image file to use as icon";
+      description = "Image file to use as icon (shown in taskbar/tray).";
       example = lib.literalExpression "./icon.png";
+    };
+
+    artwork = lib.mkOption {
+      type = types.submodule artworkSubmodule;
+      default = { };
+      description = ''
+        Steam library artwork for this app.
+
+        Steam uses a separate ID (based on CRC32 of the executable path and app name)
+        to look up grid artwork files, which is different from the shortcut app ID.
+        The patcher computes this automatically from `target` and `name`.
+      '';
+      example = lib.literalExpression ''
+        {
+          cover  = ./cover.jpg;   # 600x900
+          banner = ./banner.jpg;  # 460x215
+          hero   = ./hero.jpg;    # 1920x620
+          logo   = ./logo.png;    # transparent PNG
+        }
+      '';
     };
 
     isHidden = lib.mkOption {
@@ -113,5 +165,13 @@ in
       allowOverlay
       inVrLibrary
       ;
+    artwork = {
+      inherit (config.artwork)
+        cover
+        banner
+        hero
+        logo
+        ;
+    };
   };
 }

@@ -103,7 +103,10 @@ in
 
       # wrapper symlinks
 
-      allApps = (lib.attrValues cfg.apps) ++ (lib.attrValues cfg.nonSteamApps);
+      allApps =
+        (lib.filter (app: app.enable) (lib.attrValues cfg.apps))
+        ++ (lib.filter (app: app.enable) (lib.attrValues cfg.nonSteamApps));
+
       launchOptionApps = lib.filter (app: app.wrapper.package != null) allApps;
       wrapperLinks = map (app: {
         target = app.wrapper.path;
@@ -112,7 +115,8 @@ in
 
       # patcher config
 
-      mapFinalConfigs = lib.mapAttrs (_: value: value.finalConfig);
+      mapFinalConfigs =
+        attrs: lib.mapAttrs (_: value: value.finalConfig) (lib.filterAttrs (_: value: value.enable) attrs);
 
       patcherConfig = builtins.toJSON {
         inherit (cfg) closeSteam defaultCompatTool;

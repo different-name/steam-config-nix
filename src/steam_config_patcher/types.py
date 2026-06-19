@@ -4,6 +4,14 @@ from typing import Literal, Optional, Union
 
 
 @dataclass
+class ArtworkConfig:
+    cover: Optional[str] = None
+    banner: Optional[str] = None
+    hero: Optional[str] = None
+    logo: Optional[str] = None
+
+
+@dataclass
 class NonSteamAppConfig:
     name: str
     target: str
@@ -14,6 +22,7 @@ class NonSteamAppConfig:
     allow_desktop_config: bool
     allow_overlay: bool
     in_vr_library: bool
+    artwork: ArtworkConfig = field(default_factory=ArtworkConfig)
 
 
 @dataclass
