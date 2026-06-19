@@ -122,6 +122,15 @@ let
 in
 {
   options = {
+    enable = lib.mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Whether to enable this app configuration.
+        If set to false, the app will be ignored entirely.
+      '';
+    };
+
     compatTool = lib.mkOption {
       type = types.nullOr types.str;
       default = null;
