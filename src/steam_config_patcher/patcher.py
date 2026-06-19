@@ -1,8 +1,12 @@
+import logging
+
 import vdf
 
 from steam_config_patcher.formats.binary_keyvalues import patch_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
 from steam_config_patcher.types import ConfigPatch, PatcherConfig, UserConfig
+
+LOG = logging.getLogger(__name__)
 
 
 def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
@@ -119,22 +123,44 @@ def generate_shortcuts_vdf_patch(
     )
 
 
+def apply_patch(config_patch: ConfigPatch):
+    match config_patch.file_format:
+        case "keyvalues":
+            patch_keyvalues(config_patch)
+        case "binary-keyvalues":
+            patch_binary_keyvalues(config_patch)
+
+
 def patch_config_files(cfg: PatcherConfig):
-    config_patches = [
-        generate_config_vdf_patch(cfg),
+    patch_steps = [
+        ("config.vdf", lambda: generate_config_vdf_patch(cfg)),
         *[
-            generate_localconfig_vdf_patch(cfg, user_id, user)
+            (
+                f"localconfig.vdf (user {user_id})",
+                lambda user_id=user_id, user=user: generate_localconfig_vdf_patch(
+                    cfg, user_id, user
+                ),
+            )
             for user_id, user in cfg.users.items()
         ],
         *[
-            generate_shortcuts_vdf_patch(cfg, user_id, user)
+            (
+                f"shortcuts.vdf (user {user_id})",
+                lambda user_id=user_id, user=user: generate_shortcuts_vdf_patch(
+                    cfg, user_id, user
+                ),
+            )
             for user_id, user in cfg.users.items()
         ],
     ]
 
-    for config_patch in config_patches:
-        match config_patch.file_format:
-            case "keyvalues":
-                patch_keyvalues(config_patch)
-            case "binary-keyvalues":
-                patch_binary_keyvalues(config_patch)
+    failures = 0
+    for description, generate in patch_steps:
+        try:
+            apply_patch(generate())
+        except Exception:
+            failures += 1
+            LOG.exception("failed to patch %s", description)
+
+    if failures:
+        raise SystemExit(f"{failures} config file(s) failed to patch; see log above")
