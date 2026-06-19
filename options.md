@@ -153,14 +153,19 @@ null or (submodule) or (optionally newline-terminated) single-line string or pac
   };
 
   # Arguments for the game's executable (%command% <...>)
+  # Each token must be its own list element; an argument and its value
+  # cannot share a string ("-provider Portal" will not work)
   args = [
     "-force-vulkan"
+    "-provider" "Portal"
   ];
 
   # Programs to wrap the game with (<...> %command%)
+  # Wrapper flags follow the same rule: one token per element
   wrappers = [
     (lib.getExe pkgs.gamemode)
     "mangohud"
+    "gamescope" "-W" "1920" "-H" "1080" "--"
   ];
 
   /*
@@ -460,14 +465,19 @@ null or (submodule) or (optionally newline-terminated) single-line string or pac
   };
 
   # Arguments for the game's executable (%command% <...>)
+  # Each token must be its own list element; an argument and its value
+  # cannot share a string ("-provider Portal" will not work)
   args = [
     "-force-vulkan"
+    "-provider" "Portal"
   ];
 
   # Programs to wrap the game with (<...> %command%)
+  # Wrapper flags follow the same rule: one token per element
   wrappers = [
     (lib.getExe pkgs.gamemode)
     "mangohud"
+    "gamescope" "-W" "1920" "-H" "1080" "--"
   ];
 
   /*
