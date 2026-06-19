@@ -61,6 +61,10 @@ def generate_localconfig_vdf_patch(
     )
 
 
+def quote_path(path: str) -> str:
+    return f'"{path}"' if path else path
+
+
 def generate_shortcuts_vdf_patch(
     cfg: PatcherConfig, user_id: int, user_config: UserConfig
 ) -> ConfigPatch:
@@ -107,8 +111,8 @@ def generate_shortcuts_vdf_patch(
                 str(index_mapping[app_id]): {
                     "appid": app_id,
                     "AppName": app.name,
-                    "Exe": app.target,
-                    "StartDir": app.start_in,
+                    "Exe": quote_path(app.target),
+                    "StartDir": quote_path(app.start_in),
                     "icon": app.icon,
                     "LaunchOptions": app.launch_options,
                     "IsHidden": 1 if app.is_hidden else 0,
