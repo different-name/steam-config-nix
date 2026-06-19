@@ -65,11 +65,11 @@ in
           # App IDs can be provided through the `id` property
           spin-rhythm = {
             id = 1058830;
-            launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
+            launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
           };
 
           # Or be provided through the `<name>`
-          "620".launchOptions = "-vulkan";
+          "620".launchOptionsStr = "-vulkan";
         }'';
       description = "Configuration per Steam app.";
     };
@@ -82,11 +82,11 @@ in
           # App IDs can be provided through the `id` property
           spin-rhythm = {
             id = 1058830;
-            launchOptions = "DVXK_ASYNC=1 gamemoderun %command%";
+            launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
           };
 
           # Or be provided through the `<name>`
-          "620".launchOptions = "-vulkan";
+          "620".launchOptionsStr = "-vulkan";
         }'';
       description = "Configuration per Steam app.";
     };
