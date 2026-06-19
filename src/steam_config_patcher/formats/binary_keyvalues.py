@@ -4,7 +4,23 @@ from typing import Any
 import vdf
 
 from steam_config_patcher.steam import steam_is_closed
-from steam_config_patcher.types import ConfigPatch
+from steam_config_patcher.types import ConfigPatch, Deletion
+
+
+def delete_key(destination: dict[Any, Any], deletion: Deletion) -> bool:
+    *parent_path, leaf_key = deletion.key_path
+
+    node = destination
+    for key in parent_path:
+        if not isinstance(node, dict) or key not in node:
+            return False
+        node = node[key]
+
+    if not isinstance(node, dict) or leaf_key not in node:
+        return False
+
+    del node[leaf_key]
+    return True
 
 
 def recursive_update(destination: dict[Any, Any], source: dict[Any, Any]) -> bool:
@@ -33,6 +49,10 @@ def patch_binary_keyvalues(config_patch: ConfigPatch) -> bool:
         kv = vdf.binary_load(read_file)
 
     modified = recursive_update(kv, config_patch.data)
+
+    for deletion in config_patch.deletions:
+        if delete_key(kv, deletion):
+            modified = True
 
     if not modified:
         return True

@@ -16,9 +16,30 @@ from steam_config_patcher.types import (
 LOG = logging.getLogger(__name__)
 
 LOCALCONFIG_APPS_PATH = ("UserLocalConfigStore", "Software", "Valve", "Steam", "Apps")
+COMPAT_TOOL_MAPPING_PATH = (
+    "InstallConfigStore",
+    "Software",
+    "Valve",
+    "Steam",
+    "CompatToolMapping",
+)
 
 
-def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
+def generate_config_vdf_patch(
+    cfg: PatcherConfig, prev_compat_tools: dict[int, str]
+) -> ConfigPatch:
+    # clear compat tool mappings previously set for apps that are no longer configured
+    # only if the stored value still matches what we wrote so we don't wipe manual config
+    removed_app_ids = set(prev_compat_tools) - set(cfg.compat_tool_mapping)
+    deletions = [
+        Deletion(
+            key_path=COMPAT_TOOL_MAPPING_PATH + (str(app_id),),
+            guard_path=("name",),
+            expected=prev_compat_tools[app_id],
+        )
+        for app_id in sorted(removed_app_ids)
+    ]
+
     return ConfigPatch(
         file_path=cfg.steam_dir.joinpath("config", "config.vdf"),
         file_format="keyvalues",
@@ -41,6 +62,7 @@ def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
             }
         },
         close_steam=cfg.close_steam,
+        deletions=deletions,
     )
 
 
@@ -92,7 +114,10 @@ def quote_path(path: str) -> str:
 
 
 def generate_shortcuts_vdf_patch(
-    cfg: PatcherConfig, user_id: int, user_config: UserConfig
+    cfg: PatcherConfig,
+    user_id: int,
+    user_config: UserConfig,
+    prev_manifest: UserManifest,
 ) -> ConfigPatch:
     file_path = cfg.steam_dir.joinpath(
         "userdata", str(user_id), "config", "shortcuts.vdf"
@@ -129,6 +154,15 @@ def generate_shortcuts_vdf_patch(
             index_mapping[app_id] = max_index + index_offset
             index_offset += 1
 
+    # remove shortcuts we previously created for non-steam apps that are no longer configured
+    # matched by our generated app id, which is unique to us
+    removed_app_ids = set(prev_manifest.shortcuts) - set(user_config.non_steam_apps)
+    deletions = [
+        Deletion(key_path=("shortcuts", str(shortcut_index)))
+        for shortcut_index, shortcut in shortcuts.items()
+        if shortcut.get("appid") in removed_app_ids
+    ]
+
     return ConfigPatch(
         file_path=file_path,
         file_format="binary-keyvalues",
@@ -150,6 +184,7 @@ def generate_shortcuts_vdf_patch(
             }
         },
         close_steam=cfg.close_steam,
+        deletions=deletions,
     )
 
 
@@ -178,8 +213,13 @@ def patch_config_files(cfg: PatcherConfig):
         user_id: load_manifest(cfg.steam_dir, user_id) for user_id in cfg.users
     }
 
+    # config.vdf is global so cleanup considers compat tools managed for any user
+    prev_compat_tools: dict[int, str] = {}
+    for manifest in prev_manifests.values():
+        prev_compat_tools.update(manifest.compat_tools)
+
     patch_steps = [
-        ("config.vdf", lambda: generate_config_vdf_patch(cfg)),
+        ("config.vdf", lambda: generate_config_vdf_patch(cfg, prev_compat_tools)),
         *[
             (
                 f"localconfig.vdf (user {user_id})",
@@ -193,7 +233,7 @@ def patch_config_files(cfg: PatcherConfig):
             (
                 f"shortcuts.vdf (user {user_id})",
                 lambda user_id=user_id, user=user: generate_shortcuts_vdf_patch(
-                    cfg, user_id, user
+                    cfg, user_id, user, prev_manifests[user_id]
                 ),
             )
             for user_id, user in cfg.users.items()
