@@ -25,15 +25,22 @@ def recursive_update(destination: dict[Any, Any], source: dict[Any, Any]) -> boo
     return modified
 
 
-def patch_binary_keyvalues(config_patch: ConfigPatch):
+def patch_binary_keyvalues(config_patch: ConfigPatch) -> bool:
     if not config_patch.file_path.is_file():
-        return
+        return True
 
     with config_patch.file_path.open(mode="rb") as read_file:
         kv = vdf.binary_load(read_file)
 
     modified = recursive_update(kv, config_patch.data)
 
-    if modified and steam_is_closed(close_if_running=config_patch.close_steam):
-        with config_patch.file_path.open(mode="wb") as write_file:
-            vdf.binary_dump(kv, write_file)
+    if not modified:
+        return True
+
+    if not steam_is_closed(close_if_running=config_patch.close_steam):
+        return False
+
+    with config_patch.file_path.open(mode="wb") as write_file:
+        vdf.binary_dump(kv, write_file)
+
+    return True

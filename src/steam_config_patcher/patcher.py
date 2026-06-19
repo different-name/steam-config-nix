@@ -4,9 +4,18 @@ import vdf
 
 from steam_config_patcher.formats.binary_keyvalues import patch_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
-from steam_config_patcher.types import ConfigPatch, PatcherConfig, UserConfig
+from steam_config_patcher.manifest import load_manifest, save_manifest
+from steam_config_patcher.types import (
+    ConfigPatch,
+    Deletion,
+    PatcherConfig,
+    UserConfig,
+    UserManifest,
+)
 
 LOG = logging.getLogger(__name__)
+
+LOCALCONFIG_APPS_PATH = ("UserLocalConfigStore", "Software", "Valve", "Steam", "Apps")
 
 
 def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
@@ -36,8 +45,24 @@ def generate_config_vdf_patch(cfg: PatcherConfig) -> ConfigPatch:
 
 
 def generate_localconfig_vdf_patch(
-    cfg: PatcherConfig, user_id: int, user_config: UserConfig
+    cfg: PatcherConfig,
+    user_id: int,
+    user_config: UserConfig,
+    prev_manifest: UserManifest,
 ) -> ConfigPatch:
+    # clear launch options we previously set for apps that are no longer configured
+    # only if the stored value still matches what we wrote so we don't wipe manual config
+    removed_app_ids = set(prev_manifest.launch_options) - set(
+        user_config.launch_options
+    )
+    deletions = [
+        Deletion(
+            key_path=LOCALCONFIG_APPS_PATH + (str(app_id), "LaunchOptions"),
+            expected=prev_manifest.launch_options[app_id],
+        )
+        for app_id in sorted(removed_app_ids)
+    ]
+
     return ConfigPatch(
         file_path=cfg.steam_dir.joinpath(
             "userdata", str(user_id), "config", "localconfig.vdf"
@@ -58,6 +83,7 @@ def generate_localconfig_vdf_patch(
             }
         },
         close_steam=cfg.close_steam,
+        deletions=deletions,
     )
 
 
@@ -127,22 +153,38 @@ def generate_shortcuts_vdf_patch(
     )
 
 
-def apply_patch(config_patch: ConfigPatch):
+def apply_patch(config_patch: ConfigPatch) -> bool:
     match config_patch.file_format:
         case "keyvalues":
-            patch_keyvalues(config_patch)
+            return patch_keyvalues(config_patch)
         case "binary-keyvalues":
-            patch_binary_keyvalues(config_patch)
+            return patch_binary_keyvalues(config_patch)
+    return True
+
+
+def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifest:
+    return UserManifest(
+        compat_tools={
+            app_id: compat_tool.name
+            for app_id, compat_tool in cfg.compat_tool_mapping.items()
+        },
+        launch_options=dict(user_config.launch_options),
+        shortcuts=list(user_config.non_steam_apps.keys()),
+    )
 
 
 def patch_config_files(cfg: PatcherConfig):
+    prev_manifests = {
+        user_id: load_manifest(cfg.steam_dir, user_id) for user_id in cfg.users
+    }
+
     patch_steps = [
         ("config.vdf", lambda: generate_config_vdf_patch(cfg)),
         *[
             (
                 f"localconfig.vdf (user {user_id})",
                 lambda user_id=user_id, user=user: generate_localconfig_vdf_patch(
-                    cfg, user_id, user
+                    cfg, user_id, user, prev_manifests[user_id]
                 ),
             )
             for user_id, user in cfg.users.items()
@@ -159,12 +201,27 @@ def patch_config_files(cfg: PatcherConfig):
     ]
 
     failures = 0
+    blocked = False
     for description, generate in patch_steps:
         try:
-            apply_patch(generate())
+            if not apply_patch(generate()):
+                blocked = True
         except Exception:
             failures += 1
             LOG.exception("failed to patch %s", description)
 
     if failures:
         raise SystemExit(f"{failures} config file(s) failed to patch; see log above")
+
+    if blocked:
+        LOG.warning(
+            "Steam is running; skipped writes and manifest update. "
+            "Close Steam (or enable closeSteam) to apply changes."
+        )
+        return
+
+    for user_id, user in cfg.users.items():
+        try:
+            save_manifest(cfg.steam_dir, user_id, desired_manifest(cfg, user))
+        except Exception:
+            LOG.exception("failed to write manifest for user %s", user_id)

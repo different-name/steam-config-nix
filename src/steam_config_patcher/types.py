@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 
 @dataclass
@@ -41,8 +41,23 @@ KeyValuesType = dict[str, Union[KeyValuesValue, "KeyValuesType"]]
 
 
 @dataclass
+class Deletion:
+    key_path: tuple[str, ...]
+    guard_path: tuple[str, ...] = ()
+    expected: Optional[str] = None
+
+
+@dataclass
 class ConfigPatch:
     file_path: Path
     file_format: Literal["keyvalues", "binary-keyvalues"]
     data: KeyValuesType
     close_steam: bool
+    deletions: list[Deletion] = field(default_factory=list)
+
+
+@dataclass
+class UserManifest:
+    compat_tools: dict[int, str] = field(default_factory=dict)
+    launch_options: dict[int, str] = field(default_factory=dict)
+    shortcuts: list[int] = field(default_factory=list)
