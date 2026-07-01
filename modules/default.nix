@@ -90,6 +90,44 @@ in
         }'';
       description = "Configuration per Steam app.";
     };
+
+    winetricks = lib.mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          winePrefix = lib.mkOption {
+            type = types.str;
+            example = "/home/user/.wine";
+            description = "Path to the Wine prefix (WINEPREFIX).";
+          };
+
+          verbs = lib.mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            example = lib.literalExpression ''
+              [ "vcrun2022" "corefonts" "dxvk" ]
+            '';
+            description = "List of winetricks verbs to install in this prefix.";
+          };
+        };
+      });
+      default = { };
+      example = lib.literalExpression ''
+        {
+          "my-app" = {
+            winePrefix = "/home/user/.local/share/wineprefixes/myapp";
+            verbs = [ "vcrun2022" "corefonts" ];
+          };
+        }'';
+      description = ''
+        Declarative winetricks package installations for arbitrary Wine prefixes.
+
+        Each entry specifies a path to a Wine prefix and a list of winetricks verbs
+        to install in that prefix.
+
+        For per-game winetricks configuration tied to a Steam app, use the
+        `apps.<name>.winetricks` option instead, which auto-detects the prefix path.
+      '';
+    };
   };
 
   config =
@@ -119,11 +157,54 @@ in
         nonSteamApps = mapFinalConfigs cfg.nonSteamApps;
       };
 
+      # winetricks
+
+      winetricksApps = lib.filter (
+        app: app.winetricks != null && app.winetricks.verbs != [ ]
+      ) allApps;
+
+      hasWinetricksTasks = winetricksApps != [ ] || cfg.winetricks != { };
+
+      winetricksScript = pkgs.writeShellScriptBin "steam-winetricks" ''
+        set -u
+        export PATH="${lib.makeBinPath [ pkgs.winetricks ]}:$PATH"
+
+        run_winetricks() {
+          local prefix="$1"
+          shift
+          if [ ! -d "$prefix" ]; then
+            echo "steam-config-nix: warning: WINEPREFIX '$prefix' does not exist, skipping winetricks"
+            return 0
+          fi
+          echo "steam-config-nix: installing winetricks verbs in '$prefix': $*"
+          WINEPREFIX="$prefix" winetricks -q "$@" || echo "steam-config-nix: warning: winetricks failed for '$prefix'"
+        }
+
+        ${lib.concatStringsSep "\n" (map (app:
+          let
+            prefix = if app.winetricks.winePrefix != null then app.winetricks.winePrefix else "\"$HOME/.steam/steam/steamapps/compatdata/${toString app.id}/pfx\"";
+            verbs = lib.escapeShellArgs app.winetricks.verbs;
+          in
+          "run_winetricks ${prefix} ${verbs}"
+        ) winetricksApps)}
+
+        ${lib.concatStringsSep "\n" (lib.mapAttrsToList (_: wt:
+          "run_winetricks \"${wt.winePrefix}\" ${lib.escapeShellArgs wt.verbs}"
+        ) cfg.winetricks)}
+      '';
+
+      winetricksConfigHash = builtins.hashString "md5" (builtins.toJSON {
+        inherit (cfg) winetricks;
+        appWinetricks = map (app: app.winetricks) winetricksApps;
+      });
+
       # patcher service
 
       service = {
         description = "Steam config patcher script";
-        restartTriggers = [ (builtins.hashString "md5" patcherConfig) ];
+        restartTriggers = [
+          (builtins.hashString "md5" patcherConfig)
+        ] ++ lib.optional hasWinetricksTasks winetricksConfigHash;
 
         config = {
           Type = "oneshot";
@@ -133,6 +214,8 @@ in
             (lib.getExe cfg.package)
             (pkgs.writeText "steam-config-patcher-cfg" patcherConfig)
           ];
+        } // lib.optionalAttrs hasWinetricksTasks {
+          ExecStartPost = "${lib.getExe winetricksScript}";
         };
       };
     in
