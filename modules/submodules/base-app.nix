@@ -122,6 +122,15 @@ let
 in
 {
   options = {
+    enable = lib.mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Whether to enable this app configuration.
+        If set to false, the app will be ignored entirely.
+      '';
+    };
+
     compatTool = lib.mkOption {
       type = types.nullOr types.str;
       default = null;
@@ -243,6 +252,48 @@ in
       readOnly = true;
     };
 
+    winetricks = lib.mkOption {
+      type = types.nullOr (types.submodule {
+        options = {
+          verbs = lib.mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            example = lib.literalExpression ''
+              [ "vcrun2022" "corefonts" "dxvk" ]
+            '';
+            description = "List of winetricks verbs (packages) to install in the Wine prefix.";
+          };
+
+          winePrefix = lib.mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            example = "/path/to/wineprefix";
+            description = ''
+              Path to the Wine prefix (WINEPREFIX).
+
+              For Steam apps, leave this `null` to auto-detect
+              (`$HOME/.steam/steam/steamapps/compatdata/<appid>/pfx`).
+
+              For non-Steam apps or custom prefixes, set this to the
+              absolute path of your Wine prefix.
+            '';
+          };
+        };
+      });
+      default = null;
+      description = ''
+        Declarative winetricks package installation for this app's Wine prefix.
+
+        The specified winetricks verbs will be installed in the app's Wine prefix
+        every time the configuration is applied. This is idempotent — winetricks
+        will skip verbs that are already installed.
+
+        For Steam apps, the Wine prefix is automatically detected from
+        Steam's compatdata directory. For non-Steam apps or custom prefixes,
+        set `winetricks.winePrefix` explicitly.
+      '';
+    };
+
     finalConfig = lib.mkOption {
       type = types.attrs;
       visible = false;
@@ -254,6 +305,7 @@ in
     inherit (config)
       id # option must be defined by module importing base app
       compatTool
+      winetricks
       ;
     launchOptions = config.wrapper.exec;
   };

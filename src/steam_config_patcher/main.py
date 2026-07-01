@@ -9,6 +9,7 @@ from srctools import steam
 from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_user_ids
 from steam_config_patcher.types import (
+    ArtworkConfig,
     CompatToolConfig,
     NonSteamAppConfig,
     PatcherConfig,
@@ -22,6 +23,13 @@ class AppSchema(BaseModel):
     compatTool: Optional[str] = None
 
 
+class ArtworkSchema(BaseModel):
+    cover: Optional[str] = None
+    banner: Optional[str] = None
+    hero: Optional[str] = None
+    logo: Optional[str] = None
+
+
 class NonSteamAppSchema(AppSchema):
     name: str
     target: str
@@ -30,6 +38,7 @@ class NonSteamAppSchema(AppSchema):
     isHidden: bool
     allowOverlay: bool
     inVrLibrary: bool
+    artwork: ArtworkSchema = ArtworkSchema()
 
 
 class InputSchema(BaseModel):
@@ -90,6 +99,12 @@ def parse_input() -> PatcherConfig:
                         allow_desktop_config=True,
                         allow_overlay=app.allowOverlay,
                         in_vr_library=app.inVrLibrary,
+                        artwork=ArtworkConfig(
+                            cover=app.artwork.cover,
+                            banner=app.artwork.banner,
+                            hero=app.artwork.hero,
+                            logo=app.artwork.logo,
+                        ),
                     )
                     for app in validated_input.nonSteamApps.values()
                 },
