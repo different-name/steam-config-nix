@@ -1,11 +1,18 @@
 import logging
+from typing import Iterable
 
 from steam_config_patcher.formats.binary_keyvalues import patch_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
 from steam_config_patcher.manifest import load_manifest, save_manifest
 from steam_config_patcher.types import (
+    COMPAT_TOOL_MAPPING_PATH,
+    CONFIG_FILE,
+    LOCALCONFIG_APPS_PATH,
+    LOCALCONFIG_FILE,
     ConfigPatch,
     Deletion,
+    KeyValuesType,
+    ManagedKey,
     PatcherConfig,
     UserConfig,
     UserManifest,
@@ -14,54 +21,86 @@ from steam_config_patcher.vdf import binary
 
 LOG = logging.getLogger(__name__)
 
-LOCALCONFIG_APPS_PATH = ("UserLocalConfigStore", "Software", "Valve", "Steam", "Apps")
-COMPAT_TOOL_MAPPING_PATH = (
-    "InstallConfigStore",
-    "Software",
-    "Valve",
-    "Steam",
-    "CompatToolMapping",
-)
+KeyValuesLeaves = dict[tuple[str, ...], str]
+
+
+def nest_leaves(leaves: KeyValuesLeaves) -> KeyValuesType:
+    tree: KeyValuesType = {}
+    for key_path, value in leaves.items():
+        node = tree
+        for key in key_path[:-1]:
+            node = node.setdefault(key, {})
+        node[key_path[-1]] = value
+    return tree
+
+
+def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedKey]]:
+    leaves: KeyValuesLeaves = {}
+    managed_keys = []
+
+    for app_id, compat_tool in cfg.compat_tool_mapping.items():
+        block_path = COMPAT_TOOL_MAPPING_PATH + (str(app_id),)
+        leaves[block_path + ("config",)] = ""
+        leaves[block_path + ("name",)] = compat_tool.name
+        leaves[block_path + ("priority",)] = str(compat_tool.priority)
+        managed_keys.append(
+            ManagedKey(
+                file=CONFIG_FILE,
+                key_path=block_path,
+                guard_path=("name",),
+                expected=compat_tool.name,
+            )
+        )
+
+    return leaves, managed_keys
+
+
+def localconfig_vdf_state(
+    user_config: UserConfig,
+) -> tuple[KeyValuesLeaves, list[ManagedKey]]:
+    leaves: KeyValuesLeaves = {}
+    managed_keys = []
+
+    for app_id, launch_options in user_config.launch_options.items():
+        key_path = LOCALCONFIG_APPS_PATH + (str(app_id), "LaunchOptions")
+        leaves[key_path] = launch_options
+        managed_keys.append(
+            ManagedKey(
+                file=LOCALCONFIG_FILE,
+                key_path=key_path,
+                expected=launch_options,
+            )
+        )
+
+    return leaves, managed_keys
+
+
+def cleanup_deletions(
+    prev_keys: Iterable[ManagedKey],
+    desired_keys: Iterable[ManagedKey],
+    file_id: str,
+) -> list[Deletion]:
+    desired_paths = {key.key_path for key in desired_keys if key.file == file_id}
+
+    removed: dict[tuple[str, ...], ManagedKey] = {}
+    for key in prev_keys:
+        if key.file == file_id and key.key_path not in desired_paths:
+            removed.setdefault(key.key_path, key)
+
+    return [removed[key_path].to_deletion() for key_path in sorted(removed)]
 
 
 def generate_config_vdf_patch(
-    cfg: PatcherConfig, prev_compat_tools: dict[int, str]
+    cfg: PatcherConfig, prev_keys: Iterable[ManagedKey]
 ) -> ConfigPatch:
-    # clear compat tool mappings previously set for apps that are no longer configured
-    # only if the stored value still matches what we wrote so we don't wipe manual config
-    removed_app_ids = set(prev_compat_tools) - set(cfg.compat_tool_mapping)
-    deletions = [
-        Deletion(
-            key_path=COMPAT_TOOL_MAPPING_PATH + (str(app_id),),
-            guard_path=("name",),
-            expected=prev_compat_tools[app_id],
-        )
-        for app_id in sorted(removed_app_ids)
-    ]
+    leaves, desired_keys = config_vdf_state(cfg)
 
     return ConfigPatch(
         file_path=cfg.steam_dir.joinpath("config", "config.vdf"),
         file_format="keyvalues",
-        data={
-            "InstallConfigStore": {
-                "Software": {
-                    "Valve": {
-                        "Steam": {
-                            "CompatToolMapping": {
-                                str(app_id): {
-                                    "config": "",
-                                    "name": compat_tool.name,
-                                    "priority": str(compat_tool.priority),
-                                }
-                                for app_id, compat_tool in cfg.compat_tool_mapping.items()
-                            }
-                        }
-                    }
-                }
-            }
-        },
+        data=nest_leaves(leaves),
         close_steam=cfg.close_steam,
-        deletions=deletions,
+        deletions=cleanup_deletions(prev_keys, desired_keys, CONFIG_FILE),
     )
 
 
@@ -71,40 +110,18 @@ def generate_localconfig_vdf_patch(
     user_config: UserConfig,
     prev_manifest: UserManifest,
 ) -> ConfigPatch:
-    # clear launch options we previously set for apps that are no longer configured
-    # only if the stored value still matches what we wrote so we don't wipe manual config
-    removed_app_ids = set(prev_manifest.launch_options) - set(
-        user_config.launch_options
-    )
-    deletions = [
-        Deletion(
-            key_path=LOCALCONFIG_APPS_PATH + (str(app_id), "LaunchOptions"),
-            expected=prev_manifest.launch_options[app_id],
-        )
-        for app_id in sorted(removed_app_ids)
-    ]
+    leaves, desired_keys = localconfig_vdf_state(user_config)
 
     return ConfigPatch(
         file_path=cfg.steam_dir.joinpath(
             "userdata", str(user_id), "config", "localconfig.vdf"
         ),
         file_format="keyvalues",
-        data={
-            "UserLocalConfigStore": {
-                "Software": {
-                    "Valve": {
-                        "Steam": {
-                            "Apps": {
-                                str(app_id): {"LaunchOptions": launch_options}
-                                for app_id, launch_options in user_config.launch_options.items()
-                            }
-                        }
-                    }
-                }
-            }
-        },
+        data=nest_leaves(leaves),
         close_steam=cfg.close_steam,
-        deletions=deletions,
+        deletions=cleanup_deletions(
+            prev_manifest.managed_keys, desired_keys, LOCALCONFIG_FILE
+        ),
     )
 
 
@@ -196,12 +213,11 @@ def apply_patch(config_patch: ConfigPatch) -> bool:
 
 
 def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifest:
+    _, config_keys = config_vdf_state(cfg)
+    _, localconfig_keys = localconfig_vdf_state(user_config)
+
     return UserManifest(
-        compat_tools={
-            app_id: compat_tool.name
-            for app_id, compat_tool in cfg.compat_tool_mapping.items()
-        },
-        launch_options=dict(user_config.launch_options),
+        managed_keys=config_keys + localconfig_keys,
         shortcuts=list(user_config.non_steam_apps.keys()),
     )
 
@@ -211,13 +227,13 @@ def patch_config_files(cfg: PatcherConfig):
         user_id: load_manifest(cfg.steam_dir, user_id) for user_id in cfg.users
     }
 
-    # config.vdf is global so cleanup considers compat tools managed for any user
-    prev_compat_tools: dict[int, str] = {}
-    for manifest in prev_manifests.values():
-        prev_compat_tools.update(manifest.compat_tools)
+    # config.vdf is global so cleanup considers keys managed for any user
+    all_prev_keys = [
+        key for manifest in prev_manifests.values() for key in manifest.managed_keys
+    ]
 
     patch_steps = [
-        ("config.vdf", lambda: generate_config_vdf_patch(cfg, prev_compat_tools)),
+        ("config.vdf", lambda: generate_config_vdf_patch(cfg, all_prev_keys)),
         *[
             (
                 f"localconfig.vdf (user {user_id})",

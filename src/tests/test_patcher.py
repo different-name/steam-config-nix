@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from steam_config_patcher.manifest import load_manifest, manifest_path
@@ -9,6 +11,7 @@ from steam_config_patcher.patcher import (
 )
 from steam_config_patcher.types import (
     CompatToolConfig,
+    ManagedKey,
     NonSteamAppConfig,
     PatcherConfig,
     UserConfig,
@@ -123,7 +126,7 @@ def test_config_vdf_patch_data_and_priorities(tmp_path):
         },
     )
 
-    patch = generate_config_vdf_patch(cfg, prev_compat_tools={})
+    patch = generate_config_vdf_patch(cfg, prev_keys=[])
 
     mapping = patch.data["InstallConfigStore"]["Software"]["Valve"]["Steam"][
         "CompatToolMapping"
@@ -133,18 +136,44 @@ def test_config_vdf_patch_data_and_priorities(tmp_path):
     assert patch.deletions == []
 
 
+def compat_key(app_id, name):
+    return ManagedKey(
+        file="config",
+        key_path=MAPPING_PATH + (str(app_id),),
+        guard_path=("name",),
+        expected=name,
+    )
+
+
 def test_config_vdf_patch_deletes_removed_guarded_by_name(tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     cfg = make_cfg(steam_dir, compat_tool_mapping={620: CompatToolConfig("GE-Proton", 250)})
 
     patch = generate_config_vdf_patch(
-        cfg, prev_compat_tools={620: "GE-Proton", 999: "old-tool", 555: "other-tool"}
+        cfg,
+        prev_keys=[
+            compat_key(620, "GE-Proton"),
+            compat_key(999, "old-tool"),
+            compat_key(555, "other-tool"),
+        ],
     )
 
     assert [(d.key_path[-1], d.guard_path, d.expected) for d in patch.deletions] == [
         ("555", ("name",), "other-tool"),
         ("999", ("name",), "old-tool"),
     ]
+
+
+def test_config_vdf_patch_dedupes_prev_keys_across_users(tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(steam_dir)
+
+    patch = generate_config_vdf_patch(
+        cfg,
+        prev_keys=[compat_key(999, "old-tool"), compat_key(999, "old-tool")],
+    )
+
+    assert len(patch.deletions) == 1
 
 
 def test_shortcuts_patch_reuses_index_for_existing_appid(fake_steam, tmp_path):
@@ -227,8 +256,14 @@ def test_desired_manifest_reflects_config(tmp_path):
     manifest = desired_manifest(cfg, cfg.users[USER_ID])
 
     assert manifest == UserManifest(
-        compat_tools={620: "GE-Proton"},
-        launch_options={620: "wrapper %command%"},
+        managed_keys=[
+            compat_key(620, "GE-Proton"),
+            ManagedKey(
+                file="localconfig",
+                key_path=APPS_PATH + ("620", "LaunchOptions"),
+                expected="wrapper %command%",
+            ),
+        ],
         shortcuts=[555],
     )
 
@@ -272,6 +307,35 @@ def test_second_run_cleans_up_removed_entries(fake_steam, tmp_path):
     assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == []
     assert read_shortcuts(steam_dir)["shortcuts"] == {}
     assert load_manifest(steam_dir, USER_ID) == UserManifest()
+
+
+def test_v1_manifest_entries_are_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+    )
+    patch_config_files(cfg)
+
+    manifest_path(steam_dir, USER_ID).write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "compat_tools": {"1091500": "GE-Proton"},
+                "launch_options": {"620": "wrapper %command%"},
+                "shortcuts": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    patch_config_files(make_cfg(steam_dir))
+
+    config_vdf = steam_dir / "config" / "config.vdf"
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500",)) == []
+    assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == []
 
 
 def test_cleanup_keeps_values_changed_by_user(fake_steam, tmp_path):

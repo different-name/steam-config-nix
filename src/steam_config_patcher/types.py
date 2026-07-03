@@ -2,6 +2,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Optional, Union
 
+CONFIG_FILE = "config"
+LOCALCONFIG_FILE = "localconfig"
+
+COMPAT_TOOL_MAPPING_PATH = (
+    "InstallConfigStore",
+    "Software",
+    "Valve",
+    "Steam",
+    "CompatToolMapping",
+)
+LOCALCONFIG_APPS_PATH = ("UserLocalConfigStore", "Software", "Valve", "Steam", "Apps")
+
 
 @dataclass
 class NonSteamAppConfig:
@@ -47,6 +59,21 @@ class Deletion:
     expected: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class ManagedKey:
+    file: str
+    key_path: tuple[str, ...]
+    guard_path: tuple[str, ...] = ()
+    expected: Optional[str] = None
+
+    def to_deletion(self) -> Deletion:
+        return Deletion(
+            key_path=self.key_path,
+            guard_path=self.guard_path,
+            expected=self.expected,
+        )
+
+
 @dataclass
 class ConfigPatch:
     file_path: Path
@@ -58,6 +85,5 @@ class ConfigPatch:
 
 @dataclass
 class UserManifest:
-    compat_tools: dict[int, str] = field(default_factory=dict)
-    launch_options: dict[int, str] = field(default_factory=dict)
+    managed_keys: list[ManagedKey] = field(default_factory=list)
     shortcuts: list[int] = field(default_factory=list)
