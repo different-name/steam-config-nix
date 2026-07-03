@@ -15,7 +15,7 @@ let
   mkAppWrapperPackage =
     app:
     let
-      hasOptions = app.launchOptions != null;
+      hasOptions = app.hasLaunchOptions;
       hasStrOptions = app.launchOptionsStr != null;
 
       # for nix style launch options
@@ -40,87 +40,87 @@ let
     in
     if hasOptions || hasStrOptions then package else null;
 
-  launchOptionsSubmodule = types.submodule {
-    imports = lib.singleton (lib.mkRenamedOptionModule [ "extraConfig" ] [ "preHook" ]);
+  launchOptionsOptions = {
+    env = lib.mkOption {
+      type =
+        with types;
+        lazyAttrsOf (
+          nullOr (oneOf [
+            str
+            path
+            int
+            float
+            bool
+          ])
+        );
+      default = { };
+      example = lib.literalExpression ''
+        {
+          WINEDLLOVERRIDES = "winmm,version=n,b";
+          TZ = null;
+        }
+      '';
+      description = ''
+        Environment variables to export in the launch script.
+        You can also unset variables by setting their value to `null`.
+      '';
+    };
 
-    options = {
-      env = lib.mkOption {
-        type =
-          with types;
-          lazyAttrsOf (
-            nullOr (oneOf [
-              str
-              path
-              int
-              float
-              bool
-            ])
-          );
-        default = { };
-        example = lib.literalExpression ''
-          {
-            WINEDLLOVERRIDES = "winmm,version=n,b";
-            TZ = null;
-          }
-        '';
-        description = ''
-          Environment variables to export in the launch script.
-          You can also unset variables by setting their value to `null`.
-        '';
-      };
+    wrappers = lib.mkOption {
+      type = types.listOf (types.coercedTo types.package lib.getExe types.str);
+      default = [ ];
+      example = lib.literalExpression ''
+        [
+          (lib.getExe' pkgs.mangohud "mangohud")
+          pkgs.myWrapperProgram
+          "gamemoderun"
+        ]
+      '';
+      description = "Executables to wrap the game with.";
+    };
 
-      wrappers = lib.mkOption {
-        type = types.listOf (types.coercedTo types.package lib.getExe types.str);
-        default = [ ];
-        example = lib.literalExpression ''
-          [
-            (lib.getExe' pkgs.mangohud "mangohud")
-            pkgs.myWrapperProgram
-            "gamemoderun"
-          ]
-        '';
-        description = "Executables to wrap the game with.";
-      };
+    args = lib.mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      example = lib.literalExpression ''
+        [
+          "-modded"
+          "--launcher-skip"
+          "-skipStartScreen"
+        ]
+      '';
+      description = "Arguments to pass to the game.";
+    };
 
-      args = lib.mkOption {
-        type = types.listOf types.str;
-        default = [ ];
-        example = lib.literalExpression ''
-          [
-            "-modded"
-            "--launcher-skip"
-            "-skipStartScreen"
-          ]
-        '';
-        description = "Arguments to pass to the game.";
-      };
+    preHook = lib.mkOption {
+      type = types.lines;
+      default = "";
+      example = ''
+        if [[ "$*" == *"-force-vulkan"* ]]; then
+          export PROTON_ENABLE_WAYLAND=1
+        fi
 
-      preHook = lib.mkOption {
-        type = types.lines;
-        default = "";
-        example = ''
-          if [[ "$*" == *"-force-vulkan"* ]]; then
-            export PROTON_ENABLE_WAYLAND=1
-          fi
+        for i in "''${!game_command[@]}"; do
+          game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
+        done
+      '';
+      description = ''
+        Extra bash code to run before executing the game
 
-          for i in "''${!game_command[@]}"; do
-            game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
-          done
-        '';
-        description = ''
-          Extra bash code to run before executing the game
+        These variables are available in scope for you to read / modify in this hook:
 
-          These variables are available in scope for you to read / modify in this hook:
-
-           - `wrappers`: values from the wrappers option
-           - `game_command`: the %command% passed from steam
-           - `args`: values from the args option
-        '';
-      };
+         - `wrappers`: values from the wrappers option
+         - `game_command`: the %command% passed from steam
+         - `args`: values from the args option
+      '';
     };
   };
 in
 {
+  imports = lib.singleton (
+    lib.mkRenamedOptionModule [ "launchOptions" "extraConfig" ] [ "launchOptions" "preHook" ]
+  );
+
   options = {
     compatTool = lib.mkOption {
       type = types.nullOr types.str;
@@ -129,92 +129,28 @@ in
       description = "Compatibility tool to use.";
     };
 
-    /*
-      this is currently an option that accept the launchOptions submodule, a package or a singleLineStr
-      this is only to provide informational error messages for those who have not migrated to the new options
-      this should be removed after a while and the launchOptions options should be declared directly, instead of through a submodule
-    */
-    launchOptions = lib.mkOption {
-      type =
-        with types;
-        nullOr (oneOf [
-          launchOptionsSubmodule
-          singleLineStr # use the launchOptionsStr option instead
-          package # packages are no longer supported
-        ]);
-
-      default = null;
-
-      apply =
-        value:
-        if lib.isDerivation value then
-          throw ''
-            steam-config-nix: launchOptions no longer supports derivations.
-            Migrate to the launchOptions.preHook option, which will allows for the same flexibility.
-            See https://github.com/different-name/steam-config-nix/discussions/34
-          ''
-        else if lib.typeOf value == "string" then
-          throw "steam-config-nix: launchOptions no longer supports string values, use launchOptionsStr instead."
-        else
-          value;
-
-      description = ''
-        App launch options, see example for usage.
-
-        If `launchOptionsStr` is defined, that will be used instead.
-      '';
-
-      example = lib.literalExpression ''
-        {
-          # Environment variables
-          env = {
-            PROTON_USE_NTSYNC = true;
-            TZ = null; # This unsets the variable
-          };
-
-          # Arguments for the game's executable (%command% <...>)
-          # Each token must be its own list element; an argument and its value
-          # cannot share a string ("-provider Portal" will not work)
-          args = [
-            "-force-vulkan"
-            "-provider" "Portal"
-          ];
-
-          # Programs to wrap the game with (<...> %command%)
-          # Wrapper flags follow the same rule: one token per element
-          wrappers = [
-            (lib.getExe pkgs.gamemode)
-            "mangohud"
-            "gamescope" "-W" "1920" "-H" "1080" "--"
-          ];
-
-          /*
-            Extra bash code to run before executing the game
-            These variables are available in scope for you to read / modify in this hook:
-              `wrappers`: values from the wrappers option
-              `game_command`: the %command% passed from steam
-              `args`: values from the args option
-          */
-          preHook = '''
-            if [[ "$*" == *"-force-vulkan"* ]]; then
-              export PROTON_ENABLE_WAYLAND=1
-            fi
-
-            for i in "'''''${!game_command[@]}"; do
-              game_command[i]="'''''${game_command[i]//\/Launcher.exe/\/game.exe}"
-            done
-          ''';
-        };'';
-    };
+    launchOptions = launchOptionsOptions;
 
     launchOptionsStr = lib.mkOption {
       type = types.nullOr types.singleLineStr;
       default = null;
       description = ''
         Traditional Steam launch options.
-                          
-        If this is defined it will be used instead of the `launchOption` option.
+
+        Cannot be combined with `launchOptions`.
       '';
+    };
+
+    hasLaunchOptions = lib.mkOption {
+      type = types.bool;
+      default =
+        config.launchOptions.env != { }
+        || config.launchOptions.wrappers != [ ]
+        || config.launchOptions.args != [ ]
+        || config.launchOptions.preHook != "";
+      visible = false;
+      internal = true;
+      readOnly = true;
     };
 
     dataDir = lib.mkOption {

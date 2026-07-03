@@ -35,7 +35,7 @@ package
 
 
 *Default:*
-` <derivation steam-config-patcher-0.2.3> `
+` <derivation steam-config-patcher-0.2.4> `
 
 
 
@@ -122,70 +122,136 @@ signed integer
 
 
 
-## programs\.steam\.config\.apps\.\<name>\.launchOptions
+## programs\.steam\.config\.apps\.\<name>\.launchOptions\.args
 
 
 
-App launch options, see example for usage\.
-
-If ` launchOptionsStr ` is defined, that will be used instead\.
+Arguments to pass to the game\.
 
 
 
 *Type:*
-null or (submodule) or (optionally newline-terminated) single-line string or package
+list of string
 
 
 
 *Default:*
-` null `
+` [ ] `
 
 
 
 *Example:*
 
-````
+```
+[
+  "-modded"
+  "--launcher-skip"
+  "-skipStartScreen"
+]
+
+```
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.launchOptions\.env
+
+
+
+Environment variables to export in the launch script\.
+You can also unset variables by setting their value to ` null `\.
+
+
+
+*Type:*
+lazy attribute set of (null or string or absolute path or signed integer or floating point number or boolean)
+
+
+
+*Default:*
+` { } `
+
+
+
+*Example:*
+
+```
 {
-  # Environment variables
-  env = {
-    PROTON_USE_NTSYNC = true;
-    TZ = null; # This unsets the variable
-  };
+  WINEDLLOVERRIDES = "winmm,version=n,b";
+  TZ = null;
+}
 
-  # Arguments for the game's executable (%command% <...>)
-  # Each token must be its own list element; an argument and its value
-  # cannot share a string ("-provider Portal" will not work)
-  args = [
-    "-force-vulkan"
-    "-provider" "Portal"
-  ];
+```
 
-  # Programs to wrap the game with (<...> %command%)
-  # Wrapper flags follow the same rule: one token per element
-  wrappers = [
-    (lib.getExe pkgs.gamemode)
-    "mangohud"
-    "gamescope" "-W" "1920" "-H" "1080" "--"
-  ];
 
-  /*
-    Extra bash code to run before executing the game
-    These variables are available in scope for you to read / modify in this hook:
-      `wrappers`: values from the wrappers option
-      `game_command`: the %command% passed from steam
-      `args`: values from the args option
-  */
-  preHook = ''
-    if [[ "$*" == *"-force-vulkan"* ]]; then
-      export PROTON_ENABLE_WAYLAND=1
-    fi
 
-    for i in "''${!game_command[@]}"; do
-      game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
-    done
-  '';
-};
-````
+## programs\.steam\.config\.apps\.\<name>\.launchOptions\.preHook
+
+
+
+Extra bash code to run before executing the game
+
+These variables are available in scope for you to read / modify in this hook:
+
+ - ` wrappers `: values from the wrappers option
+ - ` game_command `: the %command% passed from steam
+ - ` args `: values from the args option
+
+
+
+*Type:*
+strings concatenated with “\\n”
+
+
+
+*Default:*
+` "" `
+
+
+
+*Example:*
+
+```
+''
+  if [[ "$*" == *"-force-vulkan"* ]]; then
+    export PROTON_ENABLE_WAYLAND=1
+  fi
+  
+  for i in "''${!game_command[@]}"; do
+    game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
+  done
+''
+```
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.launchOptions\.wrappers
+
+
+
+Executables to wrap the game with\.
+
+
+
+*Type:*
+list of (string or package convertible to it)
+
+
+
+*Default:*
+` [ ] `
+
+
+
+*Example:*
+
+```
+[
+  (lib.getExe' pkgs.mangohud "mangohud")
+  pkgs.myWrapperProgram
+  "gamemoderun"
+]
+
+```
 
 
 
@@ -195,7 +261,7 @@ null or (submodule) or (optionally newline-terminated) single-line string or pac
 
 Traditional Steam launch options\.
 
-If this is defined it will be used instead of the ` launchOption ` option\.
+Cannot be combined with ` launchOptions `\.
 
 
 
@@ -277,7 +343,7 @@ attribute set of (submodule)
 
 *Example:*
 
-````
+```
 {
   vintage-story = {
     # target is the executable, accepts a package or a path
@@ -293,7 +359,7 @@ attribute set of (submodule)
     launchOptionsStr = "gamemoderun %command%";
   };
 }
-````
+```
 
 
 
@@ -439,70 +505,136 @@ boolean
 
 
 
-## programs\.steam\.config\.nonSteamApps\.\<name>\.launchOptions
+## programs\.steam\.config\.nonSteamApps\.\<name>\.launchOptions\.args
 
 
 
-App launch options, see example for usage\.
-
-If ` launchOptionsStr ` is defined, that will be used instead\.
+Arguments to pass to the game\.
 
 
 
 *Type:*
-null or (submodule) or (optionally newline-terminated) single-line string or package
+list of string
 
 
 
 *Default:*
-` null `
+` [ ] `
 
 
 
 *Example:*
 
-````
+```
+[
+  "-modded"
+  "--launcher-skip"
+  "-skipStartScreen"
+]
+
+```
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.launchOptions\.env
+
+
+
+Environment variables to export in the launch script\.
+You can also unset variables by setting their value to ` null `\.
+
+
+
+*Type:*
+lazy attribute set of (null or string or absolute path or signed integer or floating point number or boolean)
+
+
+
+*Default:*
+` { } `
+
+
+
+*Example:*
+
+```
 {
-  # Environment variables
-  env = {
-    PROTON_USE_NTSYNC = true;
-    TZ = null; # This unsets the variable
-  };
+  WINEDLLOVERRIDES = "winmm,version=n,b";
+  TZ = null;
+}
 
-  # Arguments for the game's executable (%command% <...>)
-  # Each token must be its own list element; an argument and its value
-  # cannot share a string ("-provider Portal" will not work)
-  args = [
-    "-force-vulkan"
-    "-provider" "Portal"
-  ];
+```
 
-  # Programs to wrap the game with (<...> %command%)
-  # Wrapper flags follow the same rule: one token per element
-  wrappers = [
-    (lib.getExe pkgs.gamemode)
-    "mangohud"
-    "gamescope" "-W" "1920" "-H" "1080" "--"
-  ];
 
-  /*
-    Extra bash code to run before executing the game
-    These variables are available in scope for you to read / modify in this hook:
-      `wrappers`: values from the wrappers option
-      `game_command`: the %command% passed from steam
-      `args`: values from the args option
-  */
-  preHook = ''
-    if [[ "$*" == *"-force-vulkan"* ]]; then
-      export PROTON_ENABLE_WAYLAND=1
-    fi
 
-    for i in "''${!game_command[@]}"; do
-      game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
-    done
-  '';
-};
-````
+## programs\.steam\.config\.nonSteamApps\.\<name>\.launchOptions\.preHook
+
+
+
+Extra bash code to run before executing the game
+
+These variables are available in scope for you to read / modify in this hook:
+
+ - ` wrappers `: values from the wrappers option
+ - ` game_command `: the %command% passed from steam
+ - ` args `: values from the args option
+
+
+
+*Type:*
+strings concatenated with “\\n”
+
+
+
+*Default:*
+` "" `
+
+
+
+*Example:*
+
+```
+''
+  if [[ "$*" == *"-force-vulkan"* ]]; then
+    export PROTON_ENABLE_WAYLAND=1
+  fi
+  
+  for i in "''${!game_command[@]}"; do
+    game_command[i]="''${game_command[i]//\/Launcher.exe/\/game.exe}"
+  done
+''
+```
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.launchOptions\.wrappers
+
+
+
+Executables to wrap the game with\.
+
+
+
+*Type:*
+list of (string or package convertible to it)
+
+
+
+*Default:*
+` [ ] `
+
+
+
+*Example:*
+
+```
+[
+  (lib.getExe' pkgs.mangohud "mangohud")
+  pkgs.myWrapperProgram
+  "gamemoderun"
+]
+
+```
 
 
 
@@ -512,7 +644,7 @@ null or (submodule) or (optionally newline-terminated) single-line string or pac
 
 Traditional Steam launch options\.
 
-If this is defined it will be used instead of the ` launchOption ` option\.
+Cannot be combined with ` launchOptions `\.
 
 
 
