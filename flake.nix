@@ -29,6 +29,10 @@
             steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
             docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) { };
           };
+
+          checks = import ./checks {
+            inherit inputs self pkgs;
+          };
         };
 
       flake = {
