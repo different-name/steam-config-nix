@@ -95,4 +95,3 @@ To set environment variables for all Steam games, override `extraProfile` in the
 ## Acknowledgements
 
 - https://github.com/FeralInteractive/gamemode/issues/177 for the idea
-- https://github.com/TeamSpen210/srctools for their library
