@@ -6,6 +6,7 @@
   vdf,
   psutil,
   pydantic,
+  pytestCheckHook,
   ...
 }:
 buildPythonApplication {
@@ -37,6 +38,8 @@ buildPythonApplication {
     psutil
     pydantic
   ];
+
+  nativeCheckInputs = [ pytestCheckHook ];
 
   meta = {
     description = "Patch Steam vdf files using JSON input";
