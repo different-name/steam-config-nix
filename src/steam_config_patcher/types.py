@@ -79,7 +79,6 @@ class ConfigPatch:
     file_path: Path
     file_format: Literal["keyvalues", "binary-keyvalues"]
     data: KeyValuesType
-    close_steam: bool
     deletions: list[Deletion] = field(default_factory=list)
 
 

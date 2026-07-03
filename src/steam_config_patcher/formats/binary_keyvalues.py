@@ -1,8 +1,6 @@
 from copy import deepcopy
-from typing import Any
+from typing import Any, Optional
 
-from steam_config_patcher.fileio import atomic_write_bytes
-from steam_config_patcher.steam import steam_is_closed
 from steam_config_patcher.types import ConfigPatch, Deletion
 from steam_config_patcher.vdf.binary import dumps, loads
 
@@ -41,9 +39,9 @@ def recursive_update(destination: dict[Any, Any], source: dict[Any, Any]) -> boo
     return modified
 
 
-def patch_binary_keyvalues(config_patch: ConfigPatch) -> bool:
+def prepare_binary_keyvalues(config_patch: ConfigPatch) -> Optional[bytes]:
     if not config_patch.file_path.is_file():
-        return True
+        return None
 
     kv = loads(config_patch.file_path.read_bytes())
 
@@ -54,10 +52,6 @@ def patch_binary_keyvalues(config_patch: ConfigPatch) -> bool:
             modified = True
 
     if not modified:
-        return True
+        return None
 
-    if not steam_is_closed(close_if_running=config_patch.close_steam):
-        return False
-
-    atomic_write_bytes(config_patch.file_path, dumps(kv))
-    return True
+    return dumps(kv)

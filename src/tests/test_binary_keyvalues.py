@@ -1,6 +1,6 @@
 from steam_config_patcher.formats.binary_keyvalues import (
     delete_key,
-    patch_binary_keyvalues,
+    prepare_binary_keyvalues,
     recursive_update,
 )
 from steam_config_patcher.types import ConfigPatch, Deletion
@@ -30,14 +30,21 @@ def read_shortcuts(path):
     return binary.loads(path.read_bytes())
 
 
-def make_patch(file_path, data, deletions=(), close_steam=False):
+def make_patch(file_path, data, deletions=()):
     return ConfigPatch(
         file_path=file_path,
         file_format="binary-keyvalues",
         data=data,
-        close_steam=close_steam,
         deletions=list(deletions),
     )
+
+
+def apply(patch):
+    data = prepare_binary_keyvalues(patch)
+    if data is None:
+        return False
+    patch.file_path.write_bytes(data)
+    return True
 
 
 def test_recursive_update_adds_missing_keys():
@@ -78,12 +85,12 @@ def test_delete_key_missing_path_reports_unmodified():
     assert not delete_key(destination, Deletion(key_path=("shortcuts", "0")))
 
 
-def test_adds_new_shortcut(fake_steam, tmp_path):
+def test_adds_new_shortcut(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     write_shortcuts(path, {"shortcuts": {"0": shortcut(111, "Existing Game")}})
     patch = make_patch(path, {"shortcuts": {"1": shortcut(222, "New Game")}})
 
-    assert patch_binary_keyvalues(patch)
+    assert apply(patch)
 
     result = read_shortcuts(path)
     assert result["shortcuts"]["0"]["AppName"] == "Existing Game"
@@ -91,75 +98,60 @@ def test_adds_new_shortcut(fake_steam, tmp_path):
     assert result["shortcuts"]["1"]["appid"] == 222
 
 
-def test_updates_existing_shortcut_field(fake_steam, tmp_path):
+def test_updates_existing_shortcut_field(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     write_shortcuts(path, {"shortcuts": {"0": shortcut(111, "Game")}})
     patch = make_patch(path, {"shortcuts": {"0": {"LaunchOptions": "wrapper %command%"}}})
 
-    assert patch_binary_keyvalues(patch)
+    assert apply(patch)
 
     result = read_shortcuts(path)
     assert result["shortcuts"]["0"]["LaunchOptions"] == "wrapper %command%"
     assert result["shortcuts"]["0"]["AppName"] == "Game"
 
 
-def test_unchanged_data_skips_write_and_steam_check(fake_steam, tmp_path):
+def test_unchanged_data_prepares_nothing(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     write_shortcuts(path, {"shortcuts": {"0": shortcut(111, "Game")}})
     original_bytes = path.read_bytes()
     patch = make_patch(path, {"shortcuts": {"0": shortcut(111, "Game")}})
 
-    assert patch_binary_keyvalues(patch)
+    assert prepare_binary_keyvalues(patch) is None
 
     assert path.read_bytes() == original_bytes
-    assert fake_steam.calls == []
 
 
-def test_blocked_while_steam_running(fake_steam, tmp_path):
-    fake_steam.running = True
-    path = tmp_path / "shortcuts.vdf"
-    write_shortcuts(path, {"shortcuts": {"0": shortcut(111, "Game")}})
-    original_bytes = path.read_bytes()
-    patch = make_patch(path, {"shortcuts": {"1": shortcut(222, "New Game")}})
-
-    assert not patch_binary_keyvalues(patch)
-
-    assert path.read_bytes() == original_bytes
-    assert fake_steam.calls == [False]
-
-
-def test_close_steam_closes_and_writes(fake_steam, tmp_path):
-    fake_steam.running = True
+def test_prepare_does_not_write(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     write_shortcuts(path, {"shortcuts": {}})
-    patch = make_patch(path, {"shortcuts": {"0": shortcut(111, "Game")}}, close_steam=True)
+    original_bytes = path.read_bytes()
+    patch = make_patch(path, {"shortcuts": {"0": shortcut(111, "Game")}})
 
-    assert patch_binary_keyvalues(patch)
+    assert prepare_binary_keyvalues(patch) is not None
 
-    assert fake_steam.calls == [True]
-    assert read_shortcuts(path)["shortcuts"]["0"]["appid"] == 111
+    assert path.read_bytes() == original_bytes
 
 
-def test_missing_file_is_skipped(fake_steam, tmp_path):
+def test_missing_file_is_skipped(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     patch = make_patch(path, {"shortcuts": {"0": shortcut(111, "Game")}})
 
-    assert patch_binary_keyvalues(patch)
+    assert prepare_binary_keyvalues(patch) is None
 
     assert not path.exists()
 
 
-def test_empty_file_is_patched(fake_steam, tmp_path):
+def test_empty_file_is_patched(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     path.write_bytes(b"")
     patch = make_patch(path, {"shortcuts": {"0": shortcut(111, "Game")}})
 
-    assert patch_binary_keyvalues(patch)
+    assert apply(patch)
 
     assert read_shortcuts(path)["shortcuts"]["0"]["AppName"] == "Game"
 
 
-def test_deletion_removes_shortcut(fake_steam, tmp_path):
+def test_deletion_removes_shortcut(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     write_shortcuts(
         path,
@@ -167,19 +159,19 @@ def test_deletion_removes_shortcut(fake_steam, tmp_path):
     )
     patch = make_patch(path, {}, deletions=[Deletion(key_path=("shortcuts", "1"))])
 
-    assert patch_binary_keyvalues(patch)
+    assert apply(patch)
 
     result = read_shortcuts(path)
     assert "1" not in result["shortcuts"]
     assert result["shortcuts"]["0"]["AppName"] == "Keep"
 
 
-def test_generated_appid_range_roundtrip(fake_steam, tmp_path):
+def test_generated_appid_range_roundtrip(tmp_path):
     appid = 0x914B9DA1
     path = tmp_path / "shortcuts.vdf"
     write_shortcuts(path, {"shortcuts": {}})
     patch = make_patch(path, {"shortcuts": {"0": shortcut(appid, "Game")}})
 
-    assert patch_binary_keyvalues(patch)
+    assert apply(patch)
 
     assert read_shortcuts(path)["shortcuts"]["0"]["appid"] == appid

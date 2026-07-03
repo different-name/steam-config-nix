@@ -1,7 +1,12 @@
-from pathlib import Path
+import os
+import shutil
+import subprocess
 import time
+from pathlib import Path
 
 import psutil
+
+SHUTDOWN_TIMEOUT = 30
 
 
 def get_steam_dir() -> Path:
@@ -27,18 +32,47 @@ def get_steam_user_ids(steam_dir: Path) -> list[int]:
     ]
 
 
-def steam_is_closed(close_if_running=False) -> bool:
-    closed = True
+def steam_processes() -> list[psutil.Process]:
+    uid = os.getuid()
+    processes = []
     for proc in psutil.process_iter(["name"]):
-        if proc.name() == "steam":
-            closed = False
-            if close_if_running:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=30)
-                except psutil.TimeoutExpired:
-                    proc.kill()
-                time.sleep(2)
-                closed = True
+        try:
+            if proc.info["name"] == "steam" and proc.uids().real == uid:
+                processes.append(proc)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return processes
 
-    return closed
+
+def steam_is_running() -> bool:
+    return bool(steam_processes())
+
+
+def close_steam() -> None:
+    processes = steam_processes()
+    if not processes:
+        return
+
+    steam_bin = shutil.which("steam")
+    if steam_bin:
+        try:
+            subprocess.run(
+                [steam_bin, "-shutdown"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=SHUTDOWN_TIMEOUT,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        _, processes = psutil.wait_procs(processes, timeout=SHUTDOWN_TIMEOUT)
+
+    for proc in processes:
+        proc.terminate()
+    _, alive = psutil.wait_procs(processes, timeout=SHUTDOWN_TIMEOUT)
+
+    for proc in alive:
+        proc.kill()
+    psutil.wait_procs(alive, timeout=SHUTDOWN_TIMEOUT)
+
+    time.sleep(2)

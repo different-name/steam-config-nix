@@ -381,6 +381,67 @@ def test_blocked_run_writes_nothing(fake_steam, tmp_path):
     assert not manifest_path(steam_dir, USER_ID).exists()
 
 
+def test_close_steam_shuts_down_and_writes(fake_steam, tmp_path):
+    fake_steam.running = True
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        close_steam=True,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    patch_config_files(cfg)
+
+    assert fake_steam.close_calls == 1
+    config_vdf = steam_dir / "config" / "config.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
+    assert manifest_path(steam_dir, USER_ID).exists()
+
+
+def test_steam_not_closed_when_nothing_to_change(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        close_steam=True,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+    patch_config_files(cfg)
+
+    fake_steam.running = True
+    patch_config_files(cfg)
+
+    assert fake_steam.close_calls == 0
+    assert manifest_path(steam_dir, USER_ID).exists()
+
+
+def test_files_are_reread_after_closing_steam(fake_steam, tmp_path):
+    fake_steam.running = True
+    steam_dir = make_steam_dir(tmp_path)
+    config_vdf = steam_dir / "config" / "config.vdf"
+
+    def steam_writes_on_exit():
+        config_vdf.write_text(
+            config_vdf.read_text(encoding="utf-8").replace(
+                '"CompatToolMapping"\n\t\t\t\t{\n\t\t\t\t}',
+                '"CompatToolMapping"\n\t\t\t\t{\n\t\t\t\t}\n\t\t\t\t"SteamExitWrote"\t\t"1"',
+            ),
+            encoding="utf-8",
+        )
+
+    fake_steam.on_close = steam_writes_on_exit
+    cfg = make_cfg(
+        steam_dir,
+        close_steam=True,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    patch_config_files(cfg)
+
+    steam_path = ("InstallConfigStore", "Software", "Valve", "Steam")
+    assert find_values(config_vdf, steam_path + ("SteamExitWrote",)) == ["1"]
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
+
+
 def test_failing_file_does_not_stop_others(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     (steam_dir / "config" / "config.vdf").write_text('"broken', encoding="utf-8")

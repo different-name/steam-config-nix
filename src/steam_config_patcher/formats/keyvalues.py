@@ -1,7 +1,5 @@
-from typing import Iterator
+from typing import Iterator, Optional
 
-from steam_config_patcher.fileio import atomic_write_text
-from steam_config_patcher.steam import steam_is_closed
 from steam_config_patcher.types import (
     ConfigPatch,
     Deletion,
@@ -88,14 +86,12 @@ def delete_key(kv: VdfNode, deletion: Deletion) -> bool:
     return modified
 
 
-def patch_keyvalues(config_patch: ConfigPatch) -> bool:
+def prepare_keyvalues(config_patch: ConfigPatch) -> Optional[bytes]:
     if not config_patch.file_path.is_file():
-        return True
+        return None
 
     kv = loads(config_patch.file_path.read_text(encoding="utf-8"))
 
-    # update the kv object with the desired values, tracking if anything was modified
-    # if we need to write changes, steam will need to be closed beforehand
     modified = False
     for key_path, value in iterate_leaves(config_patch.data):
         if overwrite_key(kv, key_path, value):
@@ -106,10 +102,6 @@ def patch_keyvalues(config_patch: ConfigPatch) -> bool:
             modified = True
 
     if not modified:
-        return True
+        return None
 
-    if not steam_is_closed(close_if_running=config_patch.close_steam):
-        return False
-
-    atomic_write_text(config_patch.file_path, dumps(kv))
-    return True
+    return dumps(kv).encode("utf-8")

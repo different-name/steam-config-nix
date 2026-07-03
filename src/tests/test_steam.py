@@ -1,39 +1,67 @@
-import psutil
+import os
+from types import SimpleNamespace
+
 import pytest
 
-from steam_config_patcher.steam import get_steam_dir, get_steam_user_ids, steam_is_closed
+from steam_config_patcher.steam import (
+    close_steam,
+    get_steam_dir,
+    get_steam_user_ids,
+    steam_is_running,
+)
 
 
 class FakeProc:
-    def __init__(self, name, hangs=False):
-        self._name = name
+    def __init__(self, name, uid=None, hangs=False, unkillable=False):
+        self.info = {"name": name}
+        self._uid = os.getuid() if uid is None else uid
         self.hangs = hangs
+        self.unkillable = unkillable
+        self.alive = True
         self.terminated = False
         self.killed = False
 
-    def name(self):
-        return self._name
+    def uids(self):
+        return SimpleNamespace(real=self._uid)
 
     def terminate(self):
         self.terminated = True
-
-    def wait(self, timeout=None):
-        if self.hangs:
-            raise psutil.TimeoutExpired(timeout)
+        if not self.hangs:
+            self.alive = False
 
     def kill(self):
         self.killed = True
+        if not self.unkillable:
+            self.alive = False
 
 
 @pytest.fixture
-def fake_procs(monkeypatch):
-    procs = []
+def fake_system(monkeypatch):
+    system = SimpleNamespace(procs=[], commands=[], steam_bin=None, shutdown_works=True)
+
+    def fake_run(cmd, **kwargs):
+        system.commands.append(cmd)
+        if system.shutdown_works:
+            for proc in system.procs:
+                proc.alive = False
+        return SimpleNamespace(returncode=0)
+
+    def fake_wait_procs(procs, timeout=None):
+        gone = [p for p in procs if not p.alive]
+        alive = [p for p in procs if p.alive]
+        return gone, alive
+
     monkeypatch.setattr(
         "steam_config_patcher.steam.psutil.process_iter",
-        lambda *args, **kwargs: procs,
+        lambda *args, **kwargs: list(system.procs),
+    )
+    monkeypatch.setattr("steam_config_patcher.steam.psutil.wait_procs", fake_wait_procs)
+    monkeypatch.setattr("steam_config_patcher.steam.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "steam_config_patcher.steam.shutil.which", lambda name: system.steam_bin
     )
     monkeypatch.setattr("steam_config_patcher.steam.time.sleep", lambda seconds: None)
-    return procs
+    return system
 
 
 def test_steam_dir_prefers_dot_steam_root_symlink(tmp_path, monkeypatch):
@@ -71,36 +99,70 @@ def test_user_ids_are_numeric_dirs_excluding_zero(tmp_path):
     assert sorted(get_steam_user_ids(tmp_path)) == [111, 222]
 
 
-def test_closed_when_no_steam_process(fake_procs):
-    fake_procs.append(FakeProc("systemd"))
+def test_not_running_without_steam_process(fake_system):
+    fake_system.procs.append(FakeProc("systemd"))
 
-    assert steam_is_closed()
+    assert not steam_is_running()
 
 
-def test_running_steam_reports_not_closed(fake_procs):
+def test_running_with_steam_process(fake_system):
+    fake_system.procs.append(FakeProc("steam"))
+
+    assert steam_is_running()
+
+
+def test_other_users_steam_is_ignored(fake_system):
+    fake_system.procs.append(FakeProc("steam", uid=os.getuid() + 1))
+
+    assert not steam_is_running()
+
+
+def test_close_uses_steam_shutdown_when_available(fake_system):
     proc = FakeProc("steam")
-    fake_procs.append(proc)
+    fake_system.procs.append(proc)
+    fake_system.steam_bin = "/run/current-system/sw/bin/steam"
 
-    assert not steam_is_closed()
+    close_steam()
 
+    assert fake_system.commands == [[fake_system.steam_bin, "-shutdown"]]
     assert not proc.terminated
+    assert not proc.killed
 
 
-def test_close_if_running_terminates_steam(fake_procs):
+def test_close_terminates_when_no_steam_binary(fake_system):
     proc = FakeProc("steam")
-    fake_procs.append(proc)
+    fake_system.procs.append(proc)
 
-    assert steam_is_closed(close_if_running=True)
+    close_steam()
 
+    assert fake_system.commands == []
     assert proc.terminated
     assert not proc.killed
 
 
-def test_close_if_running_kills_unresponsive_steam(fake_procs):
-    proc = FakeProc("steam", hangs=True)
-    fake_procs.append(proc)
+def test_close_escalates_when_shutdown_does_nothing(fake_system):
+    proc = FakeProc("steam")
+    fake_system.procs.append(proc)
+    fake_system.steam_bin = "/run/current-system/sw/bin/steam"
+    fake_system.shutdown_works = False
 
-    assert steam_is_closed(close_if_running=True)
+    close_steam()
+
+    assert fake_system.commands == [[fake_system.steam_bin, "-shutdown"]]
+    assert proc.terminated
+
+
+def test_close_kills_unresponsive_steam(fake_system):
+    proc = FakeProc("steam", hangs=True)
+    fake_system.procs.append(proc)
+
+    close_steam()
 
     assert proc.terminated
     assert proc.killed
+
+
+def test_close_without_steam_running_does_nothing(fake_system):
+    close_steam()
+
+    assert fake_system.commands == []

@@ -1,9 +1,11 @@
 import logging
-from typing import Iterable
+from typing import Iterable, Optional
 
-from steam_config_patcher.formats.binary_keyvalues import patch_binary_keyvalues
-from steam_config_patcher.formats.keyvalues import patch_keyvalues
+from steam_config_patcher.fileio import atomic_write_bytes
+from steam_config_patcher.formats.binary_keyvalues import prepare_binary_keyvalues
+from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.manifest import load_manifest, save_manifest
+from steam_config_patcher.steam import close_steam, steam_is_running
 from steam_config_patcher.types import (
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
@@ -99,7 +101,6 @@ def generate_config_vdf_patch(
         file_path=cfg.steam_dir.joinpath("config", "config.vdf"),
         file_format="keyvalues",
         data=nest_leaves(leaves),
-        close_steam=cfg.close_steam,
         deletions=cleanup_deletions(prev_keys, desired_keys, CONFIG_FILE),
     )
 
@@ -118,7 +119,6 @@ def generate_localconfig_vdf_patch(
         ),
         file_format="keyvalues",
         data=nest_leaves(leaves),
-        close_steam=cfg.close_steam,
         deletions=cleanup_deletions(
             prev_manifest.managed_keys, desired_keys, LOCALCONFIG_FILE
         ),
@@ -145,7 +145,6 @@ def generate_shortcuts_vdf_patch(
             file_path=file_path,
             file_format="binary-keyvalues",
             data={},
-            close_steam=cfg.close_steam,
         )
 
     kv = binary.loads(file_path.read_bytes())
@@ -198,18 +197,17 @@ def generate_shortcuts_vdf_patch(
                 for app_id, app in user_config.non_steam_apps.items()
             }
         },
-        close_steam=cfg.close_steam,
         deletions=deletions,
     )
 
 
-def apply_patch(config_patch: ConfigPatch) -> bool:
+def prepare_patch(config_patch: ConfigPatch) -> Optional[bytes]:
     match config_patch.file_format:
         case "keyvalues":
-            return patch_keyvalues(config_patch)
+            return prepare_keyvalues(config_patch)
         case "binary-keyvalues":
-            return patch_binary_keyvalues(config_patch)
-    return True
+            return prepare_binary_keyvalues(config_patch)
+    return None
 
 
 def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifest:
@@ -254,18 +252,42 @@ def patch_config_files(cfg: PatcherConfig):
         ],
     ]
 
-    failures = 0
-    blocked = False
-    for description, generate in patch_steps:
-        try:
-            if not apply_patch(generate()):
-                blocked = True
-        except Exception:
-            failures += 1
-            LOG.exception("failed to patch %s", description)
+    failed: set[str] = set()
 
-    if failures:
-        raise SystemExit(f"{failures} config file(s) failed to patch; see log above")
+    def prepare_all():
+        prepared = []
+        for description, generate in patch_steps:
+            try:
+                config_patch = generate()
+                data = prepare_patch(config_patch)
+            except Exception:
+                failed.add(description)
+                LOG.exception("failed to prepare %s", description)
+                continue
+            if data is not None:
+                prepared.append((description, config_patch.file_path, data))
+        return prepared
+
+    prepared = prepare_all()
+
+    blocked = False
+    if prepared and steam_is_running():
+        if cfg.close_steam:
+            close_steam()
+            prepared = prepare_all()
+        else:
+            blocked = True
+
+    if not blocked:
+        for description, file_path, data in prepared:
+            try:
+                atomic_write_bytes(file_path, data)
+            except Exception:
+                failed.add(description)
+                LOG.exception("failed to write %s", description)
+
+    if failed:
+        raise SystemExit(f"{len(failed)} config file(s) failed to patch; see log above")
 
     if blocked:
         LOG.warning(

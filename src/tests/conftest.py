@@ -4,24 +4,22 @@ import pytest
 class FakeSteam:
     def __init__(self):
         self.running = False
-        self.calls = []
+        self.close_calls = 0
+        self.on_close = None
 
-    def steam_is_closed(self, close_if_running=False):
-        self.calls.append(close_if_running)
-        if not self.running:
-            return True
-        if close_if_running:
-            self.running = False
-            return True
-        return False
+    def is_running(self):
+        return self.running
+
+    def close(self):
+        self.close_calls += 1
+        self.running = False
+        if self.on_close is not None:
+            self.on_close()
 
 
 @pytest.fixture
 def fake_steam(monkeypatch):
     fake = FakeSteam()
-    for module in (
-        "steam_config_patcher.formats.keyvalues",
-        "steam_config_patcher.formats.binary_keyvalues",
-    ):
-        monkeypatch.setattr(f"{module}.steam_is_closed", fake.steam_is_closed)
+    monkeypatch.setattr("steam_config_patcher.patcher.steam_is_running", fake.is_running)
+    monkeypatch.setattr("steam_config_patcher.patcher.close_steam", fake.close)
     return fake
