@@ -5,10 +5,12 @@ import pytest
 
 from steam_config_patcher.steam import (
     close_steam,
+    find_app_manifest,
     game_is_running,
     get_steam_dir,
     get_steam_user_ids,
     steam_is_running,
+    steam_library_paths,
     wait_for_game_exit,
     wait_for_steam_exit,
 )
@@ -94,6 +96,50 @@ def test_steam_dir_missing_raises(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         get_steam_dir()
+
+
+def write_libraryfolders(steam_dir, library_paths):
+    (steam_dir / "config").mkdir(parents=True, exist_ok=True)
+    blocks = "".join(
+        f'\t"{index}"\n\t{{\n\t\t"path"\t\t"{path}"\n\t}}\n'
+        for index, path in enumerate(library_paths)
+    )
+    (steam_dir / "config" / "libraryfolders.vdf").write_text(
+        f'"libraryfolders"\n{{\n{blocks}}}\n', encoding="utf-8"
+    )
+
+
+def test_library_paths_include_steam_dir_and_extra_libraries(tmp_path):
+    steam_dir = tmp_path / "steam"
+    extra = tmp_path / "drive"
+    write_libraryfolders(steam_dir, [steam_dir, extra])
+
+    assert steam_library_paths(steam_dir) == [steam_dir, extra]
+
+
+def test_library_paths_without_libraryfolders(tmp_path):
+    steam_dir = tmp_path / "steam"
+    steam_dir.mkdir()
+
+    assert steam_library_paths(steam_dir) == [steam_dir]
+
+
+def test_find_app_manifest_searches_all_libraries(tmp_path):
+    steam_dir = tmp_path / "steam"
+    extra = tmp_path / "drive"
+    write_libraryfolders(steam_dir, [steam_dir, extra])
+    manifest = extra / "steamapps" / "appmanifest_620.acf"
+    manifest.parent.mkdir(parents=True)
+    manifest.touch()
+
+    assert find_app_manifest(steam_dir, 620) == manifest
+
+
+def test_find_app_manifest_missing_returns_none(tmp_path):
+    steam_dir = tmp_path / "steam"
+    (steam_dir / "steamapps").mkdir(parents=True)
+
+    assert find_app_manifest(steam_dir, 620) is None
 
 
 def test_user_ids_are_numeric_dirs_excluding_zero(tmp_path):

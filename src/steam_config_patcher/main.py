@@ -27,6 +27,7 @@ class AppSchema(BaseModel):
     id: int
     launchOptions: Optional[str] = None
     compatTool: CompatToolValue = None
+    betaBranch: Optional[str] = None
 
 
 class NonSteamAppSchema(AppSchema):
@@ -85,6 +86,11 @@ def parse_input() -> PatcherConfig:
                 AppSchema(id=0, compatTool=validated_input.defaultCompatTool),
             ]
             if app.compatTool
+        },
+        game_betas={
+            app.id: app.betaBranch
+            for app in validated_input.apps.values()
+            if app.betaBranch
         },
         users={
             user_id: UserConfig(

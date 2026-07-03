@@ -3,8 +3,11 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
 
 import psutil
+
+from steam_config_patcher.vdf import text
 
 SHUTDOWN_TIMEOUT = 30
 
@@ -30,6 +33,41 @@ def get_steam_user_ids(steam_dir: Path) -> list[int]:
         for p in (steam_dir / "userdata").iterdir()
         if p.is_dir() and p.name.isdigit() and p.name != "0"
     ]
+
+
+def steam_library_paths(steam_dir: Path) -> list[Path]:
+    paths = [steam_dir]
+
+    for relative in (("config", "libraryfolders.vdf"), ("steamapps", "libraryfolders.vdf")):
+        vdf_file = steam_dir.joinpath(*relative)
+        if not vdf_file.is_file():
+            continue
+
+        root = text.loads(vdf_file.read_text(encoding="utf-8"))
+        for folders in root.find_all("libraryfolders"):
+            for folder in folders.children or []:
+                if not folder.is_block:
+                    continue
+                path_node = folder.find("path")
+                if path_node is not None and not path_node.is_block:
+                    paths.append(Path(path_node.value))
+        break
+
+    seen = set()
+    unique = []
+    for path in paths:
+        if str(path) not in seen:
+            seen.add(str(path))
+            unique.append(path)
+    return unique
+
+
+def find_app_manifest(steam_dir: Path, app_id: int) -> Optional[Path]:
+    for library in steam_library_paths(steam_dir):
+        manifest = library.joinpath("steamapps", f"appmanifest_{app_id}.acf")
+        if manifest.is_file():
+            return manifest
+    return None
 
 
 def steam_processes() -> list[psutil.Process]:

@@ -7,12 +7,15 @@ from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.manifest import load_manifest, save_manifest
 from steam_config_patcher.steam import (
     close_steam,
+    find_app_manifest,
     game_is_running,
     steam_is_running,
     wait_for_game_exit,
     wait_for_steam_exit,
 )
 from steam_config_patcher.types import (
+    APPMANIFEST_BETA_KEY_PATH,
+    APPMANIFEST_FILE_PREFIX,
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
     LOCALCONFIG_APPS_PATH,
@@ -61,6 +64,64 @@ def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedK
         )
 
     return leaves, managed_keys
+
+
+def appmanifest_file_id(app_id: int) -> str:
+    return f"{APPMANIFEST_FILE_PREFIX}{app_id}"
+
+
+def appmanifest_app_id(file_id: str) -> Optional[int]:
+    if not file_id.startswith(APPMANIFEST_FILE_PREFIX):
+        return None
+    suffix = file_id.removeprefix(APPMANIFEST_FILE_PREFIX)
+    return int(suffix) if suffix.isdigit() else None
+
+
+def game_beta_keys(cfg: PatcherConfig) -> list[ManagedKey]:
+    return [
+        ManagedKey(
+            file=appmanifest_file_id(app_id),
+            key_path=APPMANIFEST_BETA_KEY_PATH,
+            expected=beta_branch,
+        )
+        for app_id, beta_branch in cfg.game_betas.items()
+    ]
+
+
+def generate_appmanifest_patch(
+    cfg: PatcherConfig, app_id: int, prev_keys: Iterable[ManagedKey]
+) -> Optional[ConfigPatch]:
+    file_id = appmanifest_file_id(app_id)
+    beta_branch = cfg.game_betas.get(app_id)
+
+    file_path = find_app_manifest(cfg.steam_dir, app_id)
+    if file_path is None:
+        if beta_branch is not None:
+            LOG.warning(
+                "app %s is not installed, cannot set beta branch %r",
+                app_id,
+                beta_branch,
+            )
+        return None
+
+    desired_keys = []
+    data: KeyValuesType = {}
+    if beta_branch is not None:
+        data = {"AppState": {"UserConfig": {"BetaKey": beta_branch}}}
+        desired_keys.append(
+            ManagedKey(
+                file=file_id,
+                key_path=APPMANIFEST_BETA_KEY_PATH,
+                expected=beta_branch,
+            )
+        )
+
+    return ConfigPatch(
+        file_path=file_path,
+        file_format="keyvalues",
+        data=data,
+        deletions=cleanup_deletions(prev_keys, desired_keys, file_id),
+    )
 
 
 def localconfig_vdf_state(
@@ -221,7 +282,7 @@ def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifes
     _, localconfig_keys = localconfig_vdf_state(user_config)
 
     return UserManifest(
-        managed_keys=config_keys + localconfig_keys,
+        managed_keys=config_keys + game_beta_keys(cfg) + localconfig_keys,
         shortcuts=list(user_config.non_steam_apps.keys()),
     )
 
@@ -236,8 +297,26 @@ def patch_config_files(cfg: PatcherConfig):
         key for manifest in prev_manifests.values() for key in manifest.managed_keys
     ]
 
+    appmanifest_app_ids = sorted(
+        set(cfg.game_betas)
+        | {
+            app_id
+            for key in all_prev_keys
+            if (app_id := appmanifest_app_id(key.file)) is not None
+        }
+    )
+
     patch_steps = [
         ("config.vdf", lambda: generate_config_vdf_patch(cfg, all_prev_keys)),
+        *[
+            (
+                f"appmanifest_{app_id}.acf",
+                lambda app_id=app_id: generate_appmanifest_patch(
+                    cfg, app_id, all_prev_keys
+                ),
+            )
+            for app_id in appmanifest_app_ids
+        ],
         *[
             (
                 f"localconfig.vdf (user {user_id})",
@@ -265,7 +344,7 @@ def patch_config_files(cfg: PatcherConfig):
         for description, generate in patch_steps:
             try:
                 config_patch = generate()
-                data = prepare_patch(config_patch)
+                data = None if config_patch is None else prepare_patch(config_patch)
             except Exception:
                 failed.add(description)
                 LOG.exception("failed to prepare %s", description)

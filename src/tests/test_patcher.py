@@ -69,7 +69,30 @@ def make_steam_dir(tmp_path):
     user_config.mkdir(parents=True)
     (user_config / "localconfig.vdf").write_text(LOCALCONFIG_VDF, encoding="utf-8")
     (user_config / "shortcuts.vdf").write_bytes(binary.dumps({"shortcuts": {}}))
+    (steam_dir / "steamapps").mkdir()
     return steam_dir
+
+
+APPMANIFEST_VDF = """\
+"AppState"
+{
+	"appid"		"1091500"
+	"name"		"Cyberpunk 2077"
+	"StateFlags"		"4"
+	"UserConfig"
+	{
+		"language"		"english"
+	}
+}
+"""
+
+BETA_KEY_PATH = ("AppState", "UserConfig", "BetaKey")
+
+
+def write_app_manifest(steam_dir, app_id=1091500):
+    path = steam_dir / "steamapps" / f"appmanifest_{app_id}.acf"
+    path.write_text(APPMANIFEST_VDF, encoding="utf-8")
+    return path
 
 
 def make_cfg(
@@ -78,10 +101,12 @@ def make_cfg(
     compat_tool_mapping=None,
     launch_options=None,
     non_steam_apps=None,
+    game_betas=None,
 ):
     return PatcherConfig(
         on_steam_running=on_steam_running,
         steam_dir=steam_dir,
+        game_betas=game_betas or {},
         compat_tool_mapping=compat_tool_mapping or {},
         users={
             USER_ID: UserConfig(
@@ -336,6 +361,43 @@ def test_v1_manifest_entries_are_cleaned_up(fake_steam, tmp_path):
     localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
     assert find_values(config_vdf, MAPPING_PATH + ("1091500",)) == []
     assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == []
+
+
+def test_beta_branch_written_and_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    manifest = write_app_manifest(steam_dir)
+
+    patch_config_files(make_cfg(steam_dir, game_betas={1091500: "prerelease"}))
+
+    assert find_values(manifest, BETA_KEY_PATH) == ["prerelease"]
+    assert find_values(manifest, ("AppState", "UserConfig", "language")) == ["english"]
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(manifest, BETA_KEY_PATH) == []
+    assert load_manifest(steam_dir, USER_ID) == UserManifest()
+
+
+def test_beta_branch_changed_by_user_is_kept(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    manifest = write_app_manifest(steam_dir)
+    patch_config_files(make_cfg(steam_dir, game_betas={1091500: "prerelease"}))
+
+    manifest.write_text(
+        manifest.read_text(encoding="utf-8").replace("prerelease", "userbeta"),
+        encoding="utf-8",
+    )
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(manifest, BETA_KEY_PATH) == ["userbeta"]
+
+
+def test_beta_branch_for_uninstalled_app_warns_and_continues(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+
+    patch_config_files(make_cfg(steam_dir, game_betas={1091500: "prerelease"}))
+
+    assert manifest_path(steam_dir, USER_ID).exists()
 
 
 def test_cleanup_keeps_values_changed_by_user(fake_steam, tmp_path):

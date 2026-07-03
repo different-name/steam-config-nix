@@ -72,6 +72,33 @@ attribute set of (submodule)
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.betaBranch
+
+
+
+Beta branch to opt this app into\.
+
+The app must be installed for this to be applied, Steam will download the branch’s build on its next start\.
+
+When unset again, the app is reverted to the default branch\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` "prerelease" `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.compatTool
 
 

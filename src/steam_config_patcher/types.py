@@ -4,6 +4,9 @@ from typing import Literal, Optional, Union
 
 CONFIG_FILE = "config"
 LOCALCONFIG_FILE = "localconfig"
+APPMANIFEST_FILE_PREFIX = "appmanifest_"
+
+APPMANIFEST_BETA_KEY_PATH = ("AppState", "UserConfig", "BetaKey")
 
 COMPAT_TOOL_MAPPING_PATH = (
     "InstallConfigStore",
@@ -46,6 +49,7 @@ class PatcherConfig:
     steam_dir: Path
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]
+    game_betas: dict[int, str] = field(default_factory=dict)
 
 
 KeyValuesValue = str | int

@@ -29,6 +29,7 @@ let
             cyberpunk = {
               id = 1091500;
               compatTool = "proton_experimental";
+              betaBranch = "prerelease";
               launchOptions = {
                 env = {
                   WINEDLLOVERRIDES = "winmm,version=n,b";
@@ -62,18 +63,21 @@ let
       "620" = {
         id = 620;
         compatTool = null;
+        betaBranch = null;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
       };
 
       "730" = {
         id = 730;
         compatTool = fakeCompatTool;
+        betaBranch = null;
         launchOptions = null;
       };
 
       cyberpunk = {
         id = 1091500;
         compatTool = "proton_experimental";
+        betaBranch = "prerelease";
         launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
       };
     };
