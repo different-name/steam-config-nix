@@ -139,6 +139,39 @@ in
     in
     lib.mkIf cfg.enable (
       lib.mkMerge [
+        {
+          assertions =
+            let
+              namedApps =
+                lib.mapAttrsToList (name: app: {
+                  name = "apps.${name}";
+                  inherit app;
+                }) cfg.apps
+                ++ lib.mapAttrsToList (name: app: {
+                  name = "nonSteamApps.${name}";
+                  inherit app;
+                }) cfg.nonSteamApps;
+
+              duplicateIds = lib.filterAttrs (_: entries: lib.length entries > 1) (
+                builtins.groupBy (entry: toString entry.app.id) namedApps
+              );
+
+              duplicateMessages = lib.mapAttrsToList (
+                id: entries: "id ${id} is used by: ${lib.concatMapStringsSep ", " (e: e.name) entries}"
+              ) duplicateIds;
+            in
+            [
+              {
+                assertion = duplicateIds == { };
+                message = "steam-config-nix: multiple apps configured with the same id\n${lib.concatStringsSep "\n" duplicateMessages}";
+              }
+            ]
+            ++ map (entry: {
+              assertion = !entry.app.hasLaunchOptions || entry.app.launchOptionsStr == null;
+              message = "steam-config-nix: ${entry.name} sets both launchOptions and launchOptionsStr, only one may be set";
+            }) namedApps;
+        }
+
         (lib.optionalAttrs (format == "nixos") {
           systemd.tmpfiles.rules = map (
             link: "L+ ${lib.escapeShellArg link.target} - - - - ${lib.escapeShellArg link.source}"
