@@ -14,8 +14,10 @@ from steam_config_patcher.steam import (
     wait_for_steam_exit,
 )
 from steam_config_patcher.types import (
-    APPMANIFEST_BETA_KEY_PATH,
+    APPMANIFEST_BETA_KEY,
     APPMANIFEST_FILE_PREFIX,
+    APPMANIFEST_LANGUAGE_KEY,
+    APPMANIFEST_USER_CONFIG_PATH,
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
     LOCALCONFIG_APPS_PATH,
@@ -77,44 +79,61 @@ def appmanifest_app_id(file_id: str) -> Optional[int]:
     return int(suffix) if suffix.isdigit() else None
 
 
-def game_beta_keys(cfg: PatcherConfig) -> list[ManagedKey]:
+def appmanifest_user_config(cfg: PatcherConfig, app_id: int) -> dict[str, str]:
+    entries = {}
+    beta_branch = cfg.game_betas.get(app_id)
+    if beta_branch is not None:
+        entries[APPMANIFEST_BETA_KEY] = beta_branch
+    language = cfg.game_languages.get(app_id)
+    if language is not None:
+        entries[APPMANIFEST_LANGUAGE_KEY] = language
+    return entries
+
+
+def game_appmanifest_keys(cfg: PatcherConfig) -> list[ManagedKey]:
     return [
         ManagedKey(
             file=appmanifest_file_id(app_id),
-            key_path=APPMANIFEST_BETA_KEY_PATH,
-            expected=beta_branch,
+            key_path=APPMANIFEST_USER_CONFIG_PATH + (sub_key,),
+            expected=value,
         )
-        for app_id, beta_branch in cfg.game_betas.items()
+        for app_id in configured_appmanifest_ids(cfg)
+        for sub_key, value in appmanifest_user_config(cfg, app_id).items()
     ]
+
+
+def configured_appmanifest_ids(cfg: PatcherConfig) -> set[int]:
+    return set(cfg.game_betas) | set(cfg.game_languages)
 
 
 def generate_appmanifest_patch(
     cfg: PatcherConfig, app_id: int, prev_keys: Iterable[ManagedKey]
 ) -> Optional[ConfigPatch]:
     file_id = appmanifest_file_id(app_id)
-    beta_branch = cfg.game_betas.get(app_id)
+    entries = appmanifest_user_config(cfg, app_id)
 
     file_path = find_app_manifest(cfg.steam_dir, app_id)
     if file_path is None:
-        if beta_branch is not None:
+        if entries:
             LOG.warning(
-                "app %s is not installed, cannot set beta branch %r",
+                "app %s is not installed, cannot apply %s",
                 app_id,
-                beta_branch,
+                ", ".join(sorted(entries)),
             )
         return None
 
-    desired_keys = []
     data: KeyValuesType = {}
-    if beta_branch is not None:
-        data = {"AppState": {"UserConfig": {"BetaKey": beta_branch}}}
-        desired_keys.append(
-            ManagedKey(
-                file=file_id,
-                key_path=APPMANIFEST_BETA_KEY_PATH,
-                expected=beta_branch,
-            )
+    if entries:
+        data = {"AppState": {"UserConfig": dict(entries)}}
+
+    desired_keys = [
+        ManagedKey(
+            file=file_id,
+            key_path=APPMANIFEST_USER_CONFIG_PATH + (sub_key,),
+            expected=value,
         )
+        for sub_key, value in entries.items()
+    ]
 
     return ConfigPatch(
         file_path=file_path,
@@ -282,7 +301,7 @@ def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifes
     _, localconfig_keys = localconfig_vdf_state(user_config)
 
     return UserManifest(
-        managed_keys=config_keys + game_beta_keys(cfg) + localconfig_keys,
+        managed_keys=config_keys + game_appmanifest_keys(cfg) + localconfig_keys,
         shortcuts=list(user_config.non_steam_apps.keys()),
     )
 
@@ -298,7 +317,7 @@ def patch_config_files(cfg: PatcherConfig):
     ]
 
     appmanifest_app_ids = sorted(
-        set(cfg.game_betas)
+        configured_appmanifest_ids(cfg)
         | {
             app_id
             for key in all_prev_keys

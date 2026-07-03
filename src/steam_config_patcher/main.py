@@ -28,6 +28,7 @@ class AppSchema(BaseModel):
     launchOptions: Optional[str] = None
     compatTool: CompatToolValue = None
     betaBranch: Optional[str] = None
+    language: Optional[str] = None
 
 
 class NonSteamAppSchema(AppSchema):
@@ -91,6 +92,11 @@ def parse_input() -> PatcherConfig:
             app.id: app.betaBranch
             for app in validated_input.apps.values()
             if app.betaBranch
+        },
+        game_languages={
+            app.id: app.language
+            for app in validated_input.apps.values()
+            if app.language
         },
         users={
             user_id: UserConfig(

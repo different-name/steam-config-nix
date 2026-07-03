@@ -38,9 +38,22 @@ in
         When unset again, the app is reverted to the default branch.
       '';
     };
+
+    language = lib.mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "german";
+      description = ''
+        Language to use for this app, as a Steam API language name (e.g. `"english"`, `"german"`, `"schinese"`).
+
+        The app must be installed for this to be applied, Steam will download the language's depots on its next start.
+
+        When unset again, Steam reverts to its default language for the app.
+      '';
+    };
   };
 
   config.finalConfig = {
-    inherit (config) betaBranch;
+    inherit (config) betaBranch language;
   };
 }

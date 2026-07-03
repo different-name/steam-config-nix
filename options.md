@@ -152,6 +152,33 @@ signed integer
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.language
+
+
+
+Language to use for this app, as a Steam API language name (e\.g\. ` "english" `, ` "german" `, ` "schinese" `)\.
+
+The app must be installed for this to be applied, Steam will download the language’s depots on its next start\.
+
+When unset again, Steam reverts to its default language for the app\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` "german" `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.launchOptions\.args
 
 

@@ -30,6 +30,7 @@ let
               id = 1091500;
               compatTool = "proton_experimental";
               betaBranch = "prerelease";
+              language = "german";
               launchOptions = {
                 env = {
                   WINEDLLOVERRIDES = "winmm,version=n,b";
@@ -64,6 +65,7 @@ let
         id = 620;
         compatTool = null;
         betaBranch = null;
+        language = null;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
       };
 
@@ -71,6 +73,7 @@ let
         id = 730;
         compatTool = fakeCompatTool;
         betaBranch = null;
+        language = null;
         launchOptions = null;
       };
 
@@ -78,6 +81,7 @@ let
         id = 1091500;
         compatTool = "proton_experimental";
         betaBranch = "prerelease";
+        language = "german";
         launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
       };
     };

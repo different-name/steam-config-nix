@@ -138,6 +138,19 @@ def test_beta_branches_map_to_game_betas(tmp_path, monkeypatch):
     assert cfg.game_betas == {1091500: "prerelease"}
 
 
+def test_languages_map_to_game_languages(tmp_path, monkeypatch):
+    data = base_input(
+        apps={
+            "cyberpunk": {"id": 1091500, "language": "german"},
+            "portal": {"id": 620},
+        }
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.game_languages == {1091500: "german"}
+
+
 def test_strategy_and_steam_dir_are_passed_through(tmp_path, monkeypatch):
     cfg = run_parse(tmp_path, monkeypatch, base_input(onSteamRunning="close"))
 

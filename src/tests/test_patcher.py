@@ -87,6 +87,7 @@ APPMANIFEST_VDF = """\
 """
 
 BETA_KEY_PATH = ("AppState", "UserConfig", "BetaKey")
+LANGUAGE_KEY_PATH = ("AppState", "UserConfig", "language")
 
 
 def write_app_manifest(steam_dir, app_id=1091500):
@@ -102,11 +103,13 @@ def make_cfg(
     launch_options=None,
     non_steam_apps=None,
     game_betas=None,
+    game_languages=None,
 ):
     return PatcherConfig(
         on_steam_running=on_steam_running,
         steam_dir=steam_dir,
         game_betas=game_betas or {},
+        game_languages=game_languages or {},
         compat_tool_mapping=compat_tool_mapping or {},
         users={
             USER_ID: UserConfig(
@@ -396,6 +399,44 @@ def test_beta_branch_for_uninstalled_app_warns_and_continues(fake_steam, tmp_pat
     steam_dir = make_steam_dir(tmp_path)
 
     patch_config_files(make_cfg(steam_dir, game_betas={1091500: "prerelease"}))
+
+    assert manifest_path(steam_dir, USER_ID).exists()
+
+
+def test_language_written_and_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    manifest = write_app_manifest(steam_dir)
+
+    patch_config_files(make_cfg(steam_dir, game_languages={1091500: "german"}))
+
+    assert find_values(manifest, LANGUAGE_KEY_PATH) == ["german"]
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(manifest, LANGUAGE_KEY_PATH) == []
+    assert load_manifest(steam_dir, USER_ID) == UserManifest()
+
+
+def test_beta_and_language_share_one_appmanifest_patch(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    manifest = write_app_manifest(steam_dir)
+
+    patch_config_files(
+        make_cfg(
+            steam_dir,
+            game_betas={1091500: "prerelease"},
+            game_languages={1091500: "german"},
+        )
+    )
+
+    assert find_values(manifest, BETA_KEY_PATH) == ["prerelease"]
+    assert find_values(manifest, LANGUAGE_KEY_PATH) == ["german"]
+
+
+def test_language_for_uninstalled_app_warns_and_continues(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+
+    patch_config_files(make_cfg(steam_dir, game_languages={1091500: "german"}))
 
     assert manifest_path(steam_dir, USER_ID).exists()
 
