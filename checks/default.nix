@@ -7,6 +7,11 @@ let
   inherit (pkgs) lib;
   system = pkgs.stdenv.hostPlatform.system;
 
+  fakeCompatTool = pkgs.runCommand "fake-compat-tool" { } ''
+    mkdir $out
+    echo '"compatibilitytools" { "compat_tools" { "Fake-Proton" { "install_path" "." } } }' > $out/compatibilitytool.vdf
+  '';
+
   nixosEval = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       self.nixosModules.default
@@ -18,6 +23,8 @@ let
 
           apps = {
             "620".launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
+
+            "730".compatTool = fakeCompatTool;
 
             cyberpunk = {
               id = 1091500;
@@ -47,6 +54,7 @@ let
   actual = {
     apps = lib.mapAttrs (_: app: app.finalConfig) cfg.apps;
     nonSteamApps = lib.mapAttrs (_: app: app.finalConfig) cfg.nonSteamApps;
+    extraCompatPackages = nixosEval.config.programs.steam.extraCompatPackages;
   };
 
   expected = {
@@ -55,6 +63,12 @@ let
         id = 620;
         compatTool = null;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
+      };
+
+      "730" = {
+        id = 730;
+        compatTool = fakeCompatTool;
+        launchOptions = null;
       };
 
       cyberpunk = {
@@ -78,6 +92,8 @@ let
         inVrLibrary = false;
       };
     };
+
+    extraCompatPackages = [ fakeCompatTool ];
   };
 
   expectedJson = pkgs.writeText "expected.json" (builtins.toJSON expected);

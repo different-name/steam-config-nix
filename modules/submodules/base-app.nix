@@ -123,10 +123,15 @@ in
 
   options = {
     compatTool = lib.mkOption {
-      type = types.nullOr types.str;
+      type = with types; nullOr (either str package);
       default = null;
-      example = "proton_experimental";
-      description = "Compatibility tool to use.";
+      example = lib.literalExpression "pkgs.proton-ge-bin";
+      description = ''
+        Compatibility tool to use, either the internal name of an installed
+        tool (e.g. `"proton_experimental"`), or a package containing one.
+
+        Packages are installed automatically, see the readme for details.
+      '';
     };
 
     launchOptions = launchOptionsOptions;

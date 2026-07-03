@@ -76,12 +76,15 @@ attribute set of (submodule)
 
 
 
-Compatibility tool to use\.
+Compatibility tool to use, either the internal name of an installed
+tool (e\.g\. ` "proton_experimental" `), or a package containing one\.
+
+Packages are installed automatically, see the readme for details\.
 
 
 
 *Type:*
-null or string
+null or string or package
 
 
 
@@ -91,7 +94,7 @@ null or string
 
 
 *Example:*
-` "proton_experimental" `
+` pkgs.proton-ge-bin `
 
 
 
@@ -279,14 +282,15 @@ null or (optionally newline-terminated) single-line string
 
 
 
-Default compatibility tool to use for Steam Play\.
+Default compatibility tool to use for Steam Play, either the internal
+name of an installed tool, or a package containing one\.
 
 This option sets the default compatibility tool in Steam, but does not set the nix module defaults\.
 
 
 
 *Type:*
-null or string
+null or string or package
 
 
 
@@ -367,12 +371,15 @@ boolean
 
 
 
-Compatibility tool to use\.
+Compatibility tool to use, either the internal name of an installed
+tool (e\.g\. ` "proton_experimental" `), or a package containing one\.
+
+Packages are installed automatically, see the readme for details\.
 
 
 
 *Type:*
-null or string
+null or string or package
 
 
 
@@ -382,7 +389,7 @@ null or string
 
 
 *Example:*
-` "proton_experimental" `
+` pkgs.proton-ge-bin `
 
 
 

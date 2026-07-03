@@ -79,11 +79,12 @@ in
     };
 
     defaultCompatTool = lib.mkOption {
-      type = types.nullOr types.str;
+      type = with types; nullOr (either str package);
       default = null;
       example = "proton_experimental";
       description = ''
-        Default compatibility tool to use for Steam Play.
+        Default compatibility tool to use for Steam Play, either the internal
+        name of an installed tool, or a package containing one.
 
         This option sets the default compatibility tool in Steam, but does not set the nix module defaults.
       '';
@@ -142,12 +143,29 @@ in
         source = lib.getExe app.wrapper.package;
       }) launchOptionApps;
 
+      # compat tool packages
+
+      compatToolPackages = lib.unique (
+        lib.filter lib.isDerivation ([ cfg.defaultCompatTool ] ++ map (app: app.compatTool) allApps)
+      );
+
+      compatToolDir = pkg: lib.getOutput "steamcompattool" pkg;
+
       # patcher config
 
-      mapFinalConfigs = lib.mapAttrs (_: value: value.finalConfig);
+      mkCompatToolValue = value: if lib.isDerivation value then { path = compatToolDir value; } else value;
+
+      mapFinalConfigs = lib.mapAttrs (
+        _: value:
+        value.finalConfig
+        // {
+          compatTool = mkCompatToolValue value.finalConfig.compatTool;
+        }
+      );
 
       patcherConfig = builtins.toJSON {
-        inherit (cfg) onSteamRunning defaultCompatTool;
+        inherit (cfg) onSteamRunning;
+        defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
         apps = mapFinalConfigs cfg.apps;
         nonSteamApps = mapFinalConfigs cfg.nonSteamApps;
       };
@@ -205,6 +223,8 @@ in
         }
 
         (lib.optionalAttrs (format == "nixos") {
+          programs.steam.extraCompatPackages = compatToolPackages;
+
           systemd.tmpfiles.rules = map (
             link: "L+ ${lib.escapeShellArg link.target} - - - - ${lib.escapeShellArg link.source}"
           ) wrapperLinks;
@@ -230,6 +250,12 @@ in
         (lib.optionalAttrs (format == "home-manager") {
           home.file = lib.listToAttrs (
             map (link: lib.nameValuePair link.target { inherit (link) source; }) wrapperLinks
+            ++ map (
+              pkg:
+              lib.nameValuePair ".local/share/Steam/compatibilitytools.d/${lib.getName pkg}" {
+                source = compatToolDir pkg;
+              }
+            ) compatToolPackages
           );
 
           systemd.user.services."steam-config-patcher" = {
