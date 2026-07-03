@@ -1,7 +1,7 @@
 import psutil
 import pytest
 
-from steam_config_patcher.steam import get_steam_user_ids, steam_is_closed
+from steam_config_patcher.steam import get_steam_dir, get_steam_user_ids, steam_is_closed
 
 
 class FakeProc:
@@ -34,6 +34,32 @@ def fake_procs(monkeypatch):
     )
     monkeypatch.setattr("steam_config_patcher.steam.time.sleep", lambda seconds: None)
     return procs
+
+
+def test_steam_dir_prefers_dot_steam_root_symlink(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    install = tmp_path / "steam-install"
+    install.mkdir()
+    (tmp_path / ".steam").mkdir()
+    (tmp_path / ".steam" / "root").symlink_to(install)
+    (tmp_path / ".local" / "share" / "Steam").mkdir(parents=True)
+
+    assert get_steam_dir() == install.resolve()
+
+
+def test_steam_dir_falls_back_to_data_dir(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    data_dir = tmp_path / ".local" / "share" / "Steam"
+    data_dir.mkdir(parents=True)
+
+    assert get_steam_dir() == data_dir.resolve()
+
+
+def test_steam_dir_missing_raises(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    with pytest.raises(FileNotFoundError):
+        get_steam_dir()
 
 
 def test_user_ids_are_numeric_dirs_excluding_zero(tmp_path):

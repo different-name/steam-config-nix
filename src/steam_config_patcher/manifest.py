@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 
+from steam_config_patcher.fileio import atomic_write_text
 from steam_config_patcher.types import UserManifest
 
 LOG = logging.getLogger(__name__)
@@ -49,6 +50,4 @@ def save_manifest(steam_dir: Path, user_id: int, manifest: UserManifest) -> None
         "shortcuts": manifest.shortcuts,
     }
 
-    tmp_path = path.with_name(path.name + ".tmp")
-    tmp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    tmp_path.replace(path)
+    atomic_write_text(path, json.dumps(data, indent=2))

@@ -4,6 +4,21 @@ import time
 import psutil
 
 
+def get_steam_dir() -> Path:
+    home = Path.home()
+    candidates = [
+        home / ".steam" / "root",
+        home / ".steam" / "steam",
+        home / ".local" / "share" / "Steam",
+    ]
+
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate.resolve()
+
+    raise FileNotFoundError("could not locate a Steam installation")
+
+
 def get_steam_user_ids(steam_dir: Path) -> list[int]:
     return [
         int(p.name)

@@ -1,7 +1,5 @@
 import logging
 
-import vdf
-
 from steam_config_patcher.formats.binary_keyvalues import patch_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
 from steam_config_patcher.manifest import load_manifest, save_manifest
@@ -12,6 +10,7 @@ from steam_config_patcher.types import (
     UserConfig,
     UserManifest,
 )
+from steam_config_patcher.vdf import binary
 
 LOG = logging.getLogger(__name__)
 
@@ -132,8 +131,7 @@ def generate_shortcuts_vdf_patch(
             close_steam=cfg.close_steam,
         )
 
-    with file_path.open(mode="rb") as read_file:
-        kv = vdf.binary_load(read_file)
+    kv = binary.loads(file_path.read_bytes())
 
     # hacky way to see which index we should use based on app id and existing shortcuts
     shortcuts = kv.get("shortcuts") or {}

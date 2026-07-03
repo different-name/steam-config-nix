@@ -1,8 +1,8 @@
 import pytest
-from srctools import Keyvalues
 
 from steam_config_patcher.formats.keyvalues import patch_keyvalues
 from steam_config_patcher.types import ConfigPatch, Deletion
+from steam_config_patcher.vdf import text
 
 CONFIG_VDF = """\
 "InstallConfigStore"
@@ -40,8 +40,7 @@ def write_config(tmp_path):
 
 
 def parse(path):
-    with path.open(encoding="utf-8") as f:
-        return Keyvalues.parse(f)
+    return text.loads(path.read_text(encoding="utf-8"))
 
 
 def make_patch(file_path, data, deletions=(), close_steam=False):
@@ -55,7 +54,7 @@ def make_patch(file_path, data, deletions=(), close_steam=False):
 
 
 def find_value(kv, key_path):
-    values = [block.value for block in kv.find_all(*key_path)]
+    values = [node.value for node in kv.find_all(*key_path)]
     assert len(values) == 1, f"expected exactly one value at {key_path}"
     return values[0]
 
@@ -181,7 +180,7 @@ def test_duplicate_blocks_are_all_updated(fake_steam, tmp_path):
 
     assert patch_keyvalues(patch)
 
-    values = [b.value for b in parse(path).find_all("Root", "Apps", "620", "LaunchOptions")]
+    values = [n.value for n in parse(path).find_all("Root", "Apps", "620", "LaunchOptions")]
     assert values == ["c", "c"]
 
 

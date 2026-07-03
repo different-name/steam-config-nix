@@ -1,6 +1,4 @@
 import pytest
-import vdf
-from srctools import Keyvalues
 
 from steam_config_patcher.manifest import load_manifest, manifest_path
 from steam_config_patcher.patcher import (
@@ -16,6 +14,7 @@ from steam_config_patcher.types import (
     UserConfig,
     UserManifest,
 )
+from steam_config_patcher.vdf import binary, text
 
 USER_ID = 111
 
@@ -66,8 +65,7 @@ def make_steam_dir(tmp_path):
     user_config = steam_dir / "userdata" / str(USER_ID) / "config"
     user_config.mkdir(parents=True)
     (user_config / "localconfig.vdf").write_text(LOCALCONFIG_VDF, encoding="utf-8")
-    with (user_config / "shortcuts.vdf").open("wb") as f:
-        vdf.binary_dump({"shortcuts": {}}, f)
+    (user_config / "shortcuts.vdf").write_bytes(binary.dumps({"shortcuts": {}}))
     return steam_dir
 
 
@@ -105,19 +103,14 @@ def non_steam_app(name="Game", target="/games/some game/start", start_in="", ico
     )
 
 
-def parse(path):
-    with path.open(encoding="utf-8") as f:
-        return Keyvalues.parse(f)
-
-
 def find_values(path, key_path):
-    return [block.value for block in parse(path).find_all(*key_path)]
+    root = text.loads(path.read_text(encoding="utf-8"))
+    return [node.value for node in root.find_all(*key_path)]
 
 
 def read_shortcuts(steam_dir):
     path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
-    with path.open("rb") as f:
-        return vdf.binary_load(f)
+    return binary.loads(path.read_bytes())
 
 
 def test_config_vdf_patch_data_and_priorities(tmp_path):
@@ -157,10 +150,9 @@ def test_config_vdf_patch_deletes_removed_guarded_by_name(tmp_path):
 def test_shortcuts_patch_reuses_index_for_existing_appid(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
-    with path.open("wb") as f:
-        vdf.binary_dump(
-            {"shortcuts": {"0": {"appid": 555}, "1": {"appid": 777}}}, f
-        )
+    path.write_bytes(
+        binary.dumps({"shortcuts": {"0": {"appid": 555}, "1": {"appid": 777}}})
+    )
     cfg = make_cfg(
         steam_dir,
         non_steam_apps={777: non_steam_app(name="Old"), 888: non_steam_app(name="New")},
@@ -200,10 +192,9 @@ def test_shortcuts_patch_leaves_empty_start_dir_unquoted(fake_steam, tmp_path):
 def test_shortcuts_patch_deletes_removed_appids(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
-    with path.open("wb") as f:
-        vdf.binary_dump(
-            {"shortcuts": {"0": {"appid": 555}, "1": {"appid": 777}}}, f
-        )
+    path.write_bytes(
+        binary.dumps({"shortcuts": {"0": {"appid": 555}, "1": {"appid": 777}}})
+    )
     cfg = make_cfg(steam_dir)
 
     patch = generate_shortcuts_vdf_patch(

@@ -42,7 +42,7 @@ def run_parse(tmp_path, monkeypatch, data):
     cfg_path = tmp_path / "cfg.json"
     cfg_path.write_text(json.dumps(data), encoding="utf-8")
     monkeypatch.setattr(
-        "steam_config_patcher.main.steam.get_steam_install_path", lambda: steam_dir
+        "steam_config_patcher.main.get_steam_dir", lambda: steam_dir
     )
     monkeypatch.setattr("sys.argv", ["steam-config-patcher", str(cfg_path)])
     return parse_input()

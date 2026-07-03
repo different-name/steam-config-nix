@@ -1,29 +1,10 @@
-import struct
-from io import BytesIO
-
-import pytest
-import vdf
-
 from steam_config_patcher.formats.binary_keyvalues import (
     delete_key,
     patch_binary_keyvalues,
     recursive_update,
 )
 from steam_config_patcher.types import ConfigPatch, Deletion
-
-
-def _vdf_handles_uint32():
-    try:
-        vdf.binary_dump({"s": {"appid": 0x914B9DA1}}, BytesIO())
-    except struct.error:
-        return False
-    return True
-
-
-requires_patched_vdf = pytest.mark.skipif(
-    not _vdf_handles_uint32(),
-    reason="needs the uint32-patched vdf package (applied in the nix build)",
-)
+from steam_config_patcher.vdf import binary
 
 
 def shortcut(appid, name):
@@ -42,13 +23,11 @@ def shortcut(appid, name):
 
 
 def write_shortcuts(path, data):
-    with path.open("wb") as f:
-        vdf.binary_dump(data, f)
+    path.write_bytes(binary.dumps(data))
 
 
 def read_shortcuts(path):
-    with path.open("rb") as f:
-        return vdf.binary_load(f)
+    return binary.loads(path.read_bytes())
 
 
 def make_patch(file_path, data, deletions=(), close_steam=False):
@@ -195,7 +174,6 @@ def test_deletion_removes_shortcut(fake_steam, tmp_path):
     assert result["shortcuts"]["0"]["AppName"] == "Keep"
 
 
-@requires_patched_vdf
 def test_generated_appid_range_roundtrip(fake_steam, tmp_path):
     appid = 0x914B9DA1
     path = tmp_path / "shortcuts.vdf"

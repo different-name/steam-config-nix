@@ -1,7 +1,6 @@
 from typing import Iterator
 
-from srctools import AtomicWriter, Keyvalues
-
+from steam_config_patcher.fileio import atomic_write_text
 from steam_config_patcher.steam import steam_is_closed
 from steam_config_patcher.types import (
     ConfigPatch,
@@ -9,6 +8,7 @@ from steam_config_patcher.types import (
     KeyValuesType,
     KeyValuesValue,
 )
+from steam_config_patcher.vdf.text import VdfNode, dumps, loads
 
 KeyPath = tuple[*tuple[str, ...], str]
 
@@ -24,62 +24,66 @@ def iterate_leaves(
             yield new_path, v
 
 
-def overwrite_key(kv: Keyvalues, key_path: KeyPath, value: KeyValuesValue) -> bool:
+def overwrite_key(kv: VdfNode, key_path: KeyPath, value: KeyValuesValue) -> bool:
     modified = False
     value = str(value)
 
-    existing_blocks = list(kv.find_all(*key_path))
+    existing_nodes = list(kv.find_all(*key_path))
 
-    if existing_blocks:
-        for block in existing_blocks:
-            if block.has_children():
+    if existing_nodes:
+        for node in existing_nodes:
+            if node.is_block:
                 raise ValueError(
                     f"Refusing to overwrite non-leaf keyvalue block at {key_path}"
                 )
 
-            if block.value != value:
-                block.value = value
+            if node.value != value:
+                node.value = value
                 modified = True
     else:
         for i in range(len(key_path) - 1, 0, -1):
-            parent_blocks = list(kv.find_all(*key_path[:i]))
+            parent_blocks = [b for b in kv.find_all(*key_path[:i]) if b.is_block]
             if not parent_blocks:
                 continue
 
             for block in parent_blocks:
-                block.set_key(key_path[i:], value)
+                block.set_path(key_path[i:], value)
                 modified = True
             break
 
     return modified
 
 
-def guard_matches(node: Keyvalues, deletion: Deletion) -> bool:
+def guard_matches(node: VdfNode, deletion: Deletion) -> bool:
     if deletion.expected is None:
         return True
 
     target = node
     for key in deletion.guard_path:
-        if not target.has_children() or key not in target:
+        if not target.is_block:
             return False
-        target = target.find_key(key)
+        target = target.find(key)
+        if target is None:
+            return False
 
-    return not target.has_children() and target.value == deletion.expected
+    return not target.is_block and target.value == deletion.expected
 
 
-def delete_key(kv: Keyvalues, deletion: Deletion) -> bool:
+def delete_key(kv: VdfNode, deletion: Deletion) -> bool:
     *parent_path, leaf_name = deletion.key_path
+    parents = list(kv.find_all(*parent_path)) if parent_path else [kv]
 
     modified = False
-    for parent in list(kv.find_all(*parent_path)):
-        if leaf_name not in parent:
+    for parent in parents:
+        target = parent.find(leaf_name)
+        if target is None:
             continue
 
-        if not guard_matches(parent.find_key(leaf_name), deletion):
+        if not guard_matches(target, deletion):
             continue
 
-        del parent[leaf_name]
-        modified = True
+        if parent.remove(leaf_name):
+            modified = True
 
     return modified
 
@@ -88,13 +92,12 @@ def patch_keyvalues(config_patch: ConfigPatch) -> bool:
     if not config_patch.file_path.is_file():
         return True
 
-    with config_patch.file_path.open(encoding="utf-8") as read_file:
-        kv = Keyvalues.parse(read_file, config_patch.file_path)
+    kv = loads(config_patch.file_path.read_text(encoding="utf-8"))
 
     # update the kv object with the desired values, tracking if anything was modified
     # if we need to write changes, steam will need to be closed beforehand
     modified = False
-    for key_path, value in list(iterate_leaves(config_patch.data)):
+    for key_path, value in iterate_leaves(config_patch.data):
         if overwrite_key(kv, key_path, value):
             modified = True
 
@@ -108,7 +111,5 @@ def patch_keyvalues(config_patch: ConfigPatch) -> bool:
     if not steam_is_closed(close_if_running=config_patch.close_steam):
         return False
 
-    with AtomicWriter(config_patch.file_path, encoding="utf-8") as write_file:
-        kv.serialise(write_file)
-
+    atomic_write_text(config_patch.file_path, dumps(kv))
     return True

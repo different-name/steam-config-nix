@@ -4,10 +4,9 @@ from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel
-from srctools import steam
 
 from steam_config_patcher.patcher import patch_config_files
-from steam_config_patcher.steam import get_steam_user_ids
+from steam_config_patcher.steam import get_steam_dir, get_steam_user_ids
 from steam_config_patcher.types import (
     CompatToolConfig,
     NonSteamAppConfig,
@@ -56,7 +55,7 @@ def parse_input() -> PatcherConfig:
     json_text = Path(args.cfg_json).read_text(encoding="utf-8")
     validated_input = InputSchema.model_validate_json(json_text)
 
-    steam_dir = steam.get_steam_install_path()
+    steam_dir = get_steam_dir()
 
     return PatcherConfig(
         close_steam=validated_input.closeSteam,
