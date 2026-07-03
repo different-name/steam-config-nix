@@ -71,7 +71,7 @@ let
         launchOptions = null;
         name = "vintage-story";
         target = "/games/vintagestory/start";
-        startIn = null;
+        startIn = "/games/vintagestory";
         icon = null;
         isHidden = false;
         allowOverlay = true;

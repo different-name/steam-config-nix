@@ -699,7 +699,7 @@ null or absolute path
 
 
 *Default:*
-` null `
+` dirOf config.target `
 
 
 

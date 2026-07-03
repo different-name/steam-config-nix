@@ -70,7 +70,8 @@ in
 
     startIn = lib.mkOption {
       type = types.nullOr types.path;
-      default = null;
+      default = dirOf config.target;
+      defaultText = lib.literalExpression "dirOf config.target";
       description = "Directory to start this app in.";
     };
 
