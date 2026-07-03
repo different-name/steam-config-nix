@@ -1,0 +1,344 @@
+import pytest
+import vdf
+from srctools import Keyvalues
+
+from steam_config_patcher.manifest import load_manifest, manifest_path
+from steam_config_patcher.patcher import (
+    desired_manifest,
+    generate_config_vdf_patch,
+    generate_shortcuts_vdf_patch,
+    patch_config_files,
+)
+from steam_config_patcher.types import (
+    CompatToolConfig,
+    NonSteamAppConfig,
+    PatcherConfig,
+    UserConfig,
+    UserManifest,
+)
+
+USER_ID = 111
+
+CONFIG_VDF = """\
+"InstallConfigStore"
+{
+	"Software"
+	{
+		"Valve"
+		{
+			"Steam"
+			{
+				"CompatToolMapping"
+				{
+				}
+			}
+		}
+	}
+}
+"""
+
+LOCALCONFIG_VDF = """\
+"UserLocalConfigStore"
+{
+	"Software"
+	{
+		"Valve"
+		{
+			"Steam"
+			{
+				"Apps"
+				{
+				}
+			}
+		}
+	}
+}
+"""
+
+MAPPING_PATH = ("InstallConfigStore", "Software", "Valve", "Steam", "CompatToolMapping")
+APPS_PATH = ("UserLocalConfigStore", "Software", "Valve", "Steam", "Apps")
+
+
+def make_steam_dir(tmp_path):
+    steam_dir = tmp_path / "steam"
+    (steam_dir / "config").mkdir(parents=True)
+    (steam_dir / "config" / "config.vdf").write_text(CONFIG_VDF, encoding="utf-8")
+    user_config = steam_dir / "userdata" / str(USER_ID) / "config"
+    user_config.mkdir(parents=True)
+    (user_config / "localconfig.vdf").write_text(LOCALCONFIG_VDF, encoding="utf-8")
+    with (user_config / "shortcuts.vdf").open("wb") as f:
+        vdf.binary_dump({"shortcuts": {}}, f)
+    return steam_dir
+
+
+def make_cfg(
+    steam_dir,
+    close_steam=False,
+    compat_tool_mapping=None,
+    launch_options=None,
+    non_steam_apps=None,
+):
+    return PatcherConfig(
+        close_steam=close_steam,
+        steam_dir=steam_dir,
+        compat_tool_mapping=compat_tool_mapping or {},
+        users={
+            USER_ID: UserConfig(
+                launch_options=launch_options or {},
+                non_steam_apps=non_steam_apps or {},
+            )
+        },
+    )
+
+
+def non_steam_app(name="Game", target="/games/some game/start", start_in="", icon=""):
+    return NonSteamAppConfig(
+        name=name,
+        target=target,
+        start_in=start_in,
+        icon=icon,
+        launch_options="",
+        is_hidden=False,
+        allow_desktop_config=True,
+        allow_overlay=True,
+        in_vr_library=False,
+    )
+
+
+def parse(path):
+    with path.open(encoding="utf-8") as f:
+        return Keyvalues.parse(f)
+
+
+def find_values(path, key_path):
+    return [block.value for block in parse(path).find_all(*key_path)]
+
+
+def read_shortcuts(steam_dir):
+    path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
+    with path.open("rb") as f:
+        return vdf.binary_load(f)
+
+
+def test_config_vdf_patch_data_and_priorities(tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={
+            0: CompatToolConfig("proton_experimental", 75),
+            1091500: CompatToolConfig("GE-Proton", 250),
+        },
+    )
+
+    patch = generate_config_vdf_patch(cfg, prev_compat_tools={})
+
+    mapping = patch.data["InstallConfigStore"]["Software"]["Valve"]["Steam"][
+        "CompatToolMapping"
+    ]
+    assert mapping["0"] == {"config": "", "name": "proton_experimental", "priority": "75"}
+    assert mapping["1091500"] == {"config": "", "name": "GE-Proton", "priority": "250"}
+    assert patch.deletions == []
+
+
+def test_config_vdf_patch_deletes_removed_guarded_by_name(tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(steam_dir, compat_tool_mapping={620: CompatToolConfig("GE-Proton", 250)})
+
+    patch = generate_config_vdf_patch(
+        cfg, prev_compat_tools={620: "GE-Proton", 999: "old-tool", 555: "other-tool"}
+    )
+
+    assert [(d.key_path[-1], d.guard_path, d.expected) for d in patch.deletions] == [
+        ("555", ("name",), "other-tool"),
+        ("999", ("name",), "old-tool"),
+    ]
+
+
+def test_shortcuts_patch_reuses_index_for_existing_appid(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
+    with path.open("wb") as f:
+        vdf.binary_dump(
+            {"shortcuts": {"0": {"appid": 555}, "1": {"appid": 777}}}, f
+        )
+    cfg = make_cfg(
+        steam_dir,
+        non_steam_apps={777: non_steam_app(name="Old"), 888: non_steam_app(name="New")},
+    )
+
+    patch = generate_shortcuts_vdf_patch(cfg, USER_ID, cfg.users[USER_ID], UserManifest())
+
+    assert patch.data["shortcuts"]["1"]["appid"] == 777
+    assert patch.data["shortcuts"]["2"]["appid"] == 888
+
+
+def test_shortcuts_patch_quotes_exe_and_start_dir(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        non_steam_apps={
+            555: non_steam_app(target="/games/some game/start", start_in="/games/some game")
+        },
+    )
+
+    patch = generate_shortcuts_vdf_patch(cfg, USER_ID, cfg.users[USER_ID], UserManifest())
+
+    shortcut = patch.data["shortcuts"]["0"]
+    assert shortcut["Exe"] == '"/games/some game/start"'
+    assert shortcut["StartDir"] == '"/games/some game"'
+
+
+def test_shortcuts_patch_leaves_empty_start_dir_unquoted(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(steam_dir, non_steam_apps={555: non_steam_app(start_in="")})
+
+    patch = generate_shortcuts_vdf_patch(cfg, USER_ID, cfg.users[USER_ID], UserManifest())
+
+    assert patch.data["shortcuts"]["0"]["StartDir"] == ""
+
+
+def test_shortcuts_patch_deletes_removed_appids(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
+    with path.open("wb") as f:
+        vdf.binary_dump(
+            {"shortcuts": {"0": {"appid": 555}, "1": {"appid": 777}}}, f
+        )
+    cfg = make_cfg(steam_dir)
+
+    patch = generate_shortcuts_vdf_patch(
+        cfg, USER_ID, cfg.users[USER_ID], UserManifest(shortcuts=[555])
+    )
+
+    assert [d.key_path for d in patch.deletions] == [("shortcuts", "0")]
+
+
+def test_shortcuts_patch_missing_file_is_empty(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    (steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf").unlink()
+    cfg = make_cfg(steam_dir, non_steam_apps={555: non_steam_app()})
+
+    patch = generate_shortcuts_vdf_patch(cfg, USER_ID, cfg.users[USER_ID], UserManifest())
+
+    assert patch.data == {}
+    assert patch.deletions == []
+
+
+def test_desired_manifest_reflects_config(tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={620: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+        non_steam_apps={555: non_steam_app()},
+    )
+
+    manifest = desired_manifest(cfg, cfg.users[USER_ID])
+
+    assert manifest == UserManifest(
+        compat_tools={620: "GE-Proton"},
+        launch_options={620: "wrapper %command%"},
+        shortcuts=[555],
+    )
+
+
+def test_full_run_patches_files_and_writes_manifest(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+        non_steam_apps={555: non_steam_app(name="Game")},
+    )
+
+    patch_config_files(cfg)
+
+    config_vdf = steam_dir / "config" / "config.vdf"
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
+    assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == [
+        "wrapper %command%"
+    ]
+    assert read_shortcuts(steam_dir)["shortcuts"]["0"]["AppName"] == "Game"
+    assert load_manifest(steam_dir, USER_ID) == desired_manifest(cfg, cfg.users[USER_ID])
+
+
+def test_second_run_cleans_up_removed_entries(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+        non_steam_apps={555: non_steam_app()},
+    )
+    patch_config_files(cfg)
+
+    patch_config_files(make_cfg(steam_dir))
+
+    config_vdf = steam_dir / "config" / "config.vdf"
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500",)) == []
+    assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == []
+    assert read_shortcuts(steam_dir)["shortcuts"] == {}
+    assert load_manifest(steam_dir, USER_ID) == UserManifest()
+
+
+def test_cleanup_keeps_values_changed_by_user(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+    )
+    patch_config_files(cfg)
+
+    config_vdf = steam_dir / "config" / "config.vdf"
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+    for path, old, new in [
+        (config_vdf, "GE-Proton", "user-tool"),
+        (localconfig_vdf, "wrapper %command%", "user options"),
+    ]:
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(old, new), encoding="utf-8"
+        )
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["user-tool"]
+    assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == [
+        "user options"
+    ]
+
+
+def test_blocked_run_writes_nothing(fake_steam, tmp_path):
+    fake_steam.running = True
+    steam_dir = make_steam_dir(tmp_path)
+    original_config = (steam_dir / "config" / "config.vdf").read_text(encoding="utf-8")
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+    )
+
+    patch_config_files(cfg)
+
+    assert (steam_dir / "config" / "config.vdf").read_text(encoding="utf-8") == original_config
+    assert not manifest_path(steam_dir, USER_ID).exists()
+
+
+def test_failing_file_does_not_stop_others(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    (steam_dir / "config" / "config.vdf").write_text('"broken', encoding="utf-8")
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+    )
+
+    with pytest.raises(SystemExit):
+        patch_config_files(cfg)
+
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+    assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == [
+        "wrapper %command%"
+    ]
