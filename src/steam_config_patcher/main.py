@@ -1,10 +1,11 @@
 import argparse
 import logging
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel
 
+from steam_config_patcher.compat import resolve_compat_tool_name
 from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_dir, get_steam_user_ids
 from steam_config_patcher.types import (
@@ -15,10 +16,17 @@ from steam_config_patcher.types import (
 )
 
 
+class CompatToolRefSchema(BaseModel):
+    path: str
+
+
+CompatToolValue = Optional[Union[str, CompatToolRefSchema]]
+
+
 class AppSchema(BaseModel):
     id: int
     launchOptions: Optional[str] = None
-    compatTool: Optional[str] = None
+    compatTool: CompatToolValue = None
 
 
 class NonSteamAppSchema(AppSchema):
@@ -33,9 +41,15 @@ class NonSteamAppSchema(AppSchema):
 
 class InputSchema(BaseModel):
     onSteamRunning: Literal["wait", "close", "skip"]
-    defaultCompatTool: Optional[str]
+    defaultCompatTool: CompatToolValue
     apps: dict[str, AppSchema]
     nonSteamApps: dict[str, NonSteamAppSchema]
+
+
+def resolve_compat_tool(compat_tool: CompatToolValue) -> Optional[str]:
+    if isinstance(compat_tool, CompatToolRefSchema):
+        return resolve_compat_tool_name(Path(compat_tool.path))
+    return compat_tool
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -62,7 +76,8 @@ def parse_input() -> PatcherConfig:
         steam_dir=steam_dir,
         compat_tool_mapping={
             app.id: CompatToolConfig(
-                name=app.compatTool, priority=250 if app.id != 0 else 75
+                name=resolve_compat_tool(app.compatTool),
+                priority=250 if app.id != 0 else 75,
             )
             for app in [
                 *validated_input.apps.values(),

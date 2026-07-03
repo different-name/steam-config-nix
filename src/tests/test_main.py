@@ -137,6 +137,38 @@ def test_unknown_strategy_raises(tmp_path, monkeypatch):
         run_parse(tmp_path, monkeypatch, base_input(onSteamRunning="sometimes"))
 
 
+def make_tool_dir(tmp_path, name):
+    tool_dir = tmp_path / f"tool-{name}"
+    tool_dir.mkdir()
+    (tool_dir / "compatibilitytool.vdf").write_text(
+        f'"compatibilitytools"\n{{\n\t"compat_tools"\n\t{{\n\t\t"{name}"\n\t\t{{\n'
+        '\t\t\t"install_path"\t\t"."\n\t\t}\n\t}\n}\n',
+        encoding="utf-8",
+    )
+    return tool_dir
+
+
+def test_compat_tool_package_ref_is_resolved(tmp_path, monkeypatch):
+    tool_dir = make_tool_dir(tmp_path, "GE-Proton")
+    data = base_input(
+        apps={"cyberpunk": {"id": 1091500, "compatTool": {"path": str(tool_dir)}}}
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.compat_tool_mapping[1091500].name == "GE-Proton"
+
+
+def test_default_compat_tool_package_ref_is_resolved(tmp_path, monkeypatch):
+    tool_dir = make_tool_dir(tmp_path, "Custom-Proton")
+    data = base_input(defaultCompatTool={"path": str(tool_dir)})
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.compat_tool_mapping[0].name == "Custom-Proton"
+    assert cfg.compat_tool_mapping[0].priority == 75
+
+
 def test_missing_required_field_raises(tmp_path, monkeypatch):
     data = base_input(apps={"portal": {"launchOptions": "-vulkan"}})
 
