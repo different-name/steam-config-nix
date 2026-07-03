@@ -74,13 +74,13 @@ def make_steam_dir(tmp_path):
 
 def make_cfg(
     steam_dir,
-    close_steam=False,
+    on_steam_running="wait",
     compat_tool_mapping=None,
     launch_options=None,
     non_steam_apps=None,
 ):
     return PatcherConfig(
-        close_steam=close_steam,
+        on_steam_running=on_steam_running,
         steam_dir=steam_dir,
         compat_tool_mapping=compat_tool_mapping or {},
         users={
@@ -365,12 +365,13 @@ def test_cleanup_keeps_values_changed_by_user(fake_steam, tmp_path):
     ]
 
 
-def test_blocked_run_writes_nothing(fake_steam, tmp_path):
+def test_skip_strategy_writes_nothing(fake_steam, tmp_path):
     fake_steam.running = True
     steam_dir = make_steam_dir(tmp_path)
     original_config = (steam_dir / "config" / "config.vdf").read_text(encoding="utf-8")
     cfg = make_cfg(
         steam_dir,
+        on_steam_running="skip",
         compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
         launch_options={620: "wrapper %command%"},
     )
@@ -379,6 +380,43 @@ def test_blocked_run_writes_nothing(fake_steam, tmp_path):
 
     assert (steam_dir / "config" / "config.vdf").read_text(encoding="utf-8") == original_config
     assert not manifest_path(steam_dir, USER_ID).exists()
+    assert fake_steam.close_calls == 0
+    assert fake_steam.wait_calls == 0
+
+
+def test_wait_strategy_waits_for_steam_exit(fake_steam, tmp_path):
+    fake_steam.running = True
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    patch_config_files(cfg)
+
+    assert fake_steam.wait_calls == 1
+    assert fake_steam.close_calls == 0
+    config_vdf = steam_dir / "config" / "config.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
+    assert manifest_path(steam_dir, USER_ID).exists()
+
+
+def test_close_with_game_running_waits_instead(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        on_steam_running="close",
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    patch_config_files(cfg)
+
+    assert fake_steam.close_calls == 0
+    assert fake_steam.wait_calls == 1
+    config_vdf = steam_dir / "config" / "config.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
 
 
 def test_close_steam_shuts_down_and_writes(fake_steam, tmp_path):
@@ -386,7 +424,7 @@ def test_close_steam_shuts_down_and_writes(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     cfg = make_cfg(
         steam_dir,
-        close_steam=True,
+        on_steam_running="close",
         compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
     )
 
@@ -402,7 +440,7 @@ def test_steam_not_closed_when_nothing_to_change(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     cfg = make_cfg(
         steam_dir,
-        close_steam=True,
+        on_steam_running="close",
         compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
     )
     patch_config_files(cfg)
@@ -431,7 +469,7 @@ def test_files_are_reread_after_closing_steam(fake_steam, tmp_path):
     fake_steam.on_close = steam_writes_on_exit
     cfg = make_cfg(
         steam_dir,
-        close_steam=True,
+        on_steam_running="close",
         compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
     )
 

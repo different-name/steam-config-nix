@@ -5,15 +5,17 @@ import pytest
 
 from steam_config_patcher.steam import (
     close_steam,
+    game_is_running,
     get_steam_dir,
     get_steam_user_ids,
     steam_is_running,
+    wait_for_steam_exit,
 )
 
 
 class FakeProc:
-    def __init__(self, name, uid=None, hangs=False, unkillable=False):
-        self.info = {"name": name}
+    def __init__(self, name, uid=None, hangs=False, unkillable=False, cmdline=()):
+        self.info = {"name": name, "cmdline": list(cmdline)}
         self._uid = os.getuid() if uid is None else uid
         self.hangs = hangs
         self.unkillable = unkillable
@@ -47,13 +49,16 @@ def fake_system(monkeypatch):
         return SimpleNamespace(returncode=0)
 
     def fake_wait_procs(procs, timeout=None):
+        if timeout is None:
+            for proc in procs:
+                proc.alive = False
         gone = [p for p in procs if not p.alive]
         alive = [p for p in procs if p.alive]
         return gone, alive
 
     monkeypatch.setattr(
         "steam_config_patcher.steam.psutil.process_iter",
-        lambda *args, **kwargs: list(system.procs),
+        lambda *args, **kwargs: [p for p in system.procs if p.alive],
     )
     monkeypatch.setattr("steam_config_patcher.steam.psutil.wait_procs", fake_wait_procs)
     monkeypatch.setattr("steam_config_patcher.steam.subprocess.run", fake_run)
@@ -165,4 +170,41 @@ def test_close_kills_unresponsive_steam(fake_system):
 def test_close_without_steam_running_does_nothing(fake_system):
     close_steam()
 
+    assert fake_system.commands == []
+
+
+def test_game_running_detects_reaper(fake_system):
+    fake_system.procs.append(
+        FakeProc("reaper", cmdline=["reaper", "SteamLaunch", "AppId=1091500", "--", "game"])
+    )
+
+    assert game_is_running()
+
+
+def test_game_not_running_without_reaper(fake_system):
+    fake_system.procs.append(FakeProc("steam"))
+
+    assert not game_is_running()
+
+
+def test_other_users_game_is_ignored(fake_system):
+    fake_system.procs.append(
+        FakeProc(
+            "reaper",
+            uid=os.getuid() + 1,
+            cmdline=["reaper", "SteamLaunch", "AppId=1", "--", "game"],
+        )
+    )
+
+    assert not game_is_running()
+
+
+def test_wait_for_steam_exit_returns_without_closing(fake_system):
+    proc = FakeProc("steam")
+    fake_system.procs.append(proc)
+
+    wait_for_steam_exit()
+
+    assert not proc.terminated
+    assert not proc.killed
     assert fake_system.commands == []

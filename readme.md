@@ -8,9 +8,11 @@ Manage Steam launch options, compat tools and other local config declaratively t
 > Please report bugs or request features via the [issues tab](https://github.com/different-name/steam-launch.nix/issues)
 
 > [!IMPORTANT]  
-> **Steam must be closed** when writing to the Steam config files, either close Steam manually before activating your configuration, or enable `programs.steam.config.closeSteam` to close Steam on activation
+> **Steam must be closed** when writing to the Steam config files
 >
-> With this option, Steam will not be closed unless a new game is configured or a compatibility tool is changed
+> By default changes are applied once Steam exits, Steam will not be touched unless the configuration actually changed
+>
+> See the `programs.steam.config.onSteamRunning` option to instead close Steam on activation (`"close"`) or skip until the next activation (`"skip"`)
 
 ## Install
 
@@ -49,7 +51,7 @@ See [options.md](options.md) for all available options
 {
   programs.steam.config = {
     enable = true;
-    closeSteam = true;
+    onSteamRunning = "close";
     defaultCompatTool = "GE-Proton";
 
     apps = {

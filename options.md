@@ -275,29 +275,6 @@ null or (optionally newline-terminated) single-line string
 
 
 
-## programs\.steam\.config\.closeSteam
-
-
-
-Whether to enable automatic Steam shutdown before writing configuration changes\.
-
-
-
-*Type:*
-boolean
-
-
-
-*Default:*
-` false `
-
-
-
-*Example:*
-` true `
-
-
-
 ## programs\.steam\.config\.defaultCompatTool
 
 
@@ -741,5 +718,32 @@ absolute path or package convertible to it
 
 *Example:*
 ` pkgs.vintagestory `
+
+
+
+## programs\.steam\.config\.onSteamRunning
+
+
+
+What to do when configuration changes need to be written while Steam is running:
+
+ - ` "wait" `: wait for Steam to exit, then apply the changes
+ - ` "close" `: close Steam and apply the changes immediately, unless a game is running, in which case wait for Steam to exit
+ - ` "skip" `: skip writing, changes will be applied on the next activation
+
+
+
+*Type:*
+one of “wait”, “close”, “skip”
+
+
+
+*Default:*
+` "wait" `
+
+
+
+*Example:*
+` "close" `
 
 

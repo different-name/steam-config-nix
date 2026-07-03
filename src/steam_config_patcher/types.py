@@ -42,7 +42,7 @@ class CompatToolConfig:
 
 @dataclass
 class PatcherConfig:
-    close_steam: bool
+    on_steam_running: Literal["wait", "close", "skip"]
     steam_dir: Path
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]

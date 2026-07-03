@@ -21,8 +21,8 @@ let
   nonSteamAppModule = import ./submodules/non-steam-app.nix { inherit lib pkgs dataDir; };
 in
 {
-  imports = lib.singleton (
-    lib.mkRemovedOptionModule
+  imports = [
+    (lib.mkRemovedOptionModule
       [
         "programs"
         "steam"
@@ -33,7 +33,24 @@ in
         Please use global app configuration instead.
         See https://github.com/different-name/steam-config-nix/discussions/33
       ''
-  );
+    )
+
+    (lib.mkChangedOptionModule
+      [
+        "programs"
+        "steam"
+        "config"
+        "closeSteam"
+      ]
+      [
+        "programs"
+        "steam"
+        "config"
+        "onSteamRunning"
+      ]
+      (config: if config.programs.steam.config.closeSteam then "close" else "wait")
+    )
+  ];
 
   options.programs.steam.config = {
     enable = lib.mkEnableOption "declarative Steam configuration";
@@ -44,7 +61,22 @@ in
       description = "The steam-config-patcher package to use.";
     };
 
-    closeSteam = lib.mkEnableOption "automatic Steam shutdown before writing configuration changes";
+    onSteamRunning = lib.mkOption {
+      type = types.enum [
+        "wait"
+        "close"
+        "skip"
+      ];
+      default = "wait";
+      example = "close";
+      description = ''
+        What to do when configuration changes need to be written while Steam is running:
+
+        - `"wait"`: wait for Steam to exit, then apply the changes
+        - `"close"`: close Steam and apply the changes immediately, unless a game is running, in which case wait for Steam to exit
+        - `"skip"`: skip writing, changes will be applied on the next activation
+      '';
+    };
 
     defaultCompatTool = lib.mkOption {
       type = types.nullOr types.str;
@@ -115,7 +147,7 @@ in
       mapFinalConfigs = lib.mapAttrs (_: value: value.finalConfig);
 
       patcherConfig = builtins.toJSON {
-        inherit (cfg) closeSteam defaultCompatTool;
+        inherit (cfg) onSteamRunning defaultCompatTool;
         apps = mapFinalConfigs cfg.apps;
         nonSteamApps = mapFinalConfigs cfg.nonSteamApps;
       };
@@ -127,7 +159,7 @@ in
         restartTriggers = [ (builtins.hashString "md5" patcherConfig) ];
 
         config = {
-          Type = "oneshot";
+          Type = "exec";
           RemainAfterExit = true; # allows service to be restarted by restartTriggers
 
           ExecStart = lib.escapeShellArgs [

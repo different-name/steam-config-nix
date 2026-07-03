@@ -11,7 +11,7 @@ USER_IDS = (111, 222)
 
 def base_input(**overrides):
     data = {
-        "closeSteam": False,
+        "onSteamRunning": "wait",
         "defaultCompatTool": None,
         "apps": {},
         "nonSteamApps": {},
@@ -125,11 +125,16 @@ def test_non_steam_app_compat_tool_is_mapped(tmp_path, monkeypatch):
     assert cfg.compat_tool_mapping[2434605777].priority == 250
 
 
-def test_close_steam_and_steam_dir_are_passed_through(tmp_path, monkeypatch):
-    cfg = run_parse(tmp_path, monkeypatch, base_input(closeSteam=True))
+def test_strategy_and_steam_dir_are_passed_through(tmp_path, monkeypatch):
+    cfg = run_parse(tmp_path, monkeypatch, base_input(onSteamRunning="close"))
 
-    assert cfg.close_steam
+    assert cfg.on_steam_running == "close"
     assert cfg.steam_dir == tmp_path / "steam"
+
+
+def test_unknown_strategy_raises(tmp_path, monkeypatch):
+    with pytest.raises(ValidationError):
+        run_parse(tmp_path, monkeypatch, base_input(onSteamRunning="sometimes"))
 
 
 def test_missing_required_field_raises(tmp_path, monkeypatch):

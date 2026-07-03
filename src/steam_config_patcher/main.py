@@ -1,7 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -32,7 +32,7 @@ class NonSteamAppSchema(AppSchema):
 
 
 class InputSchema(BaseModel):
-    closeSteam: bool
+    onSteamRunning: Literal["wait", "close", "skip"]
     defaultCompatTool: Optional[str]
     apps: dict[str, AppSchema]
     nonSteamApps: dict[str, NonSteamAppSchema]
@@ -58,7 +58,7 @@ def parse_input() -> PatcherConfig:
     steam_dir = get_steam_dir()
 
     return PatcherConfig(
-        close_steam=validated_input.closeSteam,
+        on_steam_running=validated_input.onSteamRunning,
         steam_dir=steam_dir,
         compat_tool_mapping={
             app.id: CompatToolConfig(

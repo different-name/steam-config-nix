@@ -5,7 +5,12 @@ from steam_config_patcher.fileio import atomic_write_bytes
 from steam_config_patcher.formats.binary_keyvalues import prepare_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.manifest import load_manifest, save_manifest
-from steam_config_patcher.steam import close_steam, steam_is_running
+from steam_config_patcher.steam import (
+    close_steam,
+    game_is_running,
+    steam_is_running,
+    wait_for_steam_exit,
+)
 from steam_config_patcher.types import (
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
@@ -272,11 +277,20 @@ def patch_config_files(cfg: PatcherConfig):
 
     blocked = False
     if prepared and steam_is_running():
-        if cfg.close_steam:
-            close_steam()
-            prepared = prepare_all()
-        else:
+        if cfg.on_steam_running == "skip":
             blocked = True
+        else:
+            if cfg.on_steam_running == "close" and not game_is_running():
+                close_steam()
+            else:
+                if cfg.on_steam_running == "close":
+                    LOG.info(
+                        "a game is running, waiting for steam to exit instead of closing it"
+                    )
+                else:
+                    LOG.info("steam is running, waiting for it to exit")
+                wait_for_steam_exit()
+            prepared = prepare_all()
 
     if not blocked:
         for description, file_path, data in prepared:
@@ -292,7 +306,7 @@ def patch_config_files(cfg: PatcherConfig):
     if blocked:
         LOG.warning(
             "Steam is running; skipped writes and manifest update. "
-            "Close Steam (or enable closeSteam) to apply changes."
+            'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
         return
 
