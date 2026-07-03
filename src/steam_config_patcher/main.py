@@ -40,7 +40,7 @@ class NonSteamAppSchema(AppSchema):
 
 
 class InputSchema(BaseModel):
-    onSteamRunning: Literal["wait", "close", "skip"]
+    onSteamRunning: Literal["wait", "close", "force-close", "skip"]
     defaultCompatTool: CompatToolValue
     apps: dict[str, AppSchema]
     nonSteamApps: dict[str, NonSteamAppSchema]

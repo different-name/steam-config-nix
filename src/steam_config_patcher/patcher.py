@@ -9,6 +9,7 @@ from steam_config_patcher.steam import (
     close_steam,
     game_is_running,
     steam_is_running,
+    wait_for_game_exit,
     wait_for_steam_exit,
 )
 from steam_config_patcher.types import (
@@ -280,16 +281,16 @@ def patch_config_files(cfg: PatcherConfig):
         if cfg.on_steam_running == "skip":
             blocked = True
         else:
-            if cfg.on_steam_running == "close" and not game_is_running():
-                close_steam()
-            else:
-                if cfg.on_steam_running == "close":
-                    LOG.info(
-                        "a game is running, waiting for steam to exit instead of closing it"
-                    )
-                else:
-                    LOG.info("steam is running, waiting for it to exit")
+            if cfg.on_steam_running == "wait":
+                LOG.info("steam is running, waiting for it to exit")
                 wait_for_steam_exit()
+            else:
+                if cfg.on_steam_running == "close" and game_is_running():
+                    LOG.info(
+                        "a game is running, waiting for it to exit before closing steam"
+                    )
+                    wait_for_game_exit()
+                close_steam()
             prepared = prepare_all()
 
     if not blocked:

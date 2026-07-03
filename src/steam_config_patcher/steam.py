@@ -48,17 +48,30 @@ def steam_is_running() -> bool:
     return bool(steam_processes())
 
 
-def game_is_running() -> bool:
+def game_processes() -> list[psutil.Process]:
     uid = os.getuid()
+    processes = []
     for proc in psutil.process_iter(["name", "cmdline"]):
         try:
             if proc.info["name"] != "reaper" or proc.uids().real != uid:
                 continue
             if "SteamLaunch" in (proc.info["cmdline"] or []):
-                return True
+                processes.append(proc)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-    return False
+    return processes
+
+
+def game_is_running() -> bool:
+    return bool(game_processes())
+
+
+def wait_for_game_exit() -> None:
+    while True:
+        processes = game_processes()
+        if not processes:
+            break
+        psutil.wait_procs(processes)
 
 
 def wait_for_steam_exit() -> None:

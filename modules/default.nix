@@ -65,6 +65,7 @@ in
       type = types.enum [
         "wait"
         "close"
+        "force-close"
         "skip"
       ];
       default = "wait";
@@ -73,7 +74,8 @@ in
         What to do when configuration changes need to be written while Steam is running:
 
         - `"wait"`: wait for Steam to exit, then apply the changes
-        - `"close"`: close Steam and apply the changes immediately, unless a game is running, in which case wait for Steam to exit
+        - `"close"`: close Steam and apply the changes, waiting for any running games to exit first
+        - `"force-close"`: close Steam and apply the changes immediately, even if a game is running
         - `"skip"`: skip writing, changes will be applied on the next activation
       '';
     };

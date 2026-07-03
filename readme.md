@@ -12,7 +12,7 @@ Manage Steam launch options, compat tools and other local config declaratively t
 >
 > By default changes are applied once Steam exits, Steam will not be touched unless the configuration actually changed
 >
-> See the `programs.steam.config.onSteamRunning` option to instead close Steam on activation (`"close"`) or skip until the next activation (`"skip"`)
+> See the `programs.steam.config.onSteamRunning` option to instead close Steam on activation (`"close"`, or `"force-close"` to close even mid-game) or skip until the next activation (`"skip"`)
 
 ## Install
 

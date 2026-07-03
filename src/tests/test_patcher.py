@@ -401,7 +401,7 @@ def test_wait_strategy_waits_for_steam_exit(fake_steam, tmp_path):
     assert manifest_path(steam_dir, USER_ID).exists()
 
 
-def test_close_with_game_running_waits_instead(fake_steam, tmp_path):
+def test_close_with_game_running_waits_for_game_first(fake_steam, tmp_path):
     fake_steam.running = True
     fake_steam.game_running = True
     steam_dir = make_steam_dir(tmp_path)
@@ -413,8 +413,27 @@ def test_close_with_game_running_waits_instead(fake_steam, tmp_path):
 
     patch_config_files(cfg)
 
-    assert fake_steam.close_calls == 0
-    assert fake_steam.wait_calls == 1
+    assert fake_steam.game_wait_calls == 1
+    assert fake_steam.close_calls == 1
+    assert fake_steam.wait_calls == 0
+    config_vdf = steam_dir / "config" / "config.vdf"
+    assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
+
+
+def test_force_close_ignores_running_game(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        on_steam_running="force-close",
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    patch_config_files(cfg)
+
+    assert fake_steam.game_wait_calls == 0
+    assert fake_steam.close_calls == 1
     config_vdf = steam_dir / "config" / "config.vdf"
     assert find_values(config_vdf, MAPPING_PATH + ("1091500", "name")) == ["GE-Proton"]
 

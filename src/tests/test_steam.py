@@ -9,6 +9,7 @@ from steam_config_patcher.steam import (
     get_steam_dir,
     get_steam_user_ids,
     steam_is_running,
+    wait_for_game_exit,
     wait_for_steam_exit,
 )
 
@@ -197,6 +198,16 @@ def test_other_users_game_is_ignored(fake_system):
     )
 
     assert not game_is_running()
+
+
+def test_wait_for_game_exit_returns_without_closing(fake_system):
+    proc = FakeProc("reaper", cmdline=["reaper", "SteamLaunch", "AppId=1", "--", "game"])
+    fake_system.procs.append(proc)
+
+    wait_for_game_exit()
+
+    assert not proc.terminated
+    assert not proc.killed
 
 
 def test_wait_for_steam_exit_returns_without_closing(fake_system):
