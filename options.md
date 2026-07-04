@@ -345,7 +345,7 @@ null or string or absolute path
 
 
 *Default:*
-` "steam" `
+` the app's artwork.icon, or "steam" `
 
 
 
@@ -967,7 +967,7 @@ null or string or absolute path
 
 
 *Default:*
-` "steam" `
+` the app's artwork.icon, or "steam" `
 
 
 

@@ -125,7 +125,6 @@ in
 
     desktopEntry = {
       name = lib.mkDefault config.name;
-      icon = lib.mkIf (config.artwork.icon != null) (lib.mkDefault config.artwork.icon);
     };
 
     finalConfig = {

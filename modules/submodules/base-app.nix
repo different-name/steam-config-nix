@@ -199,7 +199,8 @@ in
 
       icon = lib.mkOption {
         type = with types; nullOr (either str path);
-        default = "steam";
+        default = if config.artwork.icon != null then config.artwork.icon else "steam";
+        defaultText = lib.literalExpression ''the app's artwork.icon, or "steam"'';
         example = lib.literalExpression "./icon.png";
         description = "Icon for the desktop entry, an icon name or image file.";
       };
