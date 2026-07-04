@@ -72,6 +72,31 @@ attribute set of (submodule)
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.enable
+
+
+
+Whether to manage this app\.
+
+When false the app is ignored, and any configuration previously applied for it is reverted\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+*Example:*
+` false `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.betaBranch
 
 
@@ -555,6 +580,31 @@ attribute set of (submodule)
   };
 }
 ```
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.enable
+
+
+
+Whether to manage this app\.
+
+When false the app is ignored, and any configuration previously applied for it is reverted\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+*Example:*
+` false `
 
 
 

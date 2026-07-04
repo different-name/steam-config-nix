@@ -32,6 +32,9 @@ let
               desktopEntry.enable = false;
             };
 
+            # a disabled app is ignored entirely, even with desktopEntries on
+            "999".enable = false;
+
             cyberpunk = {
               id = 1091500;
               compatTool = "proton_experimental";
@@ -78,6 +81,14 @@ let
       "730" = {
         id = 730;
         compatTool = fakeCompatTool;
+        betaBranch = null;
+        language = null;
+        launchOptions = null;
+      };
+
+      "999" = {
+        id = 999;
+        compatTool = null;
         betaBranch = null;
         language = null;
         launchOptions = null;
@@ -145,6 +156,8 @@ in
     grep -FxR 'Exec=steam steam://rungameid/15174691026754338816' ${desktopItemsDir}/share/applications
     # app 730 opted out, so no entry is generated for it
     test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-730.desktop
+    # app 999 is disabled entirely, so it is ignored despite desktopEntries being on
+    test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-999.desktop
 
     touch $out
   '';

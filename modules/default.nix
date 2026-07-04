@@ -150,9 +150,13 @@ in
     let
       cfg = config.programs.steam.config;
 
+      # only enabled apps are managed; disabled ones are reverted via manifest cleanup
+      enabledApps = lib.filterAttrs (_: app: app.enable) cfg.apps;
+      enabledNonSteamApps = lib.filterAttrs (_: app: app.enable) cfg.nonSteamApps;
+
       # wrapper symlinks
 
-      allApps = (lib.attrValues cfg.apps) ++ (lib.attrValues cfg.nonSteamApps);
+      allApps = (lib.attrValues enabledApps) ++ (lib.attrValues enabledNonSteamApps);
       launchOptionApps = lib.filter (app: app.wrapper.package != null) allApps;
       wrapperLinks = map (app: {
         target = app.wrapper.path;
@@ -198,8 +202,8 @@ in
       patcherConfig = builtins.toJSON {
         inherit (cfg) onSteamRunning;
         defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
-        apps = mapFinalConfigs cfg.apps;
-        nonSteamApps = mapFinalConfigs cfg.nonSteamApps;
+        apps = mapFinalConfigs enabledApps;
+        nonSteamApps = mapFinalConfigs enabledNonSteamApps;
       };
 
       # patcher service
@@ -228,11 +232,11 @@ in
                 lib.mapAttrsToList (name: app: {
                   name = "apps.${name}";
                   inherit app;
-                }) cfg.apps
+                }) enabledApps
                 ++ lib.mapAttrsToList (name: app: {
                   name = "nonSteamApps.${name}";
                   inherit app;
-                }) cfg.nonSteamApps;
+                }) enabledNonSteamApps;
 
               duplicateIds = lib.filterAttrs (_: entries: lib.length entries > 1) (
                 builtins.groupBy (entry: toString entry.app.id) namedApps

@@ -127,6 +127,17 @@ in
   );
 
   options = {
+    enable = lib.mkOption {
+      type = types.bool;
+      default = true;
+      example = false;
+      description = ''
+        Whether to manage this app.
+
+        When false the app is ignored, and any configuration previously applied for it is reverted.
+      '';
+    };
+
     compatTool = lib.mkOption {
       type = with types; nullOr (either str package);
       default = null;
