@@ -55,7 +55,7 @@ See [options.md](options.md) for all available options
     defaultCompatTool = "GE-Proton";
 
     apps = {
-      cyberpunk-2077 = {
+      "Cyberpunk 2077" = {
         id = 1091500;
         compatTool = "GE-Proton";
         launchOptions = {
@@ -67,7 +67,7 @@ See [options.md](options.md) for all available options
         };
       };
 
-      vrchat = {
+      "VRChat" = {
         id = 438100;
         launchOptions.env.TZ = null;
       };
@@ -85,7 +85,7 @@ See [options.md](options.md) for all available options
   programs.steam.config = {
     defaultCompatTool = "proton_experimental";
 
-    apps.cyberpunk-2077 = {
+    apps."Cyberpunk 2077" = {
       id = 1091500;
       compatTool = pkgs.proton-ge-bin;
     };
@@ -115,7 +115,7 @@ Apps can have custom Steam library artwork, sourced from local files or fetched 
 
 ```nix
 {
-  programs.steam.config.nonSteamApps.super-tux-kart = {
+  programs.steam.config.nonSteamApps."Super Tux Kart" = {
     target = lib.getExe pkgs.supertuxkart;
 
     artwork = {
@@ -140,13 +140,10 @@ Any app can generate a desktop entry that launches it through Steam, so your app
 
 ```nix
 {
-  programs.steam.config.apps.cyberpunk-2077 = {
+  programs.steam.config.apps."Cyberpunk 2077" = {
     id = 1091500;
-    desktopEntry = {
-      enable = true;
-      # name, comment, icon and categories all have sensible defaults
-      name = "Cyberpunk 2077";
-    };
+    # name, comment, icon and categories all have sensible defaults
+    desktopEntry.enable = true;
   };
 }
 ```

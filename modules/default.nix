@@ -111,13 +111,13 @@ in
       default = { };
       example = lib.literalExpression ''
         {
-          # App IDs can be provided through the `id` property
-          spin-rhythm = {
+          # a readable attribute name is used for the app's desktop entry
+          "Spin Rhythm XD" = {
             id = 1058830;
             launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
           };
 
-          # Or be provided through the `<name>`
+          # or the app can be keyed directly by its id
           "620".launchOptionsStr = "-vulkan";
         }'';
       description = "Configuration per Steam app.";
@@ -128,16 +128,14 @@ in
       default = { };
       example = lib.literalExpression ''
         {
-          vintage-story = {
+          "Vintage Story" = {
             # target is the executable, accepts a package or a path
             target = pkgs.vintagestory;
-            # name defaults to the attribute name.
-            name = "Vintage Story";
           };
 
-          some-game = {
+          "Some Game" = {
             target = "/home/alice/Games/some-game/start";
-            icon = ./some-game.png;
+            artwork.icon = ./some-game.png;
             compatTool = "proton_experimental";
             launchOptionsStr = "gamemoderun %command%";
           };
