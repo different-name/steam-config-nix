@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from steam_config_patcher.compat import resolve_compat_tool_name
 from steam_config_patcher.patcher import patch_config_files
@@ -17,21 +17,27 @@ from steam_config_patcher.types import (
 )
 
 
-class CompatToolRefSchema(BaseModel):
+# reject unknown keys so a drift between the module's finalConfig and this
+# schema fails loudly instead of being silently dropped
+class StrictSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class CompatToolRefSchema(StrictSchema):
     path: str
 
 
 CompatToolValue = Optional[Union[str, CompatToolRefSchema]]
 
 
-class ArtworkSchema(BaseModel):
+class ArtworkSchema(StrictSchema):
     cover: Optional[str] = None
     header: Optional[str] = None
     hero: Optional[str] = None
     logo: Optional[str] = None
 
 
-class AppSchema(BaseModel):
+class AppSchema(StrictSchema):
     id: int
     launchOptions: Optional[str] = None
     compatTool: CompatToolValue = None
@@ -50,7 +56,7 @@ class NonSteamAppSchema(AppSchema):
     inVrLibrary: bool
 
 
-class InputSchema(BaseModel):
+class InputSchema(StrictSchema):
     onSteamRunning: Literal["wait", "close", "force-close", "skip"]
     defaultCompatTool: CompatToolValue
     apps: dict[str, AppSchema]

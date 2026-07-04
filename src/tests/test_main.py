@@ -222,3 +222,18 @@ def test_missing_required_field_raises(tmp_path, monkeypatch):
 
     with pytest.raises(ValidationError):
         run_parse(tmp_path, monkeypatch, data)
+
+
+def test_unknown_app_field_raises(tmp_path, monkeypatch):
+    # guards against the module's finalConfig drifting from this schema
+    data = base_input(apps={"portal": {"id": 620, "somethingNew": "x"}})
+
+    with pytest.raises(ValidationError):
+        run_parse(tmp_path, monkeypatch, data)
+
+
+def test_unknown_top_level_field_raises(tmp_path, monkeypatch):
+    data = base_input(unexpected=True)
+
+    with pytest.raises(ValidationError):
+        run_parse(tmp_path, monkeypatch, data)
