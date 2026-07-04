@@ -14,6 +14,48 @@ let
 
   fakeArt = pkgs.runCommand "fake-art.jpg" { } "echo art > $out";
 
+  # fixtures + input for the patcher integration check
+  seedConfigVdf = pkgs.writeText "config.vdf" ''
+    "InstallConfigStore"
+    {
+    	"Software" { "Valve" { "Steam" { "CompatToolMapping" { } } } }
+    }
+  '';
+  seedLocalconfigVdf = pkgs.writeText "localconfig.vdf" ''
+    "UserLocalConfigStore"
+    {
+    	"Software" { "Valve" { "Steam" { "Apps" { } } } }
+    }
+  '';
+  seedAppmanifest = pkgs.writeText "appmanifest_620.acf" ''
+    "AppState"
+    {
+    	"appid"		"620"
+    	"UserConfig" { "language" "english" }
+    }
+  '';
+  patcherInput = pkgs.writeText "patcher-input.json" (
+    builtins.toJSON {
+      onSteamRunning = "wait";
+      defaultCompatTool = null;
+      apps."Test Game" = {
+        id = 620;
+        compatTool = "GE-Proton";
+        launchOptions = "test-launch-wrapper %command%";
+        betaBranch = "beta";
+        language = "german";
+        updateBehavior = "1";
+        artwork = {
+          cover = null;
+          header = null;
+          hero = null;
+          logo = null;
+        };
+      };
+      nonSteamApps = { };
+    }
+  );
+
   noArtwork = {
     cover = null;
     header = null;
@@ -167,6 +209,38 @@ let
 in
 {
   steam-config-patcher = self.packages.${system}.steam-config-patcher;
+
+  # runs the real patcher binary against a seeded Steam tree (via HOME),
+  # exercising get_steam_dir discovery and on-disk vdf patching end to end
+  patcher-integration =
+    pkgs.runCommand "patcher-integration"
+      { nativeBuildInputs = [ self.packages.${system}.steam-config-patcher ]; }
+      ''
+        export HOME="$PWD/home"
+        steam="$HOME/.local/share/Steam"
+        mkdir -p "$steam/config" "$steam/userdata/111/config" "$steam/steamapps"
+        cp ${seedConfigVdf} "$steam/config/config.vdf"
+        cp ${seedLocalconfigVdf} "$steam/userdata/111/config/localconfig.vdf"
+        cp ${seedAppmanifest} "$steam/steamapps/appmanifest_620.acf"
+
+        steam-config-patcher ${patcherInput}
+
+        acf="$steam/steamapps/appmanifest_620.acf"
+        lc="$steam/userdata/111/config/localconfig.vdf"
+
+        grep -q GE-Proton "$steam/config/config.vdf"
+        grep -q test-launch-wrapper "$lc"
+        grep -q '"BetaKey"' "$acf"
+        grep -q beta "$acf"
+        grep -q german "$acf"
+        grep -q AutoUpdateBehavior "$acf"
+        test -f "$steam/userdata/111/config/steam-config-nix-manifest.json"
+
+        # idempotent second run must still succeed
+        steam-config-patcher ${patcherInput}
+
+        touch $out
+      '';
 
   nixos-module = pkgs.runCommand "nixos-module-check" { } ''
     diff ${expectedJson} ${actualJson}
