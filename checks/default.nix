@@ -31,6 +31,7 @@ let
               compatTool = "proton_experimental";
               betaBranch = "prerelease";
               language = "german";
+              desktopEntry.enable = true;
               launchOptions = {
                 env = {
                   WINEDLLOVERRIDES = "winmm,version=n,b";
@@ -44,7 +45,10 @@ let
           };
 
           nonSteamApps = {
-            vintage-story.target = "/games/vintagestory/start";
+            vintage-story = {
+              target = "/games/vintagestory/start";
+              desktopEntry.enable = true;
+            };
           };
         };
       }
@@ -109,6 +113,14 @@ let
 
   strWrapper = lib.getExe cfg.apps."620".wrapper.package;
   optionsWrapper = lib.getExe cfg.apps.cyberpunk.wrapper.package;
+
+  desktopItems = lib.filter (
+    pkg: lib.hasPrefix "steam-config-nix-" (pkg.name or "")
+  ) nixosEval.config.environment.systemPackages;
+  desktopItemsDir = pkgs.symlinkJoin {
+    name = "desktop-items";
+    paths = desktopItems;
+  };
 in
 {
   steam-config-patcher = self.packages.${system}.steam-config-patcher;
@@ -123,6 +135,11 @@ in
     grep -Fx 'declare -a wrappers=(gamemoderun)' ${optionsWrapper}
     grep -Fx 'declare -a args=(--launcher-skip)' ${optionsWrapper}
     grep -Fx 'echo prehook' ${optionsWrapper}
+
+    # steam app: plain app id
+    grep -FxR 'Exec=steam steam://rungameid/1091500' ${desktopItemsDir}/share/applications
+    # non-steam app: 64 bit shortcut game id (id << 32 | 0x02000000)
+    grep -FxR 'Exec=steam steam://rungameid/15174691026754338816' ${desktopItemsDir}/share/applications
 
     touch $out
   '';

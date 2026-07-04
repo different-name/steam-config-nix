@@ -109,6 +109,25 @@ Versions that are not packaged in nixpkgs can be fetched directly from their rel
 }
 ```
 
+### Desktop Entries
+
+Any app can generate a desktop entry that launches it through Steam, so your application launcher can start it directly:
+
+```nix
+{
+  programs.steam.config.apps.cyberpunk-2077 = {
+    id = 1091500;
+    desktopEntry = {
+      enable = true;
+      # name, comment, icon and categories all have sensible defaults
+      name = "Cyberpunk 2077";
+    };
+  };
+}
+```
+
+This works for non-Steam apps too, where the name and icon default to the app's own `name` and `icon`.
+
 ### Global Configuration
 
 It is not possible to perform any global configuration of games through Steam configuration

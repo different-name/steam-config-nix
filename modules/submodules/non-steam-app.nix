@@ -22,6 +22,22 @@ let
       remainder = modulo base10 (appIdMax - appIdMin + 1);
     in
     remainder + appIdMin;
+
+  # steam://rungameid for a shortcut needs the 64 bit game id: appid << 32 | 0x02000000
+  # this exceeds nix's 2^63 integer limit, so it is assembled as a decimal string
+  mkShortcutGameId =
+    appid:
+    let
+      shift = 4294967296; # 2^32
+      shortcutFlag = 33554432; # 0x02000000
+      hi = appid / 1000000;
+      lo = appid - hi * 1000000;
+      r = lo * shift + shortcutFlag;
+      rHi = r / 1000000;
+      rLo = r - rHi * 1000000;
+      top = hi * shift + rHi;
+    in
+    "${toString top}${lib.fixedWidthString 6 "0" (toString rLo)}";
 in
 {
   imports = [ baseAppModule ];
@@ -104,15 +120,24 @@ in
     };
   };
 
-  config.finalConfig = {
-    inherit (config)
-      name
-      target
-      startIn
-      icon
-      isHidden
-      allowOverlay
-      inVrLibrary
-      ;
+  config = {
+    steamRunId = mkShortcutGameId config.id;
+
+    desktopEntry = {
+      name = lib.mkDefault config.name;
+      icon = lib.mkIf (config.icon != null) (lib.mkDefault config.icon);
+    };
+
+    finalConfig = {
+      inherit (config)
+        name
+        target
+        startIn
+        icon
+        isHidden
+        allowOverlay
+        inVrLibrary
+        ;
+    };
   };
 }

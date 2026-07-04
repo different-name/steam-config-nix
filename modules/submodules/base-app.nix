@@ -3,7 +3,7 @@
   pkgs,
   dataDir,
 }:
-{ config, ... }:
+{ name, config, ... }:
 let
   inherit (lib) types;
 
@@ -144,6 +144,54 @@ in
 
         Cannot be combined with `launchOptions`.
       '';
+    };
+
+    desktopEntry = {
+      enable = lib.mkEnableOption "a desktop entry that launches this app through Steam";
+
+      name = lib.mkOption {
+        type = types.str;
+        default = name;
+        defaultText = lib.literalExpression "<name>";
+        example = "Cyberpunk 2077";
+        description = "Name shown for the desktop entry.";
+      };
+
+      genericName = lib.mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "Role Playing Game";
+        description = "Generic name for the desktop entry.";
+      };
+
+      comment = lib.mkOption {
+        type = types.str;
+        default = "Launch ${config.desktopEntry.name} with Steam";
+        defaultText = lib.literalExpression ''"Launch ''${config.desktopEntry.name} with Steam"'';
+        description = "Tooltip comment for the desktop entry.";
+      };
+
+      icon = lib.mkOption {
+        type = with types; nullOr (either str path);
+        default = "steam";
+        example = lib.literalExpression "./icon.png";
+        description = "Icon for the desktop entry, an icon name or image file.";
+      };
+
+      categories = lib.mkOption {
+        type = types.listOf types.str;
+        default = [ "Game" ];
+        description = "Freedesktop categories for the desktop entry.";
+      };
+    };
+
+    steamRunId = lib.mkOption {
+      type = types.str;
+      default = toString config.id;
+      defaultText = lib.literalExpression "toString config.id";
+      visible = false;
+      internal = true;
+      description = "Identifier passed to `steam://rungameid/`.";
     };
 
     hasLaunchOptions = lib.mkOption {

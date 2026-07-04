@@ -125,6 +125,139 @@ null or string or package
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.enable
+
+
+
+Whether to enable a desktop entry that launches this app through Steam\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+*Example:*
+` true `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.categories
+
+
+
+Freedesktop categories for the desktop entry\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+
+```
+[
+  "Game"
+]
+```
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.comment
+
+
+
+Tooltip comment for the desktop entry\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "Launch ${config.desktopEntry.name} with Steam" `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.genericName
+
+
+
+Generic name for the desktop entry\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` "Role Playing Game" `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.icon
+
+
+
+Icon for the desktop entry, an icon name or image file\.
+
+
+
+*Type:*
+null or string or absolute path
+
+
+
+*Default:*
+` "steam" `
+
+
+
+*Example:*
+` ./icon.png `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.name
+
+
+
+Name shown for the desktop entry\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` <name> `
+
+
+
+*Example:*
+` "Cyberpunk 2077" `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.id
 
 
@@ -444,6 +577,139 @@ null or string or package
 
 *Example:*
 ` pkgs.proton-ge-bin `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.desktopEntry\.enable
+
+
+
+Whether to enable a desktop entry that launches this app through Steam\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+*Example:*
+` true `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.desktopEntry\.categories
+
+
+
+Freedesktop categories for the desktop entry\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+
+```
+[
+  "Game"
+]
+```
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.desktopEntry\.comment
+
+
+
+Tooltip comment for the desktop entry\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "Launch ${config.desktopEntry.name} with Steam" `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.desktopEntry\.genericName
+
+
+
+Generic name for the desktop entry\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` "Role Playing Game" `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.desktopEntry\.icon
+
+
+
+Icon for the desktop entry, an icon name or image file\.
+
+
+
+*Type:*
+null or string or absolute path
+
+
+
+*Default:*
+` "steam" `
+
+
+
+*Example:*
+` ./icon.png `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.desktopEntry\.name
+
+
+
+Name shown for the desktop entry\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` <name> `
+
+
+
+*Example:*
+` "Cyberpunk 2077" `
 
 
 

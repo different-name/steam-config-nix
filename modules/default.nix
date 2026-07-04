@@ -153,6 +153,22 @@ in
 
       compatToolDir = pkg: lib.getOutput "steamcompattool" pkg;
 
+      # desktop entries
+
+      desktopEntryApps = lib.filter (app: app.desktopEntry.enable) allApps;
+
+      mkDesktopEntry = app: {
+        key = "steam-config-nix-${toString app.id}";
+        exec = "steam steam://rungameid/${app.steamRunId}";
+        inherit (app.desktopEntry)
+          name
+          genericName
+          comment
+          icon
+          categories
+          ;
+      };
+
       # patcher config
 
       mkCompatToolValue = value: if lib.isDerivation value then { path = compatToolDir value; } else value;
@@ -227,6 +243,24 @@ in
         (lib.optionalAttrs (format == "nixos") {
           programs.steam.extraCompatPackages = compatToolPackages;
 
+          environment.systemPackages = map (
+            app:
+            let
+              entry = mkDesktopEntry app;
+            in
+            pkgs.makeDesktopItem (
+              {
+                inherit (entry) exec categories comment;
+                name = entry.key;
+                desktopName = entry.name;
+                type = "Application";
+                terminal = false;
+              }
+              // lib.optionalAttrs (entry.genericName != null) { inherit (entry) genericName; }
+              // lib.optionalAttrs (entry.icon != null) { icon = toString entry.icon; }
+            )
+          ) desktopEntryApps;
+
           systemd.tmpfiles.rules = map (
             link: "L+ ${lib.escapeShellArg link.target} - - - - ${lib.escapeShellArg link.source}"
           ) wrapperLinks;
@@ -258,6 +292,27 @@ in
                 source = compatToolDir pkg;
               }
             ) compatToolPackages
+          );
+
+          xdg.desktopEntries = lib.listToAttrs (
+            map (
+              app:
+              let
+                entry = mkDesktopEntry app;
+              in
+              lib.nameValuePair entry.key {
+                inherit (entry)
+                  name
+                  genericName
+                  comment
+                  exec
+                  categories
+                  icon
+                  ;
+                type = "Application";
+                terminal = false;
+              }
+            ) desktopEntryApps
           );
 
           systemd.user.services."steam-config-patcher" = {
