@@ -1370,6 +1370,33 @@ list of string
 
 
 
+## programs\.steam\.config\.notifications
+
+
+
+Send desktop notifications for slow launch-time steps (e\.g\. installing
+winetricks verbs)\.
+
+Degrades gracefully: if no notification daemon is reachable the
+notification is simply skipped\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+*Example:*
+` false `
+
+
+
 ## programs\.steam\.config\.onSteamRunning
 
 

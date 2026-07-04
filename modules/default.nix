@@ -94,6 +94,19 @@ in
 
       Individual apps can opt out with `desktopEntry.enable = false`'';
 
+    notifications = lib.mkOption {
+      type = types.bool;
+      default = true;
+      example = false;
+      description = ''
+        Send desktop notifications for slow launch-time steps (e.g. installing
+        winetricks verbs).
+
+        Degrades gracefully: if no notification daemon is reachable the
+        notification is simply skipped.
+      '';
+    };
+
     defaultCompatTool = lib.mkOption {
       type = with types; nullOr (either str package);
       default = null;

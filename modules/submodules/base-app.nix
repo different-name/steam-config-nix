@@ -17,6 +17,11 @@ let
   exportUnset = n: v: if v == null then "unset ${n}" else ''export ${n}="${toString v}"'';
   exportAll = lib.concatMapAttrsStringSep "\n" exportUnset;
 
+  notify =
+    body:
+    lib.optionalString steamConfig.notifications ''
+      ${lib.getExe' pkgs.libnotify "notify-send"} -a steam-config-nix "steam-config-nix" "${body}" >/dev/null 2>&1 || true'';
+
   mkAppWrapperPackage =
     app:
     let
@@ -32,10 +37,13 @@ let
           want=${lib.escapeShellArg (lib.concatStringsSep " " app.winetricks)}
           if [ "$(cat "$marker" 2>/dev/null)" != "$want" ]; then
             echo "steam-config-nix: applying winetricks verbs: $want"
+            ${notify "Installing winetricks: $want…"}
             if ${lib.getExe' pkgs.protontricks "protontricks"} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
               printf '%s' "$want" > "$marker"
+              ${notify "winetricks installed: $want"}
             else
               echo "steam-config-nix: winetricks failed, continuing to launch" >&2
+              ${notify "winetricks failed for app ${toString app.id}"}
             fi
           fi
         fi
