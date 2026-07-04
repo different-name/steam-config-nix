@@ -123,10 +123,6 @@ in
   config = {
     steamRunId = mkShortcutGameId config.id;
 
-    desktopEntry = {
-      name = lib.mkDefault config.name;
-    };
-
     finalConfig = {
       inherit (config)
         name
