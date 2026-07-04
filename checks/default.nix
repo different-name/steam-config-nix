@@ -57,6 +57,7 @@ let
               compatTool = "proton_experimental";
               betaBranch = "prerelease";
               language = "german";
+              updateBehavior = "onLaunch";
               artwork.hero = fakeArt;
               launchOptions = {
                 env = {
@@ -93,6 +94,7 @@ let
         compatTool = null;
         betaBranch = null;
         language = null;
+        updateBehavior = null;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
         artwork = noArtwork;
       };
@@ -102,6 +104,7 @@ let
         compatTool = fakeCompatTool;
         betaBranch = null;
         language = null;
+        updateBehavior = null;
         launchOptions = null;
         artwork = noArtwork;
       };
@@ -111,6 +114,7 @@ let
         compatTool = null;
         betaBranch = null;
         language = null;
+        updateBehavior = null;
         launchOptions = null;
         artwork = noArtwork;
       };
@@ -120,6 +124,7 @@ let
         compatTool = "proton_experimental";
         betaBranch = "prerelease";
         language = "german";
+        updateBehavior = "1";
         launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
         artwork = noArtwork // {
           hero = fakeArt;

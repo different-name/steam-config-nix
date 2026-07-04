@@ -151,6 +151,19 @@ def test_languages_map_to_game_languages(tmp_path, monkeypatch):
     assert cfg.game_languages == {1091500: "german"}
 
 
+def test_update_behavior_maps_to_game_update_behaviors(tmp_path, monkeypatch):
+    data = base_input(
+        apps={
+            "cyberpunk": {"id": 1091500, "updateBehavior": "1"},
+            "portal": {"id": 620},
+        }
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.game_update_behaviors == {1091500: "1"}
+
+
 def test_artwork_maps_to_grid_art_for_both_app_types(tmp_path, monkeypatch):
     data = base_input(
         apps={"cyberpunk": {"id": 1091500, "artwork": {"hero": "/art/hero.jpg"}}},

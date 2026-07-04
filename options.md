@@ -571,6 +571,36 @@ null or (optionally newline-terminated) single-line string
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.updateBehavior
+
+
+
+How Steam keeps this app updated:
+
+ - ` "always" `: always keep the app updated
+ - ` "onLaunch" `: only update the app when it is launched
+ - ` "highPriority" `: always update this app before others
+
+The app must be installed for this to be applied\. When unset again,
+Steam’s default update behaviour is restored\.
+
+
+
+*Type:*
+null or one of “always”, “onLaunch”, “highPriority”
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` "onLaunch" `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.winetricks
 
 

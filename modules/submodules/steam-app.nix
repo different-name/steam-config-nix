@@ -44,6 +44,26 @@ in
       '';
     };
 
+    updateBehavior = lib.mkOption {
+      type = types.nullOr (types.enum [
+        "always"
+        "onLaunch"
+        "highPriority"
+      ]);
+      default = null;
+      example = "onLaunch";
+      description = ''
+        How Steam keeps this app updated:
+
+        - `"always"`: always keep the app updated
+        - `"onLaunch"`: only update the app when it is launched
+        - `"highPriority"`: always update this app before others
+
+        The app must be installed for this to be applied. When unset again,
+        Steam's default update behaviour is restored.
+      '';
+    };
+
     # only exists so setting it on a Steam app gives a helpful assertion
     # instead of "option does not exist"; real icons are non-Steam only
     artwork.icon = lib.mkOption {
@@ -56,5 +76,15 @@ in
 
   config.finalConfig = {
     inherit (config) betaBranch language;
+    updateBehavior =
+      if config.updateBehavior == null then
+        null
+      else
+        {
+          always = "0";
+          onLaunch = "1";
+          highPriority = "2";
+        }
+        .${config.updateBehavior};
   };
 }

@@ -43,6 +43,7 @@ class AppSchema(StrictSchema):
     compatTool: CompatToolValue = None
     betaBranch: Optional[str] = None
     language: Optional[str] = None
+    updateBehavior: Optional[str] = None
     artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
 
 
@@ -112,6 +113,11 @@ def parse_input() -> PatcherConfig:
             app.id: app.language
             for app in validated_input.apps.values()
             if app.language
+        },
+        game_update_behaviors={
+            app.id: app.updateBehavior
+            for app in validated_input.apps.values()
+            if app.updateBehavior
         },
         grid_art={
             app.id: GridArt(

@@ -15,10 +15,11 @@ from steam_config_patcher.steam import (
     wait_for_steam_exit,
 )
 from steam_config_patcher.types import (
+    APPMANIFEST_AUTO_UPDATE_KEY,
     APPMANIFEST_BETA_KEY,
     APPMANIFEST_FILE_PREFIX,
     APPMANIFEST_LANGUAGE_KEY,
-    APPMANIFEST_USER_CONFIG_PATH,
+    APPMANIFEST_PATH,
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
     LOCALCONFIG_APPS_PATH,
@@ -80,60 +81,70 @@ def appmanifest_app_id(file_id: str) -> Optional[int]:
     return int(suffix) if suffix.isdigit() else None
 
 
-def appmanifest_user_config(cfg: PatcherConfig, app_id: int) -> dict[str, str]:
-    entries = {}
+def appmanifest_settings(
+    cfg: PatcherConfig, app_id: int
+) -> list[tuple[tuple[str, ...], str]]:
+    # each entry is a key path relative to AppState, with the value to write
+    settings = []
     beta_branch = cfg.game_betas.get(app_id)
     if beta_branch is not None:
-        entries[APPMANIFEST_BETA_KEY] = beta_branch
+        settings.append((("UserConfig", APPMANIFEST_BETA_KEY), beta_branch))
     language = cfg.game_languages.get(app_id)
     if language is not None:
-        entries[APPMANIFEST_LANGUAGE_KEY] = language
-    return entries
+        settings.append((("UserConfig", APPMANIFEST_LANGUAGE_KEY), language))
+    update_behavior = cfg.game_update_behaviors.get(app_id)
+    if update_behavior is not None:
+        settings.append(((APPMANIFEST_AUTO_UPDATE_KEY,), update_behavior))
+    return settings
 
 
 def game_appmanifest_keys(cfg: PatcherConfig) -> list[ManagedKey]:
     return [
         ManagedKey(
             file=appmanifest_file_id(app_id),
-            key_path=APPMANIFEST_USER_CONFIG_PATH + (sub_key,),
+            key_path=APPMANIFEST_PATH + rel_path,
             expected=value,
         )
         for app_id in configured_appmanifest_ids(cfg)
-        for sub_key, value in appmanifest_user_config(cfg, app_id).items()
+        for rel_path, value in appmanifest_settings(cfg, app_id)
     ]
 
 
 def configured_appmanifest_ids(cfg: PatcherConfig) -> set[int]:
-    return set(cfg.game_betas) | set(cfg.game_languages)
+    return (
+        set(cfg.game_betas)
+        | set(cfg.game_languages)
+        | set(cfg.game_update_behaviors)
+    )
 
 
 def generate_appmanifest_patch(
     cfg: PatcherConfig, app_id: int, prev_keys: Iterable[ManagedKey]
 ) -> Optional[ConfigPatch]:
     file_id = appmanifest_file_id(app_id)
-    entries = appmanifest_user_config(cfg, app_id)
+    settings = appmanifest_settings(cfg, app_id)
 
     file_path = find_app_manifest(cfg.steam_dir, app_id)
     if file_path is None:
-        if entries:
+        if settings:
             LOG.warning(
                 "app %s is not installed, cannot apply %s",
                 app_id,
-                ", ".join(sorted(entries)),
+                ", ".join(sorted("/".join(rel) for rel, _ in settings)),
             )
         return None
 
-    data: KeyValuesType = {}
-    if entries:
-        data = {"AppState": {"UserConfig": dict(entries)}}
+    data = nest_leaves(
+        {APPMANIFEST_PATH + rel_path: value for rel_path, value in settings}
+    )
 
     desired_keys = [
         ManagedKey(
             file=file_id,
-            key_path=APPMANIFEST_USER_CONFIG_PATH + (sub_key,),
+            key_path=APPMANIFEST_PATH + rel_path,
             expected=value,
         )
-        for sub_key, value in entries.items()
+        for rel_path, value in settings
     ]
 
     return ConfigPatch(

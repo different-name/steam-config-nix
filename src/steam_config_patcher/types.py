@@ -6,9 +6,11 @@ CONFIG_FILE = "config"
 LOCALCONFIG_FILE = "localconfig"
 APPMANIFEST_FILE_PREFIX = "appmanifest_"
 
+APPMANIFEST_PATH = ("AppState",)
 APPMANIFEST_USER_CONFIG_PATH = ("AppState", "UserConfig")
 APPMANIFEST_BETA_KEY = "BetaKey"
 APPMANIFEST_LANGUAGE_KEY = "language"
+APPMANIFEST_AUTO_UPDATE_KEY = "AutoUpdateBehavior"
 
 COMPAT_TOOL_MAPPING_PATH = (
     "InstallConfigStore",
@@ -69,6 +71,7 @@ class PatcherConfig:
     users: dict[int, UserConfig]
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
+    game_update_behaviors: dict[int, str] = field(default_factory=dict)
     grid_art: dict[int, GridArt] = field(default_factory=dict)
 
 
