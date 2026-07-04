@@ -134,6 +134,23 @@ Apps can have custom Steam library artwork, sourced from local files or fetched 
 
 `cover`, `header`, `hero` and `logo` work for both Steam and non-Steam apps. `icon` is non-Steam only, as Steam manages the icons of its own apps.
 
+### Winetricks
+
+Install [winetricks](https://github.com/Winetricks/winetricks) verbs into an app's Proton prefix:
+
+```nix
+{
+  programs.steam.config.apps."Some Game" = {
+    id = 1234560;
+    winetricks = [ "vcrun2022" "corefonts" ];
+  };
+}
+```
+
+Verbs are applied at launch — the prefix and Proton are taken from the environment Steam provides, so the app must use a compatibility tool and have been launched once (so the prefix exists). They are re-applied when the verb list changes, and a failure never blocks the game from launching.
+
+This is not fully reproducible (winetricks downloads runtimes), but neither is Steam. For DLL-style components (`dxvk`, `vkd3d`) you can instead drop the DLLs and set `launchOptions.env.WINEDLLOVERRIDES` for a pure setup.
+
 ### Desktop Entries
 
 Any app can generate a desktop entry that launches it through Steam, so your application launcher can start it directly:

@@ -22,28 +22,51 @@ let
     let
       hasOptions = app.hasLaunchOptions;
       hasStrOptions = app.launchOptionsStr != null;
+      hasWinetricks = app.winetricks != [ ];
 
-      # for nix style launch options
-      script = ''
-        ${exportAll app.launchOptions.env}
-
-        declare -a wrappers=(${lib.escapeShellArgs app.launchOptions.wrappers})
-        declare -a game_command=("$@")
-        declare -a args=(${lib.escapeShellArgs app.launchOptions.args})
-
-        ${app.launchOptions.preHook}
-
-          exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
+      # runs before the game, when Steam has set STEAM_COMPAT_* in the environment
+      # marker keyed on the verb list so it only runs when the verbs change
+      winetricksStep = lib.optionalString hasWinetricks ''
+        if [ -n "''${STEAM_COMPAT_DATA_PATH:-}" ] && [ -d "$STEAM_COMPAT_DATA_PATH/pfx" ]; then
+          marker="$STEAM_COMPAT_DATA_PATH/steam-config-nix-winetricks"
+          want=${lib.escapeShellArg (lib.concatStringsSep " " app.winetricks)}
+          if [ "$(cat "$marker" 2>/dev/null)" != "$want" ]; then
+            echo "steam-config-nix: applying winetricks verbs: $want"
+            if ${lib.getExe' pkgs.protontricks "protontricks"} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
+              printf '%s' "$want" > "$marker"
+            else
+              echo "steam-config-nix: winetricks failed, continuing to launch" >&2
+            fi
+          fi
+        fi
       '';
 
-      # for traditional single line string launch options
-      strScript = "exec env ${lib.replaceString "%command%" ''"$@"'' app.launchOptionsStr}";
+      # for nix style launch options
+      launchStep =
+        if hasStrOptions then
+          # for traditional single line string launch options
+          "exec env ${lib.replaceString "%command%" ''"$@"'' app.launchOptionsStr}"
+        else if hasOptions then
+          ''
+            ${exportAll app.launchOptions.env}
 
-      package = pkgs.writeShellScriptBin "steam-app-wrapper-${toString app.id}" (
-        if hasStrOptions then strScript else script
-      );
+            declare -a wrappers=(${lib.escapeShellArgs app.launchOptions.wrappers})
+            declare -a game_command=("$@")
+            declare -a args=(${lib.escapeShellArgs app.launchOptions.args})
+
+            ${app.launchOptions.preHook}
+
+              exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
+          ''
+        else
+          ''exec "$@"'';
+
+      package = pkgs.writeShellScriptBin "steam-app-wrapper-${toString app.id}" ''
+        ${winetricksStep}
+        ${launchStep}
+      '';
     in
-    if hasOptions || hasStrOptions then package else null;
+    if hasOptions || hasStrOptions || hasWinetricks then package else null;
 
   launchOptionsOptions = {
     env = lib.mkOption {
@@ -159,6 +182,26 @@ in
         Traditional Steam launch options.
 
         Cannot be combined with `launchOptions`.
+      '';
+    };
+
+    winetricks = lib.mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      example = [
+        "vcrun2022"
+        "corefonts"
+      ];
+      description = ''
+        winetricks verbs to install into the app's Proton prefix.
+
+        Applied when the app is launched (via protontricks, using the prefix
+        and Proton that Steam provides in the environment), and re-applied when
+        the verb list changes. The app must use a compatibility tool, and must
+        have been launched once so the prefix exists.
+
+        Removing a verb does not uninstall it, as winetricks cannot reliably
+        undo verbs.
       '';
     };
 

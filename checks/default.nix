@@ -36,6 +36,7 @@ let
             "620" = {
               id = 620;
               launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
+              winetricks = [ "vcrun2022" ];
             };
 
             # opt out of the global desktop entry default
@@ -166,6 +167,11 @@ in
     diff ${expectedJson} ${actualJson}
 
     grep -Fx 'exec env MANGOHUD=1 "$@" -vulkan' ${strWrapper}
+
+    # winetricks step runs before the launch, guarded by the prefix + a marker
+    grep -F 'STEAM_COMPAT_DATA_PATH/pfx' ${strWrapper}
+    grep -F 'protontricks' ${strWrapper}
+    grep -F 'vcrun2022' ${strWrapper}
 
     grep -Fx 'export WINEDLLOVERRIDES="winmm,version=n,b"' ${optionsWrapper}
     grep -Fx 'unset TZ' ${optionsWrapper}

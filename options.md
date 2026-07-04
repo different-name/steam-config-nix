@@ -571,6 +571,43 @@ null or (optionally newline-terminated) single-line string
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.winetricks
+
+
+
+winetricks verbs to install into the app’s Proton prefix\.
+
+Applied when the app is launched (via protontricks, using the prefix
+and Proton that Steam provides in the environment), and re-applied when
+the verb list changes\. The app must use a compatibility tool, and must
+have been launched once so the prefix exists\.
+
+Removing a verb does not uninstall it, as winetricks cannot reliably
+undo verbs\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+` [ ] `
+
+
+
+*Example:*
+
+```
+[
+  "vcrun2022"
+  "corefonts"
+]
+```
+
+
+
 ## programs\.steam\.config\.defaultCompatTool
 
 
@@ -1293,6 +1330,43 @@ absolute path or package convertible to it
 
 *Example:*
 ` pkgs.vintagestory `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.winetricks
+
+
+
+winetricks verbs to install into the app’s Proton prefix\.
+
+Applied when the app is launched (via protontricks, using the prefix
+and Proton that Steam provides in the environment), and re-applied when
+the verb list changes\. The app must use a compatibility tool, and must
+have been launched once so the prefix exists\.
+
+Removing a verb does not uninstall it, as winetricks cannot reliably
+undo verbs\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+` [ ] `
+
+
+
+*Example:*
+
+```
+[
+  "vcrun2022"
+  "corefonts"
+]
+```
 
 
 
