@@ -33,16 +33,23 @@ let
           desktopEntries = true;
 
           apps = {
-            "620".launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
+            "620" = {
+              id = 620;
+              launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
+            };
 
             # opt out of the global desktop entry default
             "730" = {
+              id = 730;
               compatTool = fakeCompatTool;
               desktopEntry.enable = false;
             };
 
             # a disabled app is ignored entirely, even with desktopEntries on
-            "999".enable = false;
+            "999" = {
+              id = 999;
+              enable = false;
+            };
 
             cyberpunk = {
               id = 1091500;

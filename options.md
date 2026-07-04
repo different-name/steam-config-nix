@@ -59,14 +59,10 @@ attribute set of (submodule)
 
 ```
 {
-  # a readable attribute name is used for the app's desktop entry
   "Spin Rhythm XD" = {
     id = 1058830;
     launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
   };
-
-  # or the app can be keyed directly by its id
-  "620".launchOptionsStr = "-vulkan";
 }
 ```
 
@@ -381,21 +377,12 @@ string
 
 
 
-The Steam App ID\.
-
-App IDs can be found through the game’s store page URL\.
-
-If an ID is not provided, the app’s ` <name> ` will be used\.
+The Steam App ID\. App IDs can be found through the game’s store page URL\.
 
 
 
 *Type:*
 signed integer
-
-
-
-*Default:*
-` lib.strings.toIntBase10 <name> `
 
 
 

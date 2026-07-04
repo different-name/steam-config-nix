@@ -111,14 +111,10 @@ in
       default = { };
       example = lib.literalExpression ''
         {
-          # a readable attribute name is used for the app's desktop entry
           "Spin Rhythm XD" = {
             id = 1058830;
             launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
           };
-
-          # or the app can be keyed directly by its id
-          "620".launchOptionsStr = "-vulkan";
         }'';
       description = "Configuration per Steam app.";
     };
@@ -187,7 +183,8 @@ in
 
       # patcher config
 
-      mkCompatToolValue = value: if lib.isDerivation value then { path = compatToolDir value; } else value;
+      mkCompatToolValue =
+        value: if lib.isDerivation value then { path = compatToolDir value; } else value;
 
       mapFinalConfigs = lib.mapAttrs (
         _: value:
