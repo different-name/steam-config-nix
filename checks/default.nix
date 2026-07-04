@@ -20,18 +20,23 @@ let
         programs.steam.config = {
           enable = true;
           defaultCompatTool = "GE-Proton";
+          # global default on; apps inherit unless they opt out
+          desktopEntries = true;
 
           apps = {
             "620".launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
 
-            "730".compatTool = fakeCompatTool;
+            # opt out of the global desktop entry default
+            "730" = {
+              compatTool = fakeCompatTool;
+              desktopEntry.enable = false;
+            };
 
             cyberpunk = {
               id = 1091500;
               compatTool = "proton_experimental";
               betaBranch = "prerelease";
               language = "german";
-              desktopEntry.enable = true;
               launchOptions = {
                 env = {
                   WINEDLLOVERRIDES = "winmm,version=n,b";
@@ -45,10 +50,7 @@ let
           };
 
           nonSteamApps = {
-            vintage-story = {
-              target = "/games/vintagestory/start";
-              desktopEntry.enable = true;
-            };
+            vintage-story.target = "/games/vintagestory/start";
           };
         };
       }
@@ -136,10 +138,13 @@ in
     grep -Fx 'declare -a args=(--launcher-skip)' ${optionsWrapper}
     grep -Fx 'echo prehook' ${optionsWrapper}
 
-    # steam app: plain app id
+    # steam apps inheriting the global default: plain app id
+    grep -FxR 'Exec=steam steam://rungameid/620' ${desktopItemsDir}/share/applications
     grep -FxR 'Exec=steam steam://rungameid/1091500' ${desktopItemsDir}/share/applications
     # non-steam app: 64 bit shortcut game id (id << 32 | 0x02000000)
     grep -FxR 'Exec=steam steam://rungameid/15174691026754338816' ${desktopItemsDir}/share/applications
+    # app 730 opted out, so no entry is generated for it
+    test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-730.desktop
 
     touch $out
   '';

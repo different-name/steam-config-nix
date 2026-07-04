@@ -3,7 +3,12 @@
   pkgs,
   dataDir,
 }:
-{ name, config, ... }:
+{
+  name,
+  config,
+  steamConfig,
+  ...
+}:
 let
   inherit (lib) types;
 
@@ -147,7 +152,17 @@ in
     };
 
     desktopEntry = {
-      enable = lib.mkEnableOption "a desktop entry that launches this app through Steam";
+      enable = lib.mkOption {
+        type = types.bool;
+        default = steamConfig.desktopEntries;
+        defaultText = lib.literalExpression "config.programs.steam.config.desktopEntries";
+        example = true;
+        description = ''
+          Whether to generate a desktop entry that launches this app through Steam.
+
+          Defaults to the global `programs.steam.config.desktopEntries` option.
+        '';
+      };
 
       name = lib.mkOption {
         type = types.str;

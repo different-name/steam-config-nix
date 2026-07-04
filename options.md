@@ -129,7 +129,9 @@ null or string or package
 
 
 
-Whether to enable a desktop entry that launches this app through Steam\.
+Whether to generate a desktop entry that launches this app through Steam\.
+
+Defaults to the global ` programs.steam.config.desktopEntries ` option\.
 
 
 
@@ -139,7 +141,7 @@ boolean
 
 
 *Default:*
-` false `
+` config.programs.steam.config.desktopEntries `
 
 
 
@@ -491,6 +493,31 @@ null or string or package
 
 
 
+## programs\.steam\.config\.desktopEntries
+
+
+
+Whether to enable desktop entries for all configured apps by default
+
+Individual apps can opt out with ` desktopEntry.enable = false `\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+*Example:*
+` true `
+
+
+
 ## programs\.steam\.config\.nonSteamApps
 
 
@@ -584,7 +611,9 @@ null or string or package
 
 
 
-Whether to enable a desktop entry that launches this app through Steam\.
+Whether to generate a desktop entry that launches this app through Steam\.
+
+Defaults to the global ` programs.steam.config.desktopEntries ` option\.
 
 
 
@@ -594,7 +623,7 @@ boolean
 
 
 *Default:*
-` false `
+` config.programs.steam.config.desktopEntries `
 
 
 

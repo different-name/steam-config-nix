@@ -19,6 +19,15 @@ let
 
   steamAppModule = import ./submodules/steam-app.nix { inherit lib pkgs dataDir; };
   nonSteamAppModule = import ./submodules/non-steam-app.nix { inherit lib pkgs dataDir; };
+
+  mkAppType =
+    module:
+    types.attrsOf (
+      types.submoduleWith {
+        modules = [ module ];
+        specialArgs.steamConfig = config.programs.steam.config;
+      }
+    );
 in
 {
   imports = [
@@ -80,6 +89,11 @@ in
       '';
     };
 
+    desktopEntries = lib.mkEnableOption ''
+      desktop entries for all configured apps by default
+
+      Individual apps can opt out with `desktopEntry.enable = false`'';
+
     defaultCompatTool = lib.mkOption {
       type = with types; nullOr (either str package);
       default = null;
@@ -93,7 +107,7 @@ in
     };
 
     apps = lib.mkOption {
-      type = types.attrsOf (types.submodule steamAppModule);
+      type = mkAppType steamAppModule;
       default = { };
       example = lib.literalExpression ''
         {
@@ -110,7 +124,7 @@ in
     };
 
     nonSteamApps = lib.mkOption {
-      type = types.attrsOf (types.submodule nonSteamAppModule);
+      type = mkAppType nonSteamAppModule;
       default = { };
       example = lib.literalExpression ''
         {
