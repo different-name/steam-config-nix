@@ -4,6 +4,7 @@ from typing import Iterable, Optional
 from steam_config_patcher.fileio import atomic_write_bytes
 from steam_config_patcher.formats.binary_keyvalues import prepare_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import prepare_keyvalues
+from steam_config_patcher.grid import apply_grid_art, desired_grid_files
 from steam_config_patcher.manifest import load_manifest, save_manifest
 from steam_config_patcher.steam import (
     close_steam,
@@ -409,8 +410,13 @@ def patch_config_files(cfg: PatcherConfig):
         )
         return
 
+    desired_grid = desired_grid_files(cfg.grid_art)
     for user_id, user in cfg.users.items():
         try:
-            save_manifest(cfg.steam_dir, user_id, desired_manifest(cfg, user))
+            manifest = desired_manifest(cfg, user)
+            manifest.grid_art = apply_grid_art(
+                cfg.steam_dir, user_id, desired_grid, prev_manifests[user_id].grid_art
+            )
+            save_manifest(cfg.steam_dir, user_id, manifest)
         except Exception:
             LOG.exception("failed to write manifest for user %s", user_id)

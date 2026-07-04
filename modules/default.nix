@@ -255,7 +255,11 @@ in
             ++ map (entry: {
               assertion = !entry.app.hasLaunchOptions || entry.app.launchOptionsStr == null;
               message = "steam-config-nix: ${entry.name} sets both launchOptions and launchOptionsStr, only one may be set";
-            }) namedApps;
+            }) namedApps
+            ++ lib.mapAttrsToList (name: app: {
+              assertion = app.artwork.icon == null;
+              message = "steam-config-nix: apps.${name} sets artwork.icon, which is only available for non-Steam apps (Steam manages the icons of its own apps)";
+            }) enabledApps;
         }
 
         (lib.optionalAttrs (format == "nixos") {

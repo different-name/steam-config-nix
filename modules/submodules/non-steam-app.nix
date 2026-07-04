@@ -91,13 +91,6 @@ in
       description = "Directory to start this app in.";
     };
 
-    icon = lib.mkOption {
-      type = types.nullOr types.path;
-      default = null;
-      description = "Image file to use as icon";
-      example = lib.literalExpression "./icon.png";
-    };
-
     isHidden = lib.mkOption {
       type = types.bool;
       default = false;
@@ -118,6 +111,13 @@ in
       description = "Whether this app is a VR app.";
       example = true;
     };
+
+    artwork.icon = lib.mkOption {
+      type = types.nullOr types.path;
+      default = null;
+      example = lib.literalExpression "./icon.png";
+      description = "Icon shown in the taskbar and shortcut list.";
+    };
   };
 
   config = {
@@ -125,7 +125,7 @@ in
 
     desktopEntry = {
       name = lib.mkDefault config.name;
-      icon = lib.mkIf (config.icon != null) (lib.mkDefault config.icon);
+      icon = lib.mkIf (config.artwork.icon != null) (lib.mkDefault config.artwork.icon);
     };
 
     finalConfig = {
@@ -133,11 +133,11 @@ in
         name
         target
         startIn
-        icon
         isHidden
         allowOverlay
         inVrLibrary
         ;
+      icon = config.artwork.icon;
     };
   };
 }

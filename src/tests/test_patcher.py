@@ -11,6 +11,7 @@ from steam_config_patcher.patcher import (
 )
 from steam_config_patcher.types import (
     CompatToolConfig,
+    GridArt,
     ManagedKey,
     NonSteamAppConfig,
     PatcherConfig,
@@ -104,12 +105,14 @@ def make_cfg(
     non_steam_apps=None,
     game_betas=None,
     game_languages=None,
+    grid_art=None,
 ):
     return PatcherConfig(
         on_steam_running=on_steam_running,
         steam_dir=steam_dir,
         game_betas=game_betas or {},
         game_languages=game_languages or {},
+        grid_art=grid_art or {},
         compat_tool_mapping=compat_tool_mapping or {},
         users={
             USER_ID: UserConfig(
@@ -439,6 +442,24 @@ def test_language_for_uninstalled_app_warns_and_continues(fake_steam, tmp_path):
     patch_config_files(make_cfg(steam_dir, game_languages={1091500: "german"}))
 
     assert manifest_path(steam_dir, USER_ID).exists()
+
+
+def test_grid_art_applied_and_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    art = tmp_path / "hero.jpg"
+    art.write_bytes(b"image")
+    grid_dir = steam_dir / "userdata" / str(USER_ID) / "config" / "grid"
+
+    patch_config_files(make_cfg(steam_dir, grid_art={438100: GridArt(hero=str(art))}))
+
+    link = grid_dir / "438100_hero.jpg"
+    assert link.is_symlink()
+    assert load_manifest(steam_dir, USER_ID).grid_art == {"438100_hero.jpg": str(art)}
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert not link.exists()
+    assert load_manifest(steam_dir, USER_ID).grid_art == {}
 
 
 def test_cleanup_keeps_values_changed_by_user(fake_steam, tmp_path):

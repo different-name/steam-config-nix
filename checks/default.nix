@@ -12,6 +12,15 @@ let
     echo '"compatibilitytools" { "compat_tools" { "Fake-Proton" { "install_path" "." } } }' > $out/compatibilitytool.vdf
   '';
 
+  fakeArt = pkgs.runCommand "fake-art.jpg" { } "echo art > $out";
+
+  noArtwork = {
+    cover = null;
+    header = null;
+    hero = null;
+    logo = null;
+  };
+
   nixosEval = inputs.nixpkgs.lib.nixosSystem {
     modules = [
       self.nixosModules.default
@@ -40,6 +49,7 @@ let
               compatTool = "proton_experimental";
               betaBranch = "prerelease";
               language = "german";
+              artwork.hero = fakeArt;
               launchOptions = {
                 env = {
                   WINEDLLOVERRIDES = "winmm,version=n,b";
@@ -76,6 +86,7 @@ let
         betaBranch = null;
         language = null;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
+        artwork = noArtwork;
       };
 
       "730" = {
@@ -84,6 +95,7 @@ let
         betaBranch = null;
         language = null;
         launchOptions = null;
+        artwork = noArtwork;
       };
 
       "999" = {
@@ -92,6 +104,7 @@ let
         betaBranch = null;
         language = null;
         launchOptions = null;
+        artwork = noArtwork;
       };
 
       cyberpunk = {
@@ -100,6 +113,9 @@ let
         betaBranch = "prerelease";
         language = "german";
         launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
+        artwork = noArtwork // {
+          hero = fakeArt;
+        };
       };
     };
 
@@ -115,6 +131,7 @@ let
         isHidden = false;
         allowOverlay = true;
         inVrLibrary = false;
+        artwork = noArtwork;
       };
     };
 

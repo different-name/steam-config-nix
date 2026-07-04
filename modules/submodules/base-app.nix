@@ -211,6 +211,23 @@ in
       };
     };
 
+    artwork =
+      let
+        mkArtworkOption = description: dimensions:
+          lib.mkOption {
+            type = types.nullOr types.path;
+            default = null;
+            example = lib.literalExpression "./${description}.jpg";
+            description = "${description} (${dimensions}) shown in the Steam library.";
+          };
+      in
+      {
+        cover = mkArtworkOption "cover" "600x900 portrait";
+        header = mkArtworkOption "header" "460x215 horizontal";
+        hero = mkArtworkOption "hero" "background";
+        logo = mkArtworkOption "logo" "transparent overlay";
+      };
+
     steamRunId = lib.mkOption {
       type = types.str;
       default = toString config.id;
@@ -271,5 +288,13 @@ in
       compatTool
       ;
     launchOptions = config.wrapper.exec;
+    artwork = {
+      inherit (config.artwork)
+        cover
+        header
+        hero
+        logo
+        ;
+    };
   };
 }

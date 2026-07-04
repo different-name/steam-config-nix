@@ -97,6 +97,98 @@ boolean
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.artwork\.cover
+
+
+
+cover (600x900 portrait) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./cover.jpg `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.artwork\.header
+
+
+
+header (460x215 horizontal) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./header.jpg `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.artwork\.hero
+
+
+
+hero (background) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./hero.jpg `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.artwork\.logo
+
+
+
+logo (transparent overlay) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./logo.jpg `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.betaBranch
 
 
@@ -631,6 +723,121 @@ boolean
 
 
 
+## programs\.steam\.config\.nonSteamApps\.\<name>\.artwork\.cover
+
+
+
+cover (600x900 portrait) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./cover.jpg `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.artwork\.header
+
+
+
+header (460x215 horizontal) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./header.jpg `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.artwork\.hero
+
+
+
+hero (background) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./hero.jpg `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.artwork\.icon
+
+
+
+Icon shown in the taskbar and shortcut list\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./icon.png `
+
+
+
+## programs\.steam\.config\.nonSteamApps\.\<name>\.artwork\.logo
+
+
+
+logo (transparent overlay) shown in the Steam library\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./logo.jpg `
+
+
+
 ## programs\.steam\.config\.nonSteamApps\.\<name>\.compatTool
 
 
@@ -789,29 +996,6 @@ string
 
 *Example:*
 ` "Cyberpunk 2077" `
-
-
-
-## programs\.steam\.config\.nonSteamApps\.\<name>\.icon
-
-
-
-Image file to use as icon
-
-
-
-*Type:*
-null or absolute path
-
-
-
-*Default:*
-` null `
-
-
-
-*Example:*
-` ./icon.png `
 
 
 

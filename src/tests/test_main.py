@@ -151,6 +151,28 @@ def test_languages_map_to_game_languages(tmp_path, monkeypatch):
     assert cfg.game_languages == {1091500: "german"}
 
 
+def test_artwork_maps_to_grid_art_for_both_app_types(tmp_path, monkeypatch):
+    data = base_input(
+        apps={"cyberpunk": {"id": 1091500, "artwork": {"hero": "/art/hero.jpg"}}},
+        nonSteamApps={
+            "game": non_steam_app_input(artwork={"cover": "/art/cover.jpg"})
+        },
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.grid_art[1091500].hero == "/art/hero.jpg"
+    assert cfg.grid_art[2434605777].cover == "/art/cover.jpg"
+
+
+def test_apps_without_artwork_are_excluded_from_grid_art(tmp_path, monkeypatch):
+    data = base_input(apps={"portal": {"id": 620}})
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.grid_art == {}
+
+
 def test_strategy_and_steam_dir_are_passed_through(tmp_path, monkeypatch):
     cfg = run_parse(tmp_path, monkeypatch, base_input(onSteamRunning="close"))
 

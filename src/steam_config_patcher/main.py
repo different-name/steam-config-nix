@@ -3,13 +3,14 @@ import logging
 from pathlib import Path
 from typing import Literal, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from steam_config_patcher.compat import resolve_compat_tool_name
 from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_dir, get_steam_user_ids
 from steam_config_patcher.types import (
     CompatToolConfig,
+    GridArt,
     NonSteamAppConfig,
     PatcherConfig,
     UserConfig,
@@ -23,12 +24,20 @@ class CompatToolRefSchema(BaseModel):
 CompatToolValue = Optional[Union[str, CompatToolRefSchema]]
 
 
+class ArtworkSchema(BaseModel):
+    cover: Optional[str] = None
+    header: Optional[str] = None
+    hero: Optional[str] = None
+    logo: Optional[str] = None
+
+
 class AppSchema(BaseModel):
     id: int
     launchOptions: Optional[str] = None
     compatTool: CompatToolValue = None
     betaBranch: Optional[str] = None
     language: Optional[str] = None
+    artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
 
 
 class NonSteamAppSchema(AppSchema):
@@ -97,6 +106,26 @@ def parse_input() -> PatcherConfig:
             app.id: app.language
             for app in validated_input.apps.values()
             if app.language
+        },
+        grid_art={
+            app.id: GridArt(
+                cover=app.artwork.cover,
+                header=app.artwork.header,
+                hero=app.artwork.hero,
+                logo=app.artwork.logo,
+            )
+            for app in [
+                *validated_input.apps.values(),
+                *validated_input.nonSteamApps.values(),
+            ]
+            if any(
+                (
+                    app.artwork.cover,
+                    app.artwork.header,
+                    app.artwork.hero,
+                    app.artwork.logo,
+                )
+            )
         },
         users={
             user_id: UserConfig(

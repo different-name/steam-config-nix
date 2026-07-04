@@ -58,6 +58,7 @@ def _parse_v2(raw: dict) -> UserManifest:
             for entry in (raw.get("managed_keys") or [])
         ],
         shortcuts=[int(x) for x in (raw.get("shortcuts") or [])],
+        grid_art={str(k): str(v) for k, v in (raw.get("grid_art") or {}).items()},
     )
 
 
@@ -100,6 +101,7 @@ def save_manifest(steam_dir: Path, user_id: int, manifest: UserManifest) -> None
             for key in manifest.managed_keys
         ],
         "shortcuts": manifest.shortcuts,
+        "grid_art": manifest.grid_art,
     }
 
     atomic_write_text(path, json.dumps(data, indent=2))

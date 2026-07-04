@@ -51,6 +51,15 @@ in
         When unset again, Steam reverts to its default language for the app.
       '';
     };
+
+    # only exists so setting it on a Steam app gives a helpful assertion
+    # instead of "option does not exist"; real icons are non-Steam only
+    artwork.icon = lib.mkOption {
+      type = types.nullOr types.path;
+      default = null;
+      visible = false;
+      internal = true;
+    };
   };
 
   config.finalConfig = {

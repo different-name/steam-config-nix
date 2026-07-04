@@ -33,6 +33,22 @@ class NonSteamAppConfig:
     in_vr_library: bool
 
 
+GRID_SLOTS = (
+    ("cover", "{app_id}p"),
+    ("header", "{app_id}"),
+    ("hero", "{app_id}_hero"),
+    ("logo", "{app_id}_logo"),
+)
+
+
+@dataclass
+class GridArt:
+    cover: Optional[str] = None
+    header: Optional[str] = None
+    hero: Optional[str] = None
+    logo: Optional[str] = None
+
+
 @dataclass
 class UserConfig:
     launch_options: dict[int, str]
@@ -53,6 +69,7 @@ class PatcherConfig:
     users: dict[int, UserConfig]
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
+    grid_art: dict[int, GridArt] = field(default_factory=dict)
 
 
 KeyValuesValue = str | int
@@ -93,3 +110,4 @@ class ConfigPatch:
 class UserManifest:
     managed_keys: list[ManagedKey] = field(default_factory=list)
     shortcuts: list[int] = field(default_factory=list)
+    grid_art: dict[str, str] = field(default_factory=dict)
