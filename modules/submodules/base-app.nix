@@ -17,10 +17,12 @@ let
   exportUnset = n: v: if v == null then "unset ${n}" else ''export ${n}="${toString v}"'';
   exportAll = lib.concatMapAttrsStringSep "\n" exportUnset;
 
+  # Steam's launch runtime sets LD_LIBRARY_PATH/LD_PRELOAD to libs that clash
+  # with notify-send, so run it with a clean loader environment
   notify =
     body:
     lib.optionalString steamConfig.notifications ''
-      ${lib.getExe' pkgs.libnotify "notify-send"} -a steam-config-nix "steam-config-nix" "${body}" >/dev/null 2>&1 || true'';
+      ( unset LD_LIBRARY_PATH LD_PRELOAD; ${lib.getExe' pkgs.libnotify "notify-send"} -a steam-config-nix "steam-config-nix" "${body}" ) >/dev/null 2>&1 || true'';
 
   mkAppWrapperPackage =
     app:
