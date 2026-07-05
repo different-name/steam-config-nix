@@ -1,5 +1,5 @@
 import struct
-from typing import Union
+from typing import Callable, Union
 
 _TYPE_DICT = 0x00
 _TYPE_STRING = 0x01
@@ -37,7 +37,12 @@ def _read_cstring(data: bytes, offset: int) -> tuple[str, int]:
     return data[offset:end].decode("utf-8"), end + 1
 
 
-def _read_dict(data: bytes, offset: int, top_level: bool) -> tuple[dict, int]:
+KeyReader = Callable[[bytes, int], tuple[str, int]]
+
+
+def _read_dict(
+    data: bytes, offset: int, top_level: bool, read_key: KeyReader
+) -> tuple[dict, int]:
     result: dict[str, BinaryVdfValue] = {}
     while True:
         if offset >= len(data):
@@ -50,10 +55,10 @@ def _read_dict(data: bytes, offset: int, top_level: bool) -> tuple[dict, int]:
         if value_type in (_TYPE_END, _TYPE_END_ALT):
             return result, offset
 
-        key, offset = _read_cstring(data, offset)
+        key, offset = read_key(data, offset)
 
         if value_type == _TYPE_DICT:
-            value, offset = _read_dict(data, offset, top_level=False)
+            value, offset = _read_dict(data, offset, top_level=False, read_key=read_key)
         elif value_type == _TYPE_STRING:
             value, offset = _read_cstring(data, offset)
         elif value_type == _TYPE_INT32:
@@ -79,10 +84,16 @@ def _read_dict(data: bytes, offset: int, top_level: bool) -> tuple[dict, int]:
 
 
 def loads(data: bytes) -> dict:
-    result, offset = _read_dict(data, 0, top_level=True)
+    result, offset = _read_dict(data, 0, top_level=True, read_key=_read_cstring)
     if offset != len(data):
         raise BinaryVdfError("trailing data after top-level block")
     return result
+
+
+def read_block(
+    data: bytes, offset: int, read_key: KeyReader = _read_cstring
+) -> tuple[dict, int]:
+    return _read_dict(data, offset, top_level=False, read_key=read_key)
 
 
 def _write_cstring(value: str, parts: list[bytes]) -> None:
