@@ -218,13 +218,13 @@ in
     desktopEntry = {
       enable = lib.mkOption {
         type = types.bool;
-        default = steamConfig.desktopEntries;
-        defaultText = lib.literalExpression "config.programs.steam.config.desktopEntries";
+        default = steamConfig.desktopEntries.enable;
+        defaultText = lib.literalExpression "config.programs.steam.config.desktopEntries.enable";
         example = true;
         description = ''
           Whether to generate a desktop entry that launches this app through Steam.
 
-          Defaults to the global `programs.steam.config.desktopEntries` option.
+          Defaults to the global `programs.steam.config.desktopEntries.enable` option.
         '';
       };
 

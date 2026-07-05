@@ -35,7 +35,7 @@ package
 
 
 *Default:*
-` <derivation steam-config-patcher-0.2.4> `
+` <derivation steam-config-patcher-0.3.0> `
 
 
 
@@ -244,7 +244,7 @@ null or string or package
 
 Whether to generate a desktop entry that launches this app through Steam\.
 
-Defaults to the global ` programs.steam.config.desktopEntries ` option\.
+Defaults to the global ` programs.steam.config.desktopEntries.enable ` option\.
 
 
 
@@ -254,7 +254,7 @@ boolean
 
 
 *Default:*
-` config.programs.steam.config.desktopEntries `
+` config.programs.steam.config.desktopEntries.enable `
 
 
 
@@ -370,6 +370,35 @@ string
 
 *Example:*
 ` "Cyberpunk 2077" `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.desktopEntry\.useLibraryIcon
+
+
+
+Use the app’s own icon from your Steam library for its desktop entry,
+instead of the generic Steam icon\.
+
+Defaults to the global ` programs.steam.config.desktopEntries.libraryIcons `
+option\. Setting ` desktopEntry.icon ` explicitly always takes precedence\.
+
+Has no effect unless ` desktopEntry.enable ` is set\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` config.programs.steam.config.desktopEntries.libraryIcons `
+
+
+
+*Example:*
+` false `
 
 
 
@@ -668,9 +697,38 @@ null or string or package
 
 
 
-Whether to enable desktop entries for all configured apps by default
+Desktop entry defaults for all configured apps\.
 
-Individual apps can opt out with ` desktopEntry.enable = false `\.
+Setting this to a boolean is deprecated; use ` desktopEntries.enable `
+instead\. Individual apps can opt out with ` desktopEntry.enable = false `\.
+
+
+
+*Type:*
+(submodule) or boolean convertible to it
+
+
+
+*Default:*
+` { } `
+
+
+
+*Example:*
+
+```
+{
+  enable = true;
+}
+```
+
+
+
+## programs\.steam\.config\.desktopEntries\.enable
+
+
+
+Whether to enable desktop entries for all configured apps by default\.
 
 
 
@@ -686,6 +744,39 @@ boolean
 
 *Example:*
 ` true `
+
+
+
+## programs\.steam\.config\.desktopEntries\.libraryIcons
+
+
+
+Use each Steam app’s own icon from your Steam library for its
+desktop entry, instead of the generic Steam icon\.
+
+Icons are taken from Steam’s local library cache, so an app must
+have been seen by Steam at least once for its icon to be
+available\. They are small (typically 32x32), and fall back to
+the Steam icon when they cannot be resolved\.
+
+Individual apps can opt out with
+` desktopEntry.useLibraryIcon = false `, and setting
+` desktopEntry.icon ` explicitly always takes precedence\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+*Example:*
+` false `
 
 
 
@@ -922,7 +1013,7 @@ null or string or package
 
 Whether to generate a desktop entry that launches this app through Steam\.
 
-Defaults to the global ` programs.steam.config.desktopEntries ` option\.
+Defaults to the global ` programs.steam.config.desktopEntries.enable ` option\.
 
 
 
@@ -932,7 +1023,7 @@ boolean
 
 
 *Default:*
-` config.programs.steam.config.desktopEntries `
+` config.programs.steam.config.desktopEntries.enable `
 
 
 

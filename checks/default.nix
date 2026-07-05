@@ -72,13 +72,15 @@ let
           enable = true;
           defaultCompatTool = "GE-Proton";
           # global default on; apps inherit unless they opt out
-          desktopEntries = true;
+          desktopEntries.enable = true;
 
           apps = {
             "620" = {
               id = 620;
               launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
               winetricks = [ "vcrun2022" ];
+              # an explicit icon always wins over the library-icon default
+              desktopEntry.icon = "custom-icon";
             };
 
             # opt out of the global desktop entry default
@@ -137,6 +139,7 @@ let
         betaBranch = null;
         language = null;
         updateBehavior = null;
+        libraryIcon = false;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
         artwork = noArtwork;
       };
@@ -147,6 +150,7 @@ let
         betaBranch = null;
         language = null;
         updateBehavior = null;
+        libraryIcon = false;
         launchOptions = null;
         artwork = noArtwork;
       };
@@ -157,6 +161,8 @@ let
         betaBranch = null;
         language = null;
         updateBehavior = null;
+        # disabled app: finalConfig still computed but filtered out before use
+        libraryIcon = true;
         launchOptions = null;
         artwork = noArtwork;
       };
@@ -167,6 +173,7 @@ let
         betaBranch = "prerelease";
         language = "german";
         updateBehavior = "1";
+        libraryIcon = true; # inherits the global default (on)
         launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
         artwork = noArtwork // {
           hero = fakeArt;
@@ -261,6 +268,10 @@ in
     # steam apps inheriting the global default: plain app id
     grep -FxR 'Exec=steam steam://rungameid/620' ${desktopItemsDir}/share/applications
     grep -FxR 'Exec=steam steam://rungameid/1091500' ${desktopItemsDir}/share/applications
+    # library icons are the default, so the entry uses the managed icon name
+    grep -FxR 'Icon=steam-config-nix-1091500' ${desktopItemsDir}/share/applications
+    # an explicit desktopEntry.icon wins over the library-icon default
+    grep -FxR 'Icon=custom-icon' ${desktopItemsDir}/share/applications/steam-config-nix-620.desktop
     # non-steam app: 64 bit shortcut game id (id << 32 | 0x02000000)
     grep -FxR 'Exec=steam steam://rungameid/15174691026754338816' ${desktopItemsDir}/share/applications
     # app 730 opted out, so no entry is generated for it

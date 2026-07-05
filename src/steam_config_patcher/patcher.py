@@ -5,6 +5,7 @@ from steam_config_patcher.fileio import atomic_write_bytes
 from steam_config_patcher.formats.binary_keyvalues import prepare_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.grid import apply_grid_art, desired_grid_files
+from steam_config_patcher.icons import apply_library_icons
 from steam_config_patcher.manifest import load_manifest, save_manifest
 from steam_config_patcher.steam import (
     close_steam,
@@ -420,6 +421,11 @@ def patch_config_files(cfg: PatcherConfig):
             'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
         return
+
+    try:
+        apply_library_icons(cfg.steam_dir, cfg.library_icon_apps)
+    except Exception:
+        LOG.exception("failed to apply library icons")
 
     desired_grid = desired_grid_files(cfg.grid_art)
     for user_id, user in cfg.users.items():

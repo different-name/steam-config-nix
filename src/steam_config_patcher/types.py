@@ -73,6 +73,7 @@ class PatcherConfig:
     game_languages: dict[int, str] = field(default_factory=dict)
     game_update_behaviors: dict[int, str] = field(default_factory=dict)
     grid_art: dict[int, GridArt] = field(default_factory=dict)
+    library_icon_apps: set[int] = field(default_factory=set)
 
 
 KeyValuesValue = str | int

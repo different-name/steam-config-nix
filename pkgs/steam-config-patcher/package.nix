@@ -4,6 +4,7 @@
   setuptools,
   psutil,
   pydantic,
+  pillow,
   pytestCheckHook,
   ...
 }:
@@ -25,6 +26,7 @@ buildPythonApplication {
   propagatedBuildInputs = [
     psutil
     pydantic
+    pillow
   ];
 
   nativeCheckInputs = [ pytestCheckHook ];

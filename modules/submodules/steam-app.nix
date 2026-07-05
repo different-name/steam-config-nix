@@ -3,10 +3,11 @@
   pkgs,
   dataDir,
 }:
-{ config, ... }:
+{ config, steamConfig, ... }:
 let
   inherit (lib) types;
   baseAppModule = import ./base-app.nix { inherit lib pkgs dataDir; };
+  libraryIconName = "steam-config-nix-${toString config.id}";
 in
 {
   imports = [ baseAppModule ];
@@ -64,6 +65,22 @@ in
       '';
     };
 
+    desktopEntry.useLibraryIcon = lib.mkOption {
+      type = types.bool;
+      default = steamConfig.desktopEntries.libraryIcons;
+      defaultText = lib.literalExpression "config.programs.steam.config.desktopEntries.libraryIcons";
+      example = false;
+      description = ''
+        Use the app's own icon from your Steam library for its desktop entry,
+        instead of the generic Steam icon.
+
+        Defaults to the global `programs.steam.config.desktopEntries.libraryIcons`
+        option. Setting `desktopEntry.icon` explicitly always takes precedence.
+
+        Has no effect unless `desktopEntry.enable` is set.
+      '';
+    };
+
     # only exists so setting it on a Steam app gives a helpful assertion
     # instead of "option does not exist"; real icons are non-Steam only
     artwork.icon = lib.mkOption {
@@ -74,8 +91,13 @@ in
     };
   };
 
+  config.desktopEntry.icon = lib.mkIf config.desktopEntry.useLibraryIcon (
+    lib.mkDefault libraryIconName
+  );
+
   config.finalConfig = {
     inherit (config) betaBranch language;
+    libraryIcon = config.desktopEntry.enable && config.desktopEntry.icon == libraryIconName;
     updateBehavior =
       if config.updateBehavior == null then
         null

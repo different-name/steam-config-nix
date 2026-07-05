@@ -3,7 +3,7 @@ name = "steam-config-patcher"
 version = "0.3.0"
 description = "Patch Steam vdf files using JSON input"
 authors = [{ name = "different-name", email = "hello@different-name.dev" }]
-dependencies = ["pydantic", "psutil"]
+dependencies = ["pydantic", "psutil", "pillow"]
 requires-python = ">=3.10"
 license = { text = "GPL-3.0" }
 

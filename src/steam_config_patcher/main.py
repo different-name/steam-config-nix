@@ -44,6 +44,7 @@ class AppSchema(StrictSchema):
     betaBranch: Optional[str] = None
     language: Optional[str] = None
     updateBehavior: Optional[str] = None
+    libraryIcon: bool = False
     artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
 
 
@@ -138,6 +139,9 @@ def parse_input() -> PatcherConfig:
                     app.artwork.logo,
                 )
             )
+        },
+        library_icon_apps={
+            app.id for app in validated_input.apps.values() if app.libraryIcon
         },
         users={
             user_id: UserConfig(
