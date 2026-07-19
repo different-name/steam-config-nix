@@ -58,6 +58,8 @@ let
           "exec env ${lib.replaceString "%command%" ''"$@"'' app.launchOptionsStr}"
         else if hasOptions then
           ''
+            # Steam configuration for ${name}
+
             ${exportAll app.launchOptions.env}
 
             declare -a wrappers=(${lib.escapeShellArgs app.launchOptions.wrappers})
