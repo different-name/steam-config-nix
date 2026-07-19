@@ -68,7 +68,7 @@ let
 
             ${app.launchOptions.preHook}
 
-              exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
+            exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
           ''
         else
           ''exec "$@"'';
