@@ -267,10 +267,21 @@ def test_shortcuts_patch_deletes_removed_appids(fake_steam, tmp_path):
     assert [d.key_path for d in patch.deletions] == [("shortcuts", "0")]
 
 
-def test_shortcuts_patch_missing_file_is_empty(fake_steam, tmp_path):
+def test_shortcuts_patch_missing_file_creates_shortcut(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     (steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf").unlink()
     cfg = make_cfg(steam_dir, non_steam_apps={555: non_steam_app()})
+
+    patch = generate_shortcuts_vdf_patch(cfg, USER_ID, cfg.users[USER_ID], UserManifest())
+
+    assert patch.data["shortcuts"]["0"]["appid"] == 555
+    assert patch.deletions == []
+
+
+def test_shortcuts_patch_missing_file_no_apps_is_empty(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    (steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf").unlink()
+    cfg = make_cfg(steam_dir)
 
     patch = generate_shortcuts_vdf_patch(cfg, USER_ID, cfg.users[USER_ID], UserManifest())
 
@@ -321,6 +332,17 @@ def test_full_run_patches_files_and_writes_manifest(fake_steam, tmp_path):
     ]
     assert read_shortcuts(steam_dir)["shortcuts"]["0"]["AppName"] == "Game"
     assert load_manifest(steam_dir, USER_ID) == desired_manifest(cfg, cfg.users[USER_ID])
+
+
+def test_full_run_creates_shortcuts_file_when_missing(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    shortcuts_path = steam_dir / "userdata" / str(USER_ID) / "config" / "shortcuts.vdf"
+    shortcuts_path.unlink()
+    cfg = make_cfg(steam_dir, non_steam_apps={555: non_steam_app(name="Game")})
+
+    patch_config_files(cfg)
+
+    assert read_shortcuts(steam_dir)["shortcuts"]["0"]["AppName"] == "Game"
 
 
 def test_second_run_cleans_up_removed_entries(fake_steam, tmp_path):

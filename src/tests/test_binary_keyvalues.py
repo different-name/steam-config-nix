@@ -132,9 +132,18 @@ def test_prepare_does_not_write(tmp_path):
     assert path.read_bytes() == original_bytes
 
 
-def test_missing_file_is_skipped(tmp_path):
+def test_missing_file_is_created(tmp_path):
     path = tmp_path / "shortcuts.vdf"
     patch = make_patch(path, {"shortcuts": {"0": shortcut(111, "Game")}})
+
+    assert apply(patch)
+
+    assert read_shortcuts(path)["shortcuts"]["0"]["AppName"] == "Game"
+
+
+def test_missing_file_with_no_data_is_skipped(tmp_path):
+    path = tmp_path / "shortcuts.vdf"
+    patch = make_patch(path, {})
 
     assert prepare_binary_keyvalues(patch) is None
 

@@ -40,10 +40,11 @@ def recursive_update(destination: dict[Any, Any], source: dict[Any, Any]) -> boo
 
 
 def prepare_binary_keyvalues(config_patch: ConfigPatch) -> Optional[bytes]:
-    if not config_patch.file_path.is_file():
-        return None
-
-    kv = loads(config_patch.file_path.read_bytes())
+    if config_patch.file_path.is_file():
+        kv = loads(config_patch.file_path.read_bytes())
+    else:
+        # no existing file, start fresh so new entries can be created
+        kv: dict[Any, Any] = {}
 
     modified = recursive_update(kv, config_patch.data)
 

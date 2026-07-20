@@ -238,15 +238,19 @@ def generate_shortcuts_vdf_patch(
         "userdata", str(user_id), "config", "shortcuts.vdf"
     )
 
-    # hacky way to skip patching, non existant file_path will be skipped in patching stage
-    if not file_path.is_file():
+    file_exists = file_path.is_file()
+
+    # nothing to add and no existing file to clean up, skip patching
+    if not file_exists and not user_config.non_steam_apps:
         return ConfigPatch(
             file_path=file_path,
             file_format="binary-keyvalues",
             data={},
         )
 
-    kv = binary.loads(file_path.read_bytes())
+    # steam only creates shortcuts.vdf once a shortcut exists, so start fresh
+    # when it's missing to allow adding the first non steam app
+    kv = binary.loads(file_path.read_bytes()) if file_exists else {}
 
     # hacky way to see which index we should use based on app id and existing shortcuts
     shortcuts = kv.get("shortcuts") or {}
