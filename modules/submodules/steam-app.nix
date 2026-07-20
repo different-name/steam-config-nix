@@ -46,11 +46,13 @@ in
     };
 
     updateBehavior = lib.mkOption {
-      type = types.nullOr (types.enum [
-        "always"
-        "onLaunch"
-        "highPriority"
-      ]);
+      type = types.nullOr (
+        types.enum [
+          "always"
+          "onLaunch"
+          "highPriority"
+        ]
+      );
       default = null;
       example = "onLaunch";
       description = ''

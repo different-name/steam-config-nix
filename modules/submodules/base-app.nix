@@ -21,8 +21,7 @@ let
   # with notify-send, so run it with a clean loader environment
   notify =
     body:
-    lib.optionalString steamConfig.notifications ''
-      ( unset LD_LIBRARY_PATH LD_PRELOAD; ${lib.getExe' pkgs.libnotify "notify-send"} -a steam-config-nix "steam-config-nix" "${body}" ) >/dev/null 2>&1 || true'';
+    lib.optionalString steamConfig.notifications ''( unset LD_LIBRARY_PATH LD_PRELOAD; ${lib.getExe' pkgs.libnotify "notify-send"} -a steam-config-nix "steam-config-nix" "${body}" ) >/dev/null 2>&1 || true'';
 
   mkAppWrapperPackage =
     app:
@@ -269,7 +268,8 @@ in
 
     artwork =
       let
-        mkArtworkOption = description: dimensions:
+        mkArtworkOption =
+          description: dimensions:
           lib.mkOption {
             type = types.nullOr types.path;
             default = null;

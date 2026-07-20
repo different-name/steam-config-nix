@@ -90,37 +90,40 @@ in
     };
 
     desktopEntries = lib.mkOption {
-      type = types.coercedTo types.bool (
-        enable:
-        lib.warn
-          "programs.steam.config.desktopEntries = ${lib.boolToString enable} is deprecated, use `desktopEntries.enable = ${lib.boolToString enable}` instead"
-          { inherit enable; }
-      ) (
-        types.submodule {
-          options = {
-            enable = lib.mkEnableOption "desktop entries for all configured apps by default";
+      type =
+        types.coercedTo types.bool
+          (
+            enable:
+            lib.warn
+              "programs.steam.config.desktopEntries = ${lib.boolToString enable} is deprecated, use `desktopEntries.enable = ${lib.boolToString enable}` instead"
+              { inherit enable; }
+          )
+          (
+            types.submodule {
+              options = {
+                enable = lib.mkEnableOption "desktop entries for all configured apps by default";
 
-            libraryIcons = lib.mkOption {
-              type = types.bool;
-              default = true;
-              example = false;
-              description = ''
-                Use each Steam app's own icon from your Steam library for its
-                desktop entry, instead of the generic Steam icon.
+                libraryIcons = lib.mkOption {
+                  type = types.bool;
+                  default = true;
+                  example = false;
+                  description = ''
+                    Use each Steam app's own icon from your Steam library for its
+                    desktop entry, instead of the generic Steam icon.
 
-                Icons are taken from Steam's local library cache, so an app must
-                have been seen by Steam at least once for its icon to be
-                available. They are small (typically 32x32), and fall back to
-                the Steam icon when they cannot be resolved.
+                    Icons are taken from Steam's local library cache, so an app must
+                    have been seen by Steam at least once for its icon to be
+                    available. They are small (typically 32x32), and fall back to
+                    the Steam icon when they cannot be resolved.
 
-                Individual apps can opt out with
-                `desktopEntry.useLibraryIcon = false`, and setting
-                `desktopEntry.icon` explicitly always takes precedence.
-              '';
-            };
-          };
-        }
-      );
+                    Individual apps can opt out with
+                    `desktopEntry.useLibraryIcon = false`, and setting
+                    `desktopEntry.icon` explicitly always takes precedence.
+                  '';
+                };
+              };
+            }
+          );
       default = { };
       example = {
         enable = true;
