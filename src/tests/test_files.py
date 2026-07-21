@@ -321,6 +321,25 @@ def test_stale_source_file_is_reverted_on_update(env):
     assert not (env.install / "b.dll").exists()
 
 
+def test_unsafe_place_target_is_skipped(env):
+    src = source_file(env, "evil", "x")
+    outside = env.install.parent / "escaped"
+
+    apply_file_ops(env.steam_dir, [place(env, "../escaped", src)], [])
+
+    assert not outside.exists()
+    assert load_files_manifest(env.steam_dir).files == []
+
+
+def test_unsafe_remove_target_is_skipped(env):
+    victim = env.install.parent / "victim"
+    victim.write_text("important")
+
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "../victim")])
+
+    assert victim.read_text() == "important"
+
+
 def test_prefix_location_targets_prefix_root(env):
     src = source_file(env, "cfg", "x")
 

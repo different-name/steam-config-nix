@@ -61,6 +61,11 @@ def _specificity(declared_target: str) -> int:
     return len(PurePosixPath(declared_target).parts)
 
 
+def _is_safe_target(target: str) -> bool:
+    path = PurePosixPath(target)
+    return bool(target) and not path.is_absolute() and ".." not in path.parts
+
+
 def _iter_source_files(source: Path) -> Iterator[tuple[str, Path]]:
     if not source.is_dir():
         yield "", source
@@ -91,6 +96,14 @@ def _resolve_placements(file_ops: list[FileOp]) -> dict[FileKey, _Placement]:
         specificity = _specificity(op.target)
         for relpath, source_file in _iter_source_files(op.source):
             target = _join_target(op.target, relpath)
+            if not _is_safe_target(target):
+                LOG.warning(
+                    "app %d: skipping unsafe %s target %s",
+                    op.app_id,
+                    op.location,
+                    target,
+                )
+                continue
             key = (op.app_id, op.location, target)
             existing = placements.get(key)
             if existing is None or specificity > existing.specificity:
@@ -338,6 +351,14 @@ def apply_file_ops(
             new_files.append(entry)
 
     for remove_op in remove_ops:
+        if not _is_safe_target(remove_op.target):
+            LOG.warning(
+                "app %d: skipping unsafe %s removeFiles path %s",
+                remove_op.app_id,
+                remove_op.location,
+                remove_op.target,
+            )
+            continue
         root = root_for(remove_op.app_id, remove_op.location)
         if root is None:
             for key, entry in prev.items():
