@@ -35,7 +35,7 @@ package
 
 
 *Default:*
-` <derivation steam-config-patcher-0.3.0> `
+` <derivation steam-config-patcher-0.4.0> `
 
 
 
