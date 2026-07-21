@@ -422,6 +422,8 @@ def patch_config_files(cfg: PatcherConfig):
     if has_file_ops and game_is_running():
         if cfg.on_steam_running == "skip":
             skip_files = True
+        elif cfg.on_steam_running == "force-close":
+            LOG.info("a game is running, applying file operations anyway")
         else:
             LOG.info(
                 "a game is running, waiting for it to exit before applying file operations"

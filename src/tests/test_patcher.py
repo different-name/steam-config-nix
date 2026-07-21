@@ -713,7 +713,7 @@ def test_file_op_only_change_does_not_close_steam(fake_steam, tmp_path):
     assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
-def test_force_close_file_op_only_waits_for_game_without_closing_steam(fake_steam, tmp_path):
+def test_force_close_file_op_only_applies_without_waiting_or_closing(fake_steam, tmp_path):
     fake_steam.running = True
     fake_steam.game_running = True
     steam_dir = make_steam_dir(tmp_path)
@@ -723,7 +723,7 @@ def test_force_close_file_op_only_waits_for_game_without_closing_steam(fake_stea
     patch_config_files(cfg)
 
     assert fake_steam.close_calls == 0
-    assert fake_steam.game_wait_calls == 1
+    assert fake_steam.game_wait_calls == 0
     assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
