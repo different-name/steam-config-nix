@@ -128,3 +128,33 @@ class ManagedFile:
     op: Literal["place", "remove"]
     source_hash: Optional[str] = None
     had_backup: bool = False
+
+
+@dataclass
+class FileOp:
+    app_id: int
+    location: FileLocation
+    target: str
+    source: Path
+    overwrite_changes: bool
+    executable: Optional[bool] = None
+
+
+@dataclass
+class RemoveOp:
+    app_id: int
+    location: FileLocation
+    target: str
+
+
+@dataclass
+class ManagedDir:
+    app_id: int
+    location: FileLocation
+    target: str
+
+
+@dataclass
+class FilesManifest:
+    files: list[ManagedFile] = field(default_factory=list)
+    dirs: list[ManagedDir] = field(default_factory=list)

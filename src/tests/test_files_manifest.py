@@ -6,7 +6,7 @@ from steam_config_patcher.files_manifest import (
     load_files_manifest,
     save_files_manifest,
 )
-from steam_config_patcher.types import ManagedFile
+from steam_config_patcher.types import FilesManifest, ManagedDir, ManagedFile
 
 
 def make_config_dir(tmp_path):
@@ -17,33 +17,36 @@ def make_config_dir(tmp_path):
 
 def test_round_trip(tmp_path):
     steam_dir = make_config_dir(tmp_path)
-    entries = [
-        ManagedFile(
-            app_id=620,
-            location="install",
-            target="Mods/foo.dll",
-            op="place",
-            source_hash="abc123",
-            had_backup=True,
-        ),
-        ManagedFile(
-            app_id=620,
-            location="prefix",
-            target="drive_c/stale.cfg",
-            op="remove",
-            had_backup=True,
-        ),
-    ]
+    manifest = FilesManifest(
+        files=[
+            ManagedFile(
+                app_id=620,
+                location="install",
+                target="Mods/foo.dll",
+                op="place",
+                source_hash="abc123",
+                had_backup=True,
+            ),
+            ManagedFile(
+                app_id=620,
+                location="prefix",
+                target="drive_c/stale.cfg",
+                op="remove",
+                had_backup=True,
+            ),
+        ],
+        dirs=[ManagedDir(app_id=620, location="install", target="Mods")],
+    )
 
-    save_files_manifest(steam_dir, entries)
+    save_files_manifest(steam_dir, manifest)
 
-    assert load_files_manifest(steam_dir) == entries
+    assert load_files_manifest(steam_dir) == manifest
 
 
 def test_missing_manifest_is_empty(tmp_path):
     steam_dir = make_config_dir(tmp_path)
 
-    assert load_files_manifest(steam_dir) == []
+    assert load_files_manifest(steam_dir) == FilesManifest()
 
 
 def test_unknown_version_is_ignored(tmp_path):
@@ -52,20 +55,20 @@ def test_unknown_version_is_ignored(tmp_path):
         json.dumps({"version": 999, "files": [{"app_id": 1}]}), encoding="utf-8"
     )
 
-    assert load_files_manifest(steam_dir) == []
+    assert load_files_manifest(steam_dir) == FilesManifest()
 
 
 def test_unreadable_manifest_is_ignored(tmp_path):
     steam_dir = make_config_dir(tmp_path)
     files_manifest_path(steam_dir).write_text("{ not json", encoding="utf-8")
 
-    assert load_files_manifest(steam_dir) == []
+    assert load_files_manifest(steam_dir) == FilesManifest()
 
 
 def test_save_skips_when_config_dir_missing(tmp_path):
     steam_dir = tmp_path / "steam"
 
-    save_files_manifest(steam_dir, [])
+    save_files_manifest(steam_dir, FilesManifest())
 
     assert not files_manifest_path(steam_dir).exists()
 

@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from steam_config_patcher.fileio import atomic_write_text
-from steam_config_patcher.types import ManagedFile
+from steam_config_patcher.types import FilesManifest, ManagedDir, ManagedFile
 
 LOG = logging.getLogger(__name__)
 
@@ -22,10 +22,10 @@ def backup_path(steam_dir: Path, app_id: int, location: str, target: str) -> Pat
     )
 
 
-def load_files_manifest(steam_dir: Path) -> list[ManagedFile]:
+def load_files_manifest(steam_dir: Path) -> FilesManifest:
     path = files_manifest_path(steam_dir)
     if not path.is_file():
-        return []
+        return FilesManifest()
 
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -34,24 +34,34 @@ def load_files_manifest(steam_dir: Path) -> list[ManagedFile]:
             LOG.warning(
                 "ignoring files manifest with unknown version %s at %s", version, path
             )
-            return []
-        return [
-            ManagedFile(
-                app_id=int(entry["app_id"]),
-                location=entry["location"],
-                target=entry["target"],
-                op=entry["op"],
-                source_hash=entry.get("source_hash"),
-                had_backup=bool(entry.get("had_backup", False)),
-            )
-            for entry in (raw.get("files") or [])
-        ]
+            return FilesManifest()
+        return FilesManifest(
+            files=[
+                ManagedFile(
+                    app_id=int(entry["app_id"]),
+                    location=entry["location"],
+                    target=entry["target"],
+                    op=entry["op"],
+                    source_hash=entry.get("source_hash"),
+                    had_backup=bool(entry.get("had_backup", False)),
+                )
+                for entry in (raw.get("files") or [])
+            ],
+            dirs=[
+                ManagedDir(
+                    app_id=int(entry["app_id"]),
+                    location=entry["location"],
+                    target=entry["target"],
+                )
+                for entry in (raw.get("dirs") or [])
+            ],
+        )
     except Exception:
         LOG.warning("ignoring unreadable files manifest at %s", path, exc_info=True)
-        return []
+        return FilesManifest()
 
 
-def save_files_manifest(steam_dir: Path, entries: list[ManagedFile]) -> None:
+def save_files_manifest(steam_dir: Path, manifest: FilesManifest) -> None:
     path = files_manifest_path(steam_dir)
 
     if not path.parent.is_dir():
@@ -68,7 +78,15 @@ def save_files_manifest(steam_dir: Path, entries: list[ManagedFile]) -> None:
                 "source_hash": entry.source_hash,
                 "had_backup": entry.had_backup,
             }
-            for entry in entries
+            for entry in manifest.files
+        ],
+        "dirs": [
+            {
+                "app_id": entry.app_id,
+                "location": entry.location,
+                "target": entry.target,
+            }
+            for entry in manifest.dirs
         ],
     }
 
