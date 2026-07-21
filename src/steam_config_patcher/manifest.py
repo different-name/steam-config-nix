@@ -1,8 +1,8 @@
-import json
 import logging
 from pathlib import Path
+from typing import Optional
 
-from steam_config_patcher.fileio import atomic_write_text
+from steam_config_patcher.json_manifest import load_json_manifest, save_json_manifest
 from steam_config_patcher.types import (
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
@@ -62,46 +62,38 @@ def _parse_v2(raw: dict) -> UserManifest:
     )
 
 
+def _parse(raw: dict) -> Optional[UserManifest]:
+    version = raw.get("version")
+    if version == 1:
+        return _parse_v1(raw)
+    if version == MANIFEST_VERSION:
+        return _parse_v2(raw)
+    LOG.warning("ignoring manifest with unknown version %s", version)
+    return None
+
+
 def load_manifest(steam_dir: Path, user_id: int) -> UserManifest:
-    path = manifest_path(steam_dir, user_id)
-    if not path.is_file():
-        return UserManifest()
-
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        version = raw.get("version")
-        if version == 1:
-            return _parse_v1(raw)
-        if version == MANIFEST_VERSION:
-            return _parse_v2(raw)
-        LOG.warning("ignoring manifest with unknown version %s at %s", version, path)
-    except Exception:
-        LOG.warning("ignoring unreadable manifest at %s", path, exc_info=True)
-
-    return UserManifest()
+    return load_json_manifest(manifest_path(steam_dir, user_id), _parse, UserManifest())
 
 
+# the user's config dir should already exist (we patch files in it); if it
+# doesn't there's nothing to manage, so save_json_manifest skips rather than
+# creating stray dirs
 def save_manifest(steam_dir: Path, user_id: int, manifest: UserManifest) -> None:
-    path = manifest_path(steam_dir, user_id)
-
-    # the user's config dir should already exist (we patch files in it); if it
-    # doesn't there's nothing to manage, so skip rather than create stray dirs
-    if not path.parent.is_dir():
-        return
-
-    data = {
-        "version": MANIFEST_VERSION,
-        "managed_keys": [
-            {
-                "file": key.file,
-                "path": list(key.key_path),
-                "guard": list(key.guard_path),
-                "value": key.expected,
-            }
-            for key in manifest.managed_keys
-        ],
-        "shortcuts": manifest.shortcuts,
-        "grid_art": manifest.grid_art,
-    }
-
-    atomic_write_text(path, json.dumps(data, indent=2))
+    save_json_manifest(
+        manifest_path(steam_dir, user_id),
+        {
+            "version": MANIFEST_VERSION,
+            "managed_keys": [
+                {
+                    "file": key.file,
+                    "path": list(key.key_path),
+                    "guard": list(key.guard_path),
+                    "value": key.expected,
+                }
+                for key in manifest.managed_keys
+            ],
+            "shortcuts": manifest.shortcuts,
+            "grid_art": manifest.grid_art,
+        },
+    )
