@@ -286,24 +286,24 @@ in
                 id: entries: "id ${id} is used by: ${lib.concatMapStringsSep ", " (e: e.name) entries}"
               ) duplicateIds;
 
-              fileEntries = lib.concatLists (
-                lib.mapAttrsToList (
-                  appName: app:
-                  lib.concatMap (
-                    location:
-                    lib.mapAttrsToList (path: entry: {
-                      inherit
-                        appName
-                        location
-                        path
-                        entry
-                        ;
-                    }) app.files.${location}
-                  ) [ "install" "prefix" ]
-                ) enabledApps
+              enabledFileEntries = lib.filter (e: e.entry.enable) (
+                lib.concatLists (
+                  lib.mapAttrsToList (
+                    appName: app:
+                    lib.concatMap (
+                      location:
+                      lib.mapAttrsToList (path: entry: {
+                        inherit
+                          appName
+                          location
+                          path
+                          entry
+                          ;
+                      }) app.files.${location}
+                    ) [ "install" "prefix" ]
+                  ) enabledApps
+                )
               );
-
-              enabledFileEntries = lib.filter (e: e.entry.enable) fileEntries;
 
               removeEntries = lib.concatLists (
                 lib.mapAttrsToList (
@@ -314,9 +314,7 @@ in
                 ) enabledApps
               );
 
-              unsafePath =
-                p:
-                lib.hasPrefix "/" p || lib.hasInfix "../" p || lib.hasSuffix "/.." p || p == "..";
+              unsafePath = p: p == "" || lib.hasPrefix "/" p || lib.elem ".." (lib.splitString "/" p);
 
               duplicateTargets = lib.filter (group: lib.length group > 1) (
                 builtins.attrValues (

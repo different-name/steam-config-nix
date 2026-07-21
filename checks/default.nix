@@ -344,7 +344,6 @@ in
         grep -q AutoUpdateBehavior "$acf"
         test -f "$steam/userdata/111/config/steam-config-nix-manifest.json"
 
-        # file operations: dropped file placed, removed file gone, manifest written
         grep -q modcontent "$install/mods/test.txt"
         test ! -e "$install/unwanted.txt"
         test -f "$steam/config/steam-config-nix-files.json"
