@@ -147,13 +147,48 @@ Install [winetricks](https://github.com/Winetricks/winetricks) verbs into an app
 }
 ```
 
-Verbs are applied at launch — the prefix and Proton are taken from the environment Steam provides, so the app must use a compatibility tool and have been launched once (so the prefix exists). They are re-applied when the verb list changes, and a failure never blocks the game from launching.
+Verbs are applied at launch, the prefix and Proton are taken from the environment Steam provides, so the app must use a compatibility tool and have been launched once (so the prefix exists). They are re-applied when the verb list changes, and a failure never blocks the game from launching.
 
 The first launch after adding or changing verbs is slower, as the game waits while the verbs install. A desktop notification (see `notifications`) is shown while this happens.
 
 This is not fully reproducible (winetricks downloads runtimes), but neither is Steam. For DLL-style components (`dxvk`, `vkd3d`) you can instead drop the DLLs and set `launchOptions.env.WINEDLLOVERRIDES` for a pure setup.
 
 Some unusual custom Proton builds are not compatible with protontricks and will fail (harmlessly) to apply verbs.
+
+### Game Files & Mods
+
+Place files into a game's install directory or Proton prefix, for mods, asset replacements, loaders, or config:
+
+```nix
+{
+  programs.steam.config.apps."Lethal Company" = {
+    id = 1966720;
+    files.install = {
+      # drop a mod, keyed by path relative to the install directory
+      "BepInEx/plugins/MoreCompany.dll".source = ./MoreCompany.dll;
+      # stub out a file by giving it empty contents
+      "movies/intro.bik".text = "";
+      # a config the game rewrites: written once, then left alone
+      "BepInEx/config/mod.cfg" = {
+        source = ./mod.cfg;
+        overwriteChanges = false;
+      };
+    };
+    # remove a file entirely
+    removeFiles.install = [ "unwanted.dll" ];
+  };
+}
+```
+
+Files are copied in. A `source` may be a file or a directory, which is copied recursively and merged with whatever is already there. Every placed and removed file is tracked, so removing an entry from your configuration reverts it: replaced and removed files are restored from a backup, and files that were newly created are deleted.
+
+By default a file is re-applied on every activation. Set `overwriteChanges = false` to write it once and then leave it alone, which is what you want for configs the game or you edit in place. Delete the file to push a new version.
+
+Use `files.prefix` and `removeFiles.prefix` to target the Proton prefix (`compatdata/<id>/pfx`) instead, for files under `drive_c/users/steamuser/AppData` and the like. The prefix only exists once the game has been launched.
+
+- The game must be installed (and, for the prefix, launched once), otherwise the file operations are skipped with a warning until it is.
+- File operations wait for a running game following `onSteamRunning`, so a game running under `skip` defers them to the next activation.
+- Steam can overwrite replaced files when it updates or verifies a game. They are re-applied on the next activation.
 
 ### Desktop Entries
 

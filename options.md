@@ -216,8 +216,7 @@ null or string
 
 
 
-Compatibility tool to use, either the internal name of an installed
-tool (e\.g\. ` "proton_experimental" `), or a package containing one\.
+Compatibility tool to use, either the internal name of an installed tool (e\.g\. ` "proton_experimental" `), or a package containing one\.
 
 Packages are installed automatically, see the readme for details\.
 
@@ -377,11 +376,9 @@ string
 
 
 
-Use the app’s own icon from your Steam library for its desktop entry,
-instead of the generic Steam icon\.
+Use the app’s own icon from your Steam library for its desktop entry, instead of the generic Steam icon\.
 
-Defaults to the global ` programs.steam.config.desktopEntries.libraryIcons `
-option\. Setting ` desktopEntry.icon ` explicitly always takes precedence\.
+Defaults to the global ` programs.steam.config.desktopEntries.libraryIcons ` option\. Setting ` desktopEntry.icon ` explicitly always takes precedence\.
 
 Has no effect unless ` desktopEntry.enable ` is set\.
 
@@ -399,6 +396,344 @@ boolean
 
 *Example:*
 ` false `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install
+
+
+
+Files to place in the game’s install directory, keyed by path relative to it\. The app must be installed for these to be applied\.
+
+
+
+*Type:*
+attribute set of (submodule)
+
+
+
+*Default:*
+` { } `
+
+
+
+*Example:*
+
+```
+{
+  "BepInEx/plugins/plugin.dll".source = ./plugin.dll;
+  "mod.cfg" = {
+    source = ./mod.cfg;
+    overwriteChanges = false;
+  };
+}
+
+```
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install\.\<name>\.enable
+
+
+
+Whether to manage this file\.
+
+When false the file is ignored, and any file previously placed for it is reverted\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install\.\<name>\.executable
+
+
+
+Whether the placed file is executable\.
+
+When null the executable bit is inherited from the source\.
+
+
+
+*Type:*
+null or boolean
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` true `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install\.\<name>\.overwriteChanges
+
+
+
+Whether to re-apply this file on every activation\.
+
+When true the declared contents are enforced each activation\. When false the file is written once and then left alone, so changes the game or you make to it are preserved\. Delete the file to re-apply\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+*Example:*
+` false `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install\.\<name>\.source
+
+
+
+File or directory to place\. A directory is copied recursively and merged with whatever is already at the target\.
+
+Exactly one of ` source ` or ` text ` must be set\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./mods/plugin.dll `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install\.\<name>\.target
+
+
+
+Path relative to the root, defaulting to the attribute name\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` <name> `
+
+
+
+*Example:*
+` "BepInEx/plugins/plugin.dll" `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.install\.\<name>\.text
+
+
+
+Inline contents to place as a file\.
+
+Exactly one of ` source ` or ` text ` must be set\.
+
+
+
+*Type:*
+null or strings concatenated with “\\n”
+
+
+
+*Default:*
+` null `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix
+
+
+
+Files to place in the app’s Proton prefix, keyed by path relative to the prefix root (` compatdata/<id>/pfx `)\. The app must have been launched once for the prefix to exist\.
+
+
+
+*Type:*
+attribute set of (submodule)
+
+
+
+*Default:*
+` { } `
+
+
+
+*Example:*
+
+```
+{
+  "drive_c/users/steamuser/AppData/Local/game/mod.xml".source = ./mod.xml;
+}
+
+```
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix\.\<name>\.enable
+
+
+
+Whether to manage this file\.
+
+When false the file is ignored, and any file previously placed for it is reverted\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix\.\<name>\.executable
+
+
+
+Whether the placed file is executable\.
+
+When null the executable bit is inherited from the source\.
+
+
+
+*Type:*
+null or boolean
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` true `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix\.\<name>\.overwriteChanges
+
+
+
+Whether to re-apply this file on every activation\.
+
+When true the declared contents are enforced each activation\. When false the file is written once and then left alone, so changes the game or you make to it are preserved\. Delete the file to re-apply\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` true `
+
+
+
+*Example:*
+` false `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix\.\<name>\.source
+
+
+
+File or directory to place\. A directory is copied recursively and merged with whatever is already at the target\.
+
+Exactly one of ` source ` or ` text ` must be set\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` ./mods/plugin.dll `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix\.\<name>\.target
+
+
+
+Path relative to the root, defaulting to the attribute name\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` <name> `
+
+
+
+*Example:*
+` "BepInEx/plugins/plugin.dll" `
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.files\.prefix\.\<name>\.text
+
+
+
+Inline contents to place as a file\.
+
+Exactly one of ` source ` or ` text ` must be set\.
+
+
+
+*Type:*
+null or strings concatenated with “\\n”
+
+
+
+*Default:*
+` null `
 
 
 
@@ -482,8 +817,7 @@ list of string
 
 
 
-Environment variables to export in the launch script\.
-You can also unset variables by setting their value to ` null `\.
+Environment variables to export in the launch script\. You can also unset variables by setting their value to ` null `\.
 
 
 
@@ -600,6 +934,52 @@ null or (optionally newline-terminated) single-line string
 
 
 
+## programs\.steam\.config\.apps\.\<name>\.removeFiles\.install
+
+
+
+Paths in the game’s install directory to remove, relative to it\. A directory is removed recursively\. Removed files are restored when the entry is unset\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+` [ ] `
+
+
+
+*Example:*
+
+```
+[
+  "movies/intro.bik"
+]
+```
+
+
+
+## programs\.steam\.config\.apps\.\<name>\.removeFiles\.prefix
+
+
+
+Paths in the app’s Proton prefix to remove, relative to the prefix root\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+` [ ] `
+
+
+
 ## programs\.steam\.config\.apps\.\<name>\.updateBehavior
 
 
@@ -610,8 +990,7 @@ How Steam keeps this app updated:
  - ` "onLaunch" `: only update the app when it is launched
  - ` "highPriority" `: always update this app before others
 
-The app must be installed for this to be applied\. When unset again,
-Steam’s default update behaviour is restored\.
+The app must be installed for this to be applied\. When unset again, Steam’s default update behaviour is restored\.
 
 
 
@@ -636,13 +1015,9 @@ null or one of “always”, “onLaunch”, “highPriority”
 
 winetricks verbs to install into the app’s Proton prefix\.
 
-Applied when the app is launched (via protontricks, using the prefix
-and Proton that Steam provides in the environment), and re-applied when
-the verb list changes\. The app must use a compatibility tool, and must
-have been launched once so the prefix exists\.
+Applied when the app is launched (via protontricks, using the prefix and Proton that Steam provides in the environment), and re-applied when the verb list changes\. The app must use a compatibility tool, and must have been launched once so the prefix exists\.
 
-Removing a verb does not uninstall it, as winetricks cannot reliably
-undo verbs\.
+Removing a verb does not uninstall it, as winetricks cannot reliably undo verbs\.
 
 
 
@@ -671,8 +1046,7 @@ list of string
 
 
 
-Default compatibility tool to use for Steam Play, either the internal
-name of an installed tool, or a package containing one\.
+Default compatibility tool to use for Steam Play, either the internal name of an installed tool, or a package containing one\.
 
 This option sets the default compatibility tool in Steam, but does not set the nix module defaults\.
 
@@ -699,8 +1073,7 @@ null or string or package
 
 Desktop entry defaults for all configured apps\.
 
-Setting this to a boolean is deprecated; use ` desktopEntries.enable `
-instead\. Individual apps can opt out with ` desktopEntry.enable = false `\.
+Setting this to a boolean is deprecated; use ` desktopEntries.enable ` instead\. Individual apps can opt out with ` desktopEntry.enable = false `\.
 
 
 
@@ -751,17 +1124,11 @@ boolean
 
 
 
-Use each Steam app’s own icon from your Steam library for its
-desktop entry, instead of the generic Steam icon\.
+Use each Steam app’s own icon from your Steam library for its desktop entry, instead of the generic Steam icon\.
 
-Icons are taken from Steam’s local library cache, so an app must
-have been seen by Steam at least once for its icon to be
-available\. They are small (typically 32x32), and fall back to
-the Steam icon when they cannot be resolved\.
+Icons are taken from Steam’s local library cache, so an app must have been seen by Steam at least once for its icon to be available\. They are small (typically 32x32), and fall back to the Steam icon when they cannot be resolved\.
 
-Individual apps can opt out with
-` desktopEntry.useLibraryIcon = false `, and setting
-` desktopEntry.icon ` explicitly always takes precedence\.
+Individual apps can opt out with ` desktopEntry.useLibraryIcon = false `, and setting ` desktopEntry.icon ` explicitly always takes precedence\.
 
 
 
@@ -985,8 +1352,7 @@ null or absolute path
 
 
 
-Compatibility tool to use, either the internal name of an installed
-tool (e\.g\. ` "proton_experimental" `), or a package containing one\.
+Compatibility tool to use, either the internal name of an installed tool (e\.g\. ` "proton_experimental" `), or a package containing one\.
 
 Packages are installed automatically, see the readme for details\.
 
@@ -1250,8 +1616,7 @@ list of string
 
 
 
-Environment variables to export in the launch script\.
-You can also unset variables by setting their value to ` null `\.
+Environment variables to export in the launch script\. You can also unset variables by setting their value to ` null `\.
 
 
 
@@ -1460,13 +1825,9 @@ absolute path or package convertible to it
 
 winetricks verbs to install into the app’s Proton prefix\.
 
-Applied when the app is launched (via protontricks, using the prefix
-and Proton that Steam provides in the environment), and re-applied when
-the verb list changes\. The app must use a compatibility tool, and must
-have been launched once so the prefix exists\.
+Applied when the app is launched (via protontricks, using the prefix and Proton that Steam provides in the environment), and re-applied when the verb list changes\. The app must use a compatibility tool, and must have been launched once so the prefix exists\.
 
-Removing a verb does not uninstall it, as winetricks cannot reliably
-undo verbs\.
+Removing a verb does not uninstall it, as winetricks cannot reliably undo verbs\.
 
 
 
@@ -1495,11 +1856,9 @@ list of string
 
 
 
-Send desktop notifications for slow launch-time steps (e\.g\. installing
-winetricks verbs)\.
+Send desktop notifications for slow launch-time steps (e\.g\. installing winetricks verbs)\.
 
-Degrades gracefully: if no notification daemon is reachable the
-notification is simply skipped\.
+Degrades gracefully: if no notification daemon is reachable the notification is simply skipped\.
 
 
 
