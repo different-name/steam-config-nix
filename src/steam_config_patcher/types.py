@@ -115,3 +115,16 @@ class UserManifest:
     managed_keys: list[ManagedKey] = field(default_factory=list)
     shortcuts: list[int] = field(default_factory=list)
     grid_art: dict[str, str] = field(default_factory=dict)
+
+
+FileLocation = Literal["install", "prefix"]
+
+
+@dataclass
+class ManagedFile:
+    app_id: int
+    location: FileLocation
+    target: str
+    op: Literal["place", "remove"]
+    source_hash: Optional[str] = None
+    had_backup: bool = False
