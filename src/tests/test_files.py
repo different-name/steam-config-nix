@@ -174,6 +174,47 @@ def test_remove_directory_recursive_and_reverts(env):
     assert (junk / "sub" / "b").read_text() == "b"
 
 
+def test_remove_symlink_to_directory_does_not_crash(env):
+    real_dir = env.install / "realdir"
+    real_dir.mkdir()
+    (real_dir / "file").write_text("data")
+    link = env.install / "link"
+    link.symlink_to(real_dir)
+
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "link")])
+
+    assert not link.is_symlink()
+    assert (real_dir / "file").read_text() == "data"
+
+    apply_file_ops(env.steam_dir, [], [])
+
+    assert link.is_symlink()
+
+
+def test_remove_revert_leaves_recreated_file(env):
+    target = env.install / "broken.dll"
+    target.write_text("original")
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "broken.dll")])
+    assert not target.exists()
+
+    target.write_text("recreated by game")
+    apply_file_ops(env.steam_dir, [], [])
+
+    assert target.read_text() == "recreated by game"
+
+
+def test_place_revert_leaves_game_written_content_on_created_path(env):
+    src = source_file(env, "mod.dll", "mine")
+    op = place(env, "new/mod.dll", src)
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "new" / "mod.dll"
+
+    target.write_text("game content")
+    apply_file_ops(env.steam_dir, [], [])
+
+    assert target.read_text() == "game content"
+
+
 def test_mirror_via_remove_keeps_placed_removes_vanilla(env):
     mods = env.install / "Mods"
     mods.mkdir()

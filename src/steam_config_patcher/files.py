@@ -128,7 +128,7 @@ def _backup_once(
     if stored.exists():
         return
     stored.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(target_path, stored)
+    shutil.copy2(target_path, stored, follow_symlinks=False)
 
 
 def _place_one(
@@ -273,6 +273,12 @@ def _revert_one(steam_dir: Path, root: Optional[Path], entry: ManagedFile) -> No
             return
         if target_path.exists() or target_path.is_symlink():
             target_path.unlink()
+    else:
+        if target_path.exists() or target_path.is_symlink():
+            LOG.info("leaving recreated %s", target_path)
+            if stored.exists():
+                stored.unlink()
+            return
 
     if entry.had_backup and stored.exists():
         target_path.parent.mkdir(parents=True, exist_ok=True)
