@@ -31,9 +31,11 @@ let
     "AppState"
     {
     	"appid"		"620"
+    	"installdir"		"Test Game"
     	"UserConfig" { "language" "english" }
     }
   '';
+  seedModFile = pkgs.writeText "mod.txt" "modcontent";
   patcherInput = pkgs.writeText "patcher-input.json" (
     builtins.toJSON {
       onSteamRunning = "wait";
@@ -51,6 +53,21 @@ let
           hero = null;
           logo = null;
         };
+        files = [
+          {
+            location = "install";
+            target = "mods/test.txt";
+            source = "${seedModFile}";
+            overwriteChanges = true;
+            executable = null;
+          }
+        ];
+        removeFiles = [
+          {
+            location = "install";
+            target = "unwanted.txt";
+          }
+        ];
       };
       nonSteamApps = { };
     }
@@ -236,6 +253,57 @@ let
     name = "desktop-items";
     paths = desktopItems;
   };
+
+  failingAssertions =
+    appConfig:
+    let
+      eval = lib.evalModules {
+        specialArgs = { inherit pkgs; };
+        modules = [
+          { config._module.check = false; }
+          {
+            options.assertions = lib.mkOption {
+              type = lib.types.listOf lib.types.unspecified;
+              default = [ ];
+            };
+            options.warnings = lib.mkOption {
+              type = lib.types.listOf lib.types.str;
+              default = [ ];
+            };
+          }
+          self.homeModules.default
+          {
+            programs.steam.config = {
+              enable = true;
+              apps."bad" = { id = 111; } // appConfig;
+            };
+          }
+        ];
+      };
+    in
+    map (a: a.message) (lib.filter (a: !a.assertion) eval.config.assertions);
+
+  hasFailure = substr: assertions: lib.any (lib.hasInfix substr) assertions;
+
+  assertionsOk =
+    lib.assertMsg (
+      hasFailure "exactly one of" (failingAssertions {
+        files.install."x" = {
+          source = fakeArt;
+          text = "hi";
+        };
+      })
+    ) "setting both source and text should fail"
+    && lib.assertMsg (hasFailure "exactly one of" (failingAssertions { files.install."x" = { }; }))
+      "setting neither source nor text should fail"
+    && lib.assertMsg (hasFailure "unsafe target" (failingAssertions { files.install."../escape".source = fakeArt; }))
+      "an unsafe file target should fail"
+    && lib.assertMsg (hasFailure "unsafe path" (failingAssertions { removeFiles.install = [ "../escape" ]; }))
+      "an unsafe removeFiles path should fail"
+    && lib.assertMsg (failingAssertions {
+      files.install."mods/ok.pak".source = fakeArt;
+      removeFiles.install = [ "movies/intro.bik" ];
+    } == [ ]) "a valid file config should not fail";
 in
 {
   steam-config-patcher = self.packages.${system}.steam-config-patcher;
@@ -248,10 +316,12 @@ in
       ''
         export HOME="$PWD/home"
         steam="$HOME/.local/share/Steam"
-        mkdir -p "$steam/config" "$steam/userdata/111/config" "$steam/steamapps"
+        install="$steam/steamapps/common/Test Game"
+        mkdir -p "$steam/config" "$steam/userdata/111/config" "$steam/steamapps" "$install"
         cp ${seedConfigVdf} "$steam/config/config.vdf"
         cp ${seedLocalconfigVdf} "$steam/userdata/111/config/localconfig.vdf"
         cp ${seedAppmanifest} "$steam/steamapps/appmanifest_620.acf"
+        echo unwanted > "$install/unwanted.txt"
 
         steam-config-patcher ${patcherInput}
 
@@ -266,11 +336,23 @@ in
         grep -q AutoUpdateBehavior "$acf"
         test -f "$steam/userdata/111/config/steam-config-nix-manifest.json"
 
+        # file operations: dropped file placed, removed file gone, manifest written
+        grep -q modcontent "$install/mods/test.txt"
+        test ! -e "$install/unwanted.txt"
+        test -f "$steam/config/steam-config-nix-files.json"
+
         # idempotent second run must still succeed
         steam-config-patcher ${patcherInput}
 
+        grep -q modcontent "$install/mods/test.txt"
+
         touch $out
       '';
+
+  module-assertions = pkgs.runCommand "module-assertions-check" { } (
+    assert assertionsOk;
+    "touch $out"
+  );
 
   nixos-module = pkgs.runCommand "nixos-module-check" { } ''
     diff ${expectedJson} ${actualJson}
