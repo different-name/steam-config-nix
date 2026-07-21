@@ -74,6 +74,8 @@ class PatcherConfig:
     game_update_behaviors: dict[int, str] = field(default_factory=dict)
     grid_art: dict[int, GridArt] = field(default_factory=dict)
     library_icon_apps: set[int] = field(default_factory=set)
+    file_ops: list["FileOp"] = field(default_factory=list)
+    remove_ops: list["RemoveOp"] = field(default_factory=list)
 
 
 KeyValuesValue = str | int

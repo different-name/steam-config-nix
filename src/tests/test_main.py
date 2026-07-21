@@ -1,10 +1,11 @@
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from steam_config_patcher.main import parse_input
-from steam_config_patcher.types import NonSteamAppConfig
+from steam_config_patcher.types import FileOp, NonSteamAppConfig, RemoveOp
 
 USER_IDS = (111, 222)
 
@@ -184,6 +185,70 @@ def test_apps_without_artwork_are_excluded_from_grid_art(tmp_path, monkeypatch):
     cfg = run_parse(tmp_path, monkeypatch, data)
 
     assert cfg.grid_art == {}
+
+
+def test_files_map_to_file_ops(tmp_path, monkeypatch):
+    data = base_input(
+        apps={
+            "portal": {
+                "id": 620,
+                "files": [
+                    {
+                        "location": "install",
+                        "target": "Mods/foo.dll",
+                        "source": "/nix/store/x-foo.dll",
+                        "overwriteChanges": True,
+                        "executable": None,
+                    }
+                ],
+                "removeFiles": [{"location": "prefix", "target": "drive_c/stale.cfg"}],
+            }
+        }
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.file_ops == [
+        FileOp(
+            app_id=620,
+            location="install",
+            target="Mods/foo.dll",
+            source=Path("/nix/store/x-foo.dll"),
+            overwrite_changes=True,
+            executable=None,
+        )
+    ]
+    assert cfg.remove_ops == [
+        RemoveOp(app_id=620, location="prefix", target="drive_c/stale.cfg")
+    ]
+
+
+def test_apps_without_files_have_empty_file_ops(tmp_path, monkeypatch):
+    cfg = run_parse(tmp_path, monkeypatch, base_input(apps={"portal": {"id": 620}}))
+
+    assert cfg.file_ops == []
+    assert cfg.remove_ops == []
+
+
+def test_unknown_file_op_location_raises(tmp_path, monkeypatch):
+    data = base_input(
+        apps={
+            "portal": {
+                "id": 620,
+                "files": [
+                    {
+                        "location": "elsewhere",
+                        "target": "x",
+                        "source": "/s",
+                        "overwriteChanges": True,
+                    }
+                ],
+            }
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        run_parse(tmp_path, monkeypatch, data)
 
 
 def test_strategy_and_steam_dir_are_passed_through(tmp_path, monkeypatch):

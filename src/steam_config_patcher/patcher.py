@@ -2,6 +2,7 @@ import logging
 from typing import Iterable, Optional
 
 from steam_config_patcher.fileio import atomic_write_bytes
+from steam_config_patcher.files import apply_file_ops
 from steam_config_patcher.formats.binary_keyvalues import prepare_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.grid import apply_grid_art, desired_grid_files
@@ -390,15 +391,25 @@ def patch_config_files(cfg: PatcherConfig):
         return prepared
 
     prepared = prepare_all()
+    has_file_ops = bool(cfg.file_ops or cfg.remove_ops)
+
+    steam_obstructs = bool(prepared) and steam_is_running()
+    game_obstructs = has_file_ops and game_is_running()
 
     blocked = False
-    if prepared and steam_is_running():
+    skip_files = False
+    if steam_obstructs or game_obstructs:
         if cfg.on_steam_running == "skip":
-            blocked = True
+            blocked = steam_obstructs
+            skip_files = game_obstructs
         else:
             if cfg.on_steam_running == "wait":
-                LOG.info("steam is running, waiting for it to exit")
-                wait_for_steam_exit()
+                if steam_obstructs:
+                    LOG.info("steam is running, waiting for it to exit")
+                    wait_for_steam_exit()
+                else:
+                    LOG.info("a game is running, waiting for it to exit")
+                    wait_for_game_exit()
             else:
                 if cfg.on_steam_running == "close" and game_is_running():
                     LOG.info(
@@ -418,6 +429,17 @@ def patch_config_files(cfg: PatcherConfig):
 
     if failed:
         raise SystemExit(f"{len(failed)} config file(s) failed to patch; see log above")
+
+    if skip_files:
+        LOG.warning(
+            "A game is running; skipped file operations. "
+            'Close the game, or set onSteamRunning to "wait" or "close" to apply automatically.'
+        )
+    else:
+        try:
+            apply_file_ops(cfg.steam_dir, cfg.file_ops, cfg.remove_ops)
+        except Exception:
+            LOG.exception("failed to apply file operations")
 
     if blocked:
         LOG.warning(

@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from steam_config_patcher.files_manifest import load_files_manifest
 from steam_config_patcher.manifest import load_manifest, manifest_path
 from steam_config_patcher.patcher import (
     desired_manifest,
@@ -11,6 +12,7 @@ from steam_config_patcher.patcher import (
 )
 from steam_config_patcher.types import (
     CompatToolConfig,
+    FileOp,
     GridArt,
     ManagedKey,
     NonSteamAppConfig,
@@ -108,6 +110,8 @@ def make_cfg(
     game_languages=None,
     game_update_behaviors=None,
     grid_art=None,
+    file_ops=None,
+    remove_ops=None,
 ):
     return PatcherConfig(
         on_steam_running=on_steam_running,
@@ -117,6 +121,8 @@ def make_cfg(
         game_update_behaviors=game_update_behaviors or {},
         grid_art=grid_art or {},
         compat_tool_mapping=compat_tool_mapping or {},
+        file_ops=file_ops or [],
+        remove_ops=remove_ops or [],
         users={
             USER_ID: UserConfig(
                 launch_options=launch_options or {},
@@ -345,6 +351,62 @@ def test_full_run_creates_shortcuts_file_when_missing(fake_steam, tmp_path):
     assert read_shortcuts(steam_dir)["shortcuts"]["0"]["AppName"] == "Game"
 
 
+def install_dir_for(steam_dir, app_id=620, name="Portal 2"):
+    manifest = steam_dir / "steamapps" / f"appmanifest_{app_id}.acf"
+    manifest.write_text(
+        f'"AppState"\n{{\n\t"appid"\t\t"{app_id}"\n'
+        f'\t"installdir"\t\t"{name}"\n}}\n',
+        encoding="utf-8",
+    )
+    install = steam_dir / "steamapps" / "common" / name
+    install.mkdir(parents=True)
+    return install
+
+
+def test_full_run_applies_file_ops(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    source = tmp_path / "mod.dll"
+    source.write_text("mod")
+    cfg = make_cfg(
+        steam_dir,
+        file_ops=[
+            FileOp(
+                app_id=620,
+                location="install",
+                target="Mods/mod.dll",
+                source=source,
+                overwrite_changes=True,
+            )
+        ],
+    )
+
+    patch_config_files(cfg)
+
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
+    assert len(load_files_manifest(steam_dir).files) == 1
+
+
+def test_file_ops_reverted_on_next_run(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    source = tmp_path / "mod.dll"
+    source.write_text("mod")
+    file_op = FileOp(
+        app_id=620,
+        location="install",
+        target="Mods/mod.dll",
+        source=source,
+        overwrite_changes=True,
+    )
+
+    patch_config_files(make_cfg(steam_dir, file_ops=[file_op]))
+    patch_config_files(make_cfg(steam_dir))
+
+    assert not (install / "Mods").exists()
+    assert load_files_manifest(steam_dir).files == []
+
+
 def test_second_run_cleans_up_removed_entries(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
     cfg = make_cfg(
@@ -545,6 +607,88 @@ def test_skip_strategy_writes_nothing(fake_steam, tmp_path):
     assert not manifest_path(steam_dir, USER_ID).exists()
     assert fake_steam.close_calls == 0
     assert fake_steam.wait_calls == 0
+
+
+def test_file_ops_apply_even_when_steam_running_and_skipping(fake_steam, tmp_path):
+    fake_steam.running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    original_config = (steam_dir / "config" / "config.vdf").read_text(encoding="utf-8")
+    source = tmp_path / "mod.dll"
+    source.write_text("mod")
+    cfg = make_cfg(
+        steam_dir,
+        on_steam_running="skip",
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        file_ops=[
+            FileOp(
+                app_id=620,
+                location="install",
+                target="Mods/mod.dll",
+                source=source,
+                overwrite_changes=True,
+            )
+        ],
+    )
+
+    patch_config_files(cfg)
+
+    assert (steam_dir / "config" / "config.vdf").read_text(encoding="utf-8") == original_config
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
+
+
+def test_file_ops_skipped_when_game_running_and_skipping(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    source = tmp_path / "mod.dll"
+    source.write_text("mod")
+    cfg = make_cfg(
+        steam_dir,
+        on_steam_running="skip",
+        file_ops=[
+            FileOp(
+                app_id=620,
+                location="install",
+                target="Mods/mod.dll",
+                source=source,
+                overwrite_changes=True,
+            )
+        ],
+    )
+
+    patch_config_files(cfg)
+
+    assert not (install / "Mods" / "mod.dll").exists()
+
+
+def test_file_ops_apply_after_closing_for_running_game(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    source = tmp_path / "mod.dll"
+    source.write_text("mod")
+    cfg = make_cfg(
+        steam_dir,
+        on_steam_running="close",
+        file_ops=[
+            FileOp(
+                app_id=620,
+                location="install",
+                target="Mods/mod.dll",
+                source=source,
+                overwrite_changes=True,
+            )
+        ],
+    )
+
+    patch_config_files(cfg)
+
+    assert fake_steam.game_wait_calls == 1
+    assert fake_steam.close_calls == 1
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
 def test_wait_strategy_waits_for_steam_exit(fake_steam, tmp_path):

@@ -10,9 +10,11 @@ from steam_config_patcher.patcher import patch_config_files
 from steam_config_patcher.steam import get_steam_dir, get_steam_user_ids
 from steam_config_patcher.types import (
     CompatToolConfig,
+    FileOp,
     GridArt,
     NonSteamAppConfig,
     PatcherConfig,
+    RemoveOp,
     UserConfig,
 )
 
@@ -37,6 +39,19 @@ class ArtworkSchema(StrictSchema):
     logo: Optional[str] = None
 
 
+class FileOpSchema(StrictSchema):
+    location: Literal["install", "prefix"]
+    target: str
+    source: str
+    overwriteChanges: bool
+    executable: Optional[bool] = None
+
+
+class RemoveOpSchema(StrictSchema):
+    location: Literal["install", "prefix"]
+    target: str
+
+
 class AppSchema(StrictSchema):
     id: int
     launchOptions: Optional[str] = None
@@ -46,6 +61,8 @@ class AppSchema(StrictSchema):
     updateBehavior: Optional[str] = None
     libraryIcon: bool = False
     artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
+    files: list[FileOpSchema] = Field(default_factory=list)
+    removeFiles: list[RemoveOpSchema] = Field(default_factory=list)
 
 
 class NonSteamAppSchema(AppSchema):
@@ -143,6 +160,23 @@ def parse_input() -> PatcherConfig:
         library_icon_apps={
             app.id for app in validated_input.apps.values() if app.libraryIcon
         },
+        file_ops=[
+            FileOp(
+                app_id=app.id,
+                location=op.location,
+                target=op.target,
+                source=Path(op.source),
+                overwrite_changes=op.overwriteChanges,
+                executable=op.executable,
+            )
+            for app in validated_input.apps.values()
+            for op in app.files
+        ],
+        remove_ops=[
+            RemoveOp(app_id=app.id, location=op.location, target=op.target)
+            for app in validated_input.apps.values()
+            for op in app.removeFiles
+        ],
         users={
             user_id: UserConfig(
                 launch_options={
