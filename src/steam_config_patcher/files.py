@@ -141,9 +141,7 @@ def _place_one(
         return prev
 
     source_hash = _hash_file(placement.source_file)
-
-    if exists and prev is not None and prev.source_hash == source_hash:
-        return prev
+    desired_mode = _resolve_mode(placement.executable, placement.source_file)
 
     had_backup = prev.had_backup if prev is not None else False
     if exists and prev is None:
@@ -152,11 +150,7 @@ def _place_one(
         )
         had_backup = True
 
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(placement.source_file, target_path)
-    target_path.chmod(_resolve_mode(placement.executable, placement.source_file))
-
-    return ManagedFile(
+    entry = ManagedFile(
         app_id=placement.app_id,
         location=placement.location,
         target=placement.target,
@@ -164,6 +158,21 @@ def _place_one(
         source_hash=source_hash,
         had_backup=had_backup,
     )
+
+    if (
+        target_path.is_file()
+        and not target_path.is_symlink()
+        and _hash_file(target_path) == source_hash
+    ):
+        if target_path.stat().st_mode & 0o777 != desired_mode:
+            target_path.chmod(desired_mode)
+        return entry
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(placement.source_file, target_path)
+    target_path.chmod(desired_mode)
+
+    return entry
 
 
 def _remove_targets(

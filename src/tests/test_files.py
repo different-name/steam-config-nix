@@ -218,6 +218,42 @@ def test_root_not_found_skips_and_keeps_prev(env, monkeypatch):
     assert len(load_files_manifest(env.steam_dir).files) == 1
 
 
+def test_overwrite_changes_re_enforces_drifted_target(env):
+    src = source_file(env, "mod.dll", "mine")
+    op = place(env, "Mods/mod.dll", src)
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "Mods" / "mod.dll"
+
+    target.write_text("clobbered by a game update")
+    apply_file_ops(env.steam_dir, [op], [])
+
+    assert target.read_text() == "mine"
+
+
+def test_overwrite_changes_re_enforces_exec_bit(env):
+    src = source_file(env, "run.sh", "x", mode=0o755)
+    op = place(env, "run.sh", src, executable=True)
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "run.sh"
+
+    target.chmod(0o644)
+    apply_file_ops(env.steam_dir, [op], [])
+
+    assert os.access(target, os.X_OK)
+
+
+def test_seed_does_not_re_enforce_drift(env):
+    src = source_file(env, "cfg.ini", "default")
+    op = place(env, "cfg.ini", src, overwrite_changes=False)
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "cfg.ini"
+
+    target.write_text("user edit")
+    apply_file_ops(env.steam_dir, [op], [])
+
+    assert target.read_text() == "user edit"
+
+
 def test_reapply_is_stable(env):
     src = source_file(env, "foo.dll", "x")
     op = place(env, "Mods/foo.dll", src)
