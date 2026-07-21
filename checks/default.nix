@@ -103,6 +103,8 @@ let
               language = "german";
               updateBehavior = "onLaunch";
               artwork.hero = fakeArt;
+              files.install."mods/test.pak".source = fakeArt;
+              removeFiles.install = [ "movies/intro.bik" ];
               launchOptions = {
                 env = {
                   WINEDLLOVERRIDES = "winmm,version=n,b";
@@ -142,6 +144,8 @@ let
         libraryIcon = false;
         launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
         artwork = noArtwork;
+        files = [ ];
+        removeFiles = [ ];
       };
 
       "730" = {
@@ -153,6 +157,8 @@ let
         libraryIcon = false;
         launchOptions = null;
         artwork = noArtwork;
+        files = [ ];
+        removeFiles = [ ];
       };
 
       "999" = {
@@ -165,6 +171,8 @@ let
         libraryIcon = true;
         launchOptions = null;
         artwork = noArtwork;
+        files = [ ];
+        removeFiles = [ ];
       };
 
       cyberpunk = {
@@ -178,6 +186,21 @@ let
         artwork = noArtwork // {
           hero = fakeArt;
         };
+        files = [
+          {
+            location = "install";
+            target = "mods/test.pak";
+            source = "${fakeArt}";
+            overwriteChanges = true;
+            executable = null;
+          }
+        ];
+        removeFiles = [
+          {
+            location = "install";
+            target = "movies/intro.bik";
+          }
+        ];
       };
     };
 

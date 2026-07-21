@@ -295,6 +295,38 @@ in
               duplicateMessages = lib.mapAttrsToList (
                 id: entries: "id ${id} is used by: ${lib.concatMapStringsSep ", " (e: e.name) entries}"
               ) duplicateIds;
+
+              fileEntries = lib.concatLists (
+                lib.mapAttrsToList (
+                  appName: app:
+                  lib.concatMap (
+                    location:
+                    lib.mapAttrsToList (path: entry: {
+                      inherit
+                        appName
+                        location
+                        path
+                        entry
+                        ;
+                    }) app.files.${location}
+                  ) [ "install" "prefix" ]
+                ) enabledApps
+              );
+
+              enabledFileEntries = lib.filter (e: e.entry.enable) fileEntries;
+
+              removeEntries = lib.concatLists (
+                lib.mapAttrsToList (
+                  appName: app:
+                  lib.concatMap (
+                    location: map (target: { inherit appName location target; }) app.removeFiles.${location}
+                  ) [ "install" "prefix" ]
+                ) enabledApps
+              );
+
+              unsafePath =
+                p:
+                lib.hasPrefix "/" p || lib.hasInfix "../" p || lib.hasSuffix "/.." p || p == "..";
             in
             [
               {
@@ -309,7 +341,19 @@ in
             ++ lib.mapAttrsToList (name: app: {
               assertion = app.artwork.icon == null;
               message = "steam-config-nix: apps.${name} sets artwork.icon, which is only available for non-Steam apps (Steam manages the icons of its own apps)";
-            }) enabledApps;
+            }) enabledApps
+            ++ map (e: {
+              assertion = (e.entry.source != null) != (e.entry.text != null);
+              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}."${e.path}" must set exactly one of `source` or `text`'';
+            }) enabledFileEntries
+            ++ map (e: {
+              assertion = !unsafePath e.entry.target;
+              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}."${e.path}" has an unsafe target "${e.entry.target}" (paths must be relative and must not contain ..)'';
+            }) enabledFileEntries
+            ++ map (e: {
+              assertion = !unsafePath e.target;
+              message = ''steam-config-nix: apps.${e.appName}.removeFiles.${e.location} has an unsafe path "${e.target}" (paths must be relative and must not contain ..)'';
+            }) removeEntries;
         }
 
         (lib.optionalAttrs (format == "nixos") {
