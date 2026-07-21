@@ -100,8 +100,7 @@ let
         }
       '';
       description = ''
-        Environment variables to export in the launch script.
-        You can also unset variables by setting their value to `null`.
+        Environment variables to export in the launch script. You can also unset variables by setting their value to `null`.
       '';
     };
 
@@ -177,8 +176,7 @@ in
       default = null;
       example = lib.literalExpression "pkgs.proton-ge-bin";
       description = ''
-        Compatibility tool to use, either the internal name of an installed
-        tool (e.g. `"proton_experimental"`), or a package containing one.
+        Compatibility tool to use, either the internal name of an installed tool (e.g. `"proton_experimental"`), or a package containing one.
 
         Packages are installed automatically, see the readme for details.
       '';
@@ -206,13 +204,9 @@ in
       description = ''
         winetricks verbs to install into the app's Proton prefix.
 
-        Applied when the app is launched (via protontricks, using the prefix
-        and Proton that Steam provides in the environment), and re-applied when
-        the verb list changes. The app must use a compatibility tool, and must
-        have been launched once so the prefix exists.
+        Applied when the app is launched (via protontricks, using the prefix and Proton that Steam provides in the environment), and re-applied when the verb list changes. The app must use a compatibility tool, and must have been launched once so the prefix exists.
 
-        Removing a verb does not uninstall it, as winetricks cannot reliably
-        undo verbs.
+        Removing a verb does not uninstall it, as winetricks cannot reliably undo verbs.
       '';
     };
 

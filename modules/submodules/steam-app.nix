@@ -143,8 +143,7 @@ in
         - `"onLaunch"`: only update the app when it is launched
         - `"highPriority"`: always update this app before others
 
-        The app must be installed for this to be applied. When unset again,
-        Steam's default update behaviour is restored.
+        The app must be installed for this to be applied. When unset again, Steam's default update behaviour is restored.
       '';
     };
 
@@ -154,11 +153,9 @@ in
       defaultText = lib.literalExpression "config.programs.steam.config.desktopEntries.libraryIcons";
       example = false;
       description = ''
-        Use the app's own icon from your Steam library for its desktop entry,
-        instead of the generic Steam icon.
+        Use the app's own icon from your Steam library for its desktop entry, instead of the generic Steam icon.
 
-        Defaults to the global `programs.steam.config.desktopEntries.libraryIcons`
-        option. Setting `desktopEntry.icon` explicitly always takes precedence.
+        Defaults to the global `programs.steam.config.desktopEntries.libraryIcons` option. Setting `desktopEntry.icon` explicitly always takes precedence.
 
         Has no effect unless `desktopEntry.enable` is set.
       '';

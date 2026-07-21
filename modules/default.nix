@@ -108,17 +108,11 @@ in
                   default = true;
                   example = false;
                   description = ''
-                    Use each Steam app's own icon from your Steam library for its
-                    desktop entry, instead of the generic Steam icon.
+                    Use each Steam app's own icon from your Steam library for its desktop entry, instead of the generic Steam icon.
 
-                    Icons are taken from Steam's local library cache, so an app must
-                    have been seen by Steam at least once for its icon to be
-                    available. They are small (typically 32x32), and fall back to
-                    the Steam icon when they cannot be resolved.
+                    Icons are taken from Steam's local library cache, so an app must have been seen by Steam at least once for its icon to be available. They are small (typically 32x32), and fall back to the Steam icon when they cannot be resolved.
 
-                    Individual apps can opt out with
-                    `desktopEntry.useLibraryIcon = false`, and setting
-                    `desktopEntry.icon` explicitly always takes precedence.
+                    Individual apps can opt out with `desktopEntry.useLibraryIcon = false`, and setting `desktopEntry.icon` explicitly always takes precedence.
                   '';
                 };
               };
@@ -131,8 +125,7 @@ in
       description = ''
         Desktop entry defaults for all configured apps.
 
-        Setting this to a boolean is deprecated; use `desktopEntries.enable`
-        instead. Individual apps can opt out with `desktopEntry.enable = false`.
+        Setting this to a boolean is deprecated; use `desktopEntries.enable` instead. Individual apps can opt out with `desktopEntry.enable = false`.
       '';
     };
 
@@ -141,11 +134,9 @@ in
       default = true;
       example = false;
       description = ''
-        Send desktop notifications for slow launch-time steps (e.g. installing
-        winetricks verbs).
+        Send desktop notifications for slow launch-time steps (e.g. installing winetricks verbs).
 
-        Degrades gracefully: if no notification daemon is reachable the
-        notification is simply skipped.
+        Degrades gracefully: if no notification daemon is reachable the notification is simply skipped.
       '';
     };
 
@@ -154,8 +145,7 @@ in
       default = null;
       example = "proton_experimental";
       description = ''
-        Default compatibility tool to use for Steam Play, either the internal
-        name of an installed tool, or a package containing one.
+        Default compatibility tool to use for Steam Play, either the internal name of an installed tool, or a package containing one.
 
         This option sets the default compatibility tool in Steam, but does not set the nix module defaults.
       '';
