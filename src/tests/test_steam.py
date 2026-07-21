@@ -5,6 +5,8 @@ import pytest
 
 from steam_config_patcher.steam import (
     close_steam,
+    find_app_compat_prefix,
+    find_app_install_dir,
     find_app_manifest,
     game_is_running,
     get_steam_dir,
@@ -140,6 +142,61 @@ def test_find_app_manifest_missing_returns_none(tmp_path):
     (steam_dir / "steamapps").mkdir(parents=True)
 
     assert find_app_manifest(steam_dir, 620) is None
+
+
+def write_appmanifest(library, app_id, installdir):
+    manifest = library / "steamapps" / f"appmanifest_{app_id}.acf"
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest.write_text(
+        f'"AppState"\n{{\n\t"appid"\t\t"{app_id}"\n'
+        f'\t"installdir"\t\t"{installdir}"\n}}\n',
+        encoding="utf-8",
+    )
+    return manifest
+
+
+def test_find_app_install_dir_resolves_common_path(tmp_path):
+    steam_dir = tmp_path / "steam"
+    extra = tmp_path / "drive"
+    write_libraryfolders(steam_dir, [steam_dir, extra])
+    write_appmanifest(extra, 620, "Portal 2")
+    install_dir = extra / "steamapps" / "common" / "Portal 2"
+    install_dir.mkdir(parents=True)
+
+    assert find_app_install_dir(steam_dir, 620) == install_dir
+
+
+def test_find_app_install_dir_missing_manifest_returns_none(tmp_path):
+    steam_dir = tmp_path / "steam"
+    (steam_dir / "steamapps").mkdir(parents=True)
+
+    assert find_app_install_dir(steam_dir, 620) is None
+
+
+def test_find_app_install_dir_uninstalled_common_returns_none(tmp_path):
+    steam_dir = tmp_path / "steam"
+    write_libraryfolders(steam_dir, [steam_dir])
+    write_appmanifest(steam_dir, 620, "Portal 2")
+
+    assert find_app_install_dir(steam_dir, 620) is None
+
+
+def test_find_app_compat_prefix_resolves_pfx(tmp_path):
+    steam_dir = tmp_path / "steam"
+    write_libraryfolders(steam_dir, [steam_dir])
+    write_appmanifest(steam_dir, 620, "Portal 2")
+    prefix = steam_dir / "steamapps" / "compatdata" / "620" / "pfx"
+    prefix.mkdir(parents=True)
+
+    assert find_app_compat_prefix(steam_dir, 620) == prefix
+
+
+def test_find_app_compat_prefix_unlaunched_returns_none(tmp_path):
+    steam_dir = tmp_path / "steam"
+    write_libraryfolders(steam_dir, [steam_dir])
+    write_appmanifest(steam_dir, 620, "Portal 2")
+
+    assert find_app_compat_prefix(steam_dir, 620) is None
 
 
 def test_user_ids_are_numeric_dirs_excluding_zero(tmp_path):

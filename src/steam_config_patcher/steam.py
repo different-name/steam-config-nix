@@ -70,6 +70,29 @@ def find_app_manifest(steam_dir: Path, app_id: int) -> Optional[Path]:
     return None
 
 
+def find_app_install_dir(steam_dir: Path, app_id: int) -> Optional[Path]:
+    manifest = find_app_manifest(steam_dir, app_id)
+    if manifest is None:
+        return None
+
+    root = text.loads(manifest.read_text(encoding="utf-8"))
+    installdir = next(root.find_all("AppState", "installdir"), None)
+    if installdir is None or installdir.is_block or not installdir.value:
+        return None
+
+    install_dir = manifest.parent.joinpath("common", installdir.value)
+    return install_dir if install_dir.is_dir() else None
+
+
+def find_app_compat_prefix(steam_dir: Path, app_id: int) -> Optional[Path]:
+    manifest = find_app_manifest(steam_dir, app_id)
+    if manifest is None:
+        return None
+
+    prefix = manifest.parent.joinpath("compatdata", str(app_id), "pfx")
+    return prefix if prefix.is_dir() else None
+
+
 def steam_processes() -> list[psutil.Process]:
     uid = os.getuid()
     processes = []
