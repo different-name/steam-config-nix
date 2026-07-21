@@ -663,16 +663,11 @@ def test_file_ops_skipped_when_game_running_and_skipping(fake_steam, tmp_path):
     assert not (install / "Mods" / "mod.dll").exists()
 
 
-def test_file_ops_apply_after_closing_for_running_game(fake_steam, tmp_path):
-    fake_steam.running = True
-    fake_steam.game_running = True
-    steam_dir = make_steam_dir(tmp_path)
-    install = install_dir_for(steam_dir)
-    source = tmp_path / "mod.dll"
+def file_op_cfg(steam_dir, **kwargs):
+    source = steam_dir.parent / "mod.dll"
     source.write_text("mod")
-    cfg = make_cfg(
+    return make_cfg(
         steam_dir,
-        on_steam_running="close",
         file_ops=[
             FileOp(
                 app_id=620,
@@ -682,12 +677,90 @@ def test_file_ops_apply_after_closing_for_running_game(fake_steam, tmp_path):
                 overwrite_changes=True,
             )
         ],
+        **kwargs,
+    )
+
+
+def test_file_ops_apply_after_closing_for_running_game(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    cfg = file_op_cfg(
+        steam_dir,
+        on_steam_running="close",
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
     )
 
     patch_config_files(cfg)
 
     assert fake_steam.game_wait_calls == 1
     assert fake_steam.close_calls == 1
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
+
+
+def test_file_op_only_change_does_not_close_steam(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    cfg = file_op_cfg(steam_dir, on_steam_running="close")
+
+    patch_config_files(cfg)
+
+    assert fake_steam.close_calls == 0
+    assert fake_steam.game_wait_calls == 1
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
+
+
+def test_force_close_file_op_only_waits_for_game_without_closing_steam(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    cfg = file_op_cfg(steam_dir, on_steam_running="force-close")
+
+    patch_config_files(cfg)
+
+    assert fake_steam.close_calls == 0
+    assert fake_steam.game_wait_calls == 1
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
+
+
+def test_wait_waits_for_game_before_file_ops(fake_steam, tmp_path):
+    fake_steam.running = True
+    fake_steam.game_running = True
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    cfg = file_op_cfg(
+        steam_dir,
+        on_steam_running="wait",
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    patch_config_files(cfg)
+
+    assert fake_steam.wait_calls == 1
+    assert fake_steam.game_wait_calls == 1
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
+
+
+def test_vdf_write_failure_does_not_block_file_ops(fake_steam, tmp_path, monkeypatch):
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    cfg = file_op_cfg(
+        steam_dir,
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+    )
+
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("steam_config_patcher.patcher.atomic_write_bytes", boom)
+
+    with pytest.raises(SystemExit):
+        patch_config_files(cfg)
+
     assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 

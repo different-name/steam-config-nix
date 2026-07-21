@@ -393,30 +393,21 @@ def patch_config_files(cfg: PatcherConfig):
     prepared = prepare_all()
     has_file_ops = bool(cfg.file_ops or cfg.remove_ops)
 
-    steam_obstructs = bool(prepared) and steam_is_running()
-    game_obstructs = has_file_ops and game_is_running()
-
     blocked = False
-    skip_files = False
-    if steam_obstructs or game_obstructs:
+    if prepared and steam_is_running():
         if cfg.on_steam_running == "skip":
-            blocked = steam_obstructs
-            skip_files = game_obstructs
+            blocked = True
+        elif cfg.on_steam_running == "wait":
+            LOG.info("steam is running, waiting for it to exit")
+            wait_for_steam_exit()
+            prepared = prepare_all()
         else:
-            if cfg.on_steam_running == "wait":
-                if steam_obstructs:
-                    LOG.info("steam is running, waiting for it to exit")
-                    wait_for_steam_exit()
-                else:
-                    LOG.info("a game is running, waiting for it to exit")
-                    wait_for_game_exit()
-            else:
-                if cfg.on_steam_running == "close" and game_is_running():
-                    LOG.info(
-                        "a game is running, waiting for it to exit before closing steam"
-                    )
-                    wait_for_game_exit()
-                close_steam()
+            if cfg.on_steam_running == "close" and game_is_running():
+                LOG.info(
+                    "a game is running, waiting for it to exit before closing steam"
+                )
+                wait_for_game_exit()
+            close_steam()
             prepared = prepare_all()
 
     if not blocked:
@@ -427,8 +418,15 @@ def patch_config_files(cfg: PatcherConfig):
                 failed.add(description)
                 LOG.exception("failed to write %s", description)
 
-    if failed:
-        raise SystemExit(f"{len(failed)} config file(s) failed to patch; see log above")
+    skip_files = False
+    if has_file_ops and game_is_running():
+        if cfg.on_steam_running == "skip":
+            skip_files = True
+        else:
+            LOG.info(
+                "a game is running, waiting for it to exit before applying file operations"
+            )
+            wait_for_game_exit()
 
     if skip_files:
         LOG.warning(
@@ -441,9 +439,12 @@ def patch_config_files(cfg: PatcherConfig):
         except Exception:
             LOG.exception("failed to apply file operations")
 
+    if failed:
+        raise SystemExit(f"{len(failed)} config file(s) failed to patch; see log above")
+
     if blocked:
         LOG.warning(
-            "Steam is running; skipped writes and manifest update. "
+            "Steam is running; skipped Steam config writes. "
             'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
         return
