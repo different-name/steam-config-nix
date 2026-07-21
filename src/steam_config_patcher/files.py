@@ -144,16 +144,37 @@ def _backup_once(
     shutil.copy2(target_path, stored, follow_symlinks=False)
 
 
+def _atomic_place(source_file: Path, target_path: Path, mode: int) -> None:
+    tmp = target_path.with_name(target_path.name + ".steam-config-nix-tmp")
+    shutil.copy2(source_file, tmp)
+    tmp.chmod(mode)
+    os.replace(tmp, target_path)
+
+
 def _place_one(
     steam_dir: Path, root: Path, placement: _Placement, prev: Optional[ManagedFile]
 ) -> Optional[ManagedFile]:
     target_path = root / placement.target
-    exists = target_path.exists() or target_path.is_symlink()
+    is_symlink = target_path.is_symlink()
+    exists = target_path.exists() or is_symlink
+
+    if exists and not is_symlink and target_path.is_dir():
+        LOG.warning(
+            "app %d: %s target %s is a directory, skipping",
+            placement.app_id,
+            placement.location,
+            placement.target,
+        )
+        return prev
 
     if not placement.overwrite_changes and exists:
         return prev
 
-    source_hash = _hash_file(placement.source_file)
+    source_path = str(placement.source_file)
+    if prev is not None and prev.source_path == source_path and prev.source_hash is not None:
+        source_hash = prev.source_hash
+    else:
+        source_hash = _hash_file(placement.source_file)
     desired_mode = _resolve_mode(placement.executable, placement.source_file)
 
     had_backup = prev.had_backup if prev is not None else False
@@ -170,11 +191,13 @@ def _place_one(
         op="place",
         source_hash=source_hash,
         had_backup=had_backup,
+        source_path=source_path,
     )
 
     if (
-        target_path.is_file()
-        and not target_path.is_symlink()
+        not is_symlink
+        and target_path.is_file()
+        and target_path.stat().st_size == placement.source_file.stat().st_size
         and _hash_file(target_path) == source_hash
     ):
         if target_path.stat().st_mode & 0o777 != desired_mode:
@@ -182,8 +205,7 @@ def _place_one(
         return entry
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(placement.source_file, target_path)
-    target_path.chmod(desired_mode)
+    _atomic_place(placement.source_file, target_path, desired_mode)
 
     return entry
 
@@ -274,6 +296,11 @@ def _revert_one(steam_dir: Path, root: Optional[Path], entry: ManagedFile) -> No
     target_path = root / entry.target
 
     if entry.op == "place":
+        if target_path.is_dir() and not target_path.is_symlink():
+            LOG.info("leaving directory at former file target %s", target_path)
+            if stored.exists():
+                stored.unlink()
+            return
         modified = (
             target_path.is_file()
             and entry.source_hash is not None

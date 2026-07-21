@@ -295,6 +295,49 @@ def test_seed_does_not_re_enforce_drift(env):
     assert target.read_text() == "user edit"
 
 
+def test_place_over_symlink_replaces_link_not_target(env):
+    external = env.src.parent / "external.txt"
+    external.write_text("external original")
+    link = env.install / "config.ini"
+    link.symlink_to(external)
+    src = source_file(env, "mod.ini", "modded")
+
+    apply_file_ops(env.steam_dir, [place(env, "config.ini", src)], [])
+
+    target = env.install / "config.ini"
+    assert not target.is_symlink()
+    assert target.read_text() == "modded"
+    assert external.read_text() == "external original"
+
+
+def test_place_over_directory_is_skipped(env):
+    thing = env.install / "thing"
+    thing.mkdir()
+    (thing / "keep").write_text("keep")
+    src = source_file(env, "mod", "x")
+
+    apply_file_ops(env.steam_dir, [place(env, "thing", src)], [])
+
+    assert thing.is_dir()
+    assert (thing / "keep").read_text() == "keep"
+    assert load_files_manifest(env.steam_dir).files == []
+
+
+def test_revert_leaves_directory_at_former_file_target(env):
+    src = source_file(env, "mod.dll", "mine")
+    op = place(env, "mods/x", src)
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "mods" / "x"
+    target.unlink()
+    target.mkdir()
+    (target / "inside").write_text("data")
+
+    apply_file_ops(env.steam_dir, [], [])
+
+    assert target.is_dir()
+    assert (target / "inside").read_text() == "data"
+
+
 def test_reapply_is_stable(env):
     src = source_file(env, "foo.dll", "x")
     op = place(env, "Mods/foo.dll", src)

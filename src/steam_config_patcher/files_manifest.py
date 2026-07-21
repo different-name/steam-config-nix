@@ -36,6 +36,7 @@ def _parse(raw: dict) -> Optional[FilesManifest]:
                 op=entry["op"],
                 source_hash=entry.get("source_hash"),
                 had_backup=bool(entry.get("had_backup", False)),
+                source_path=entry.get("source_path"),
             )
             for entry in (raw.get("files") or [])
         ],
@@ -67,6 +68,7 @@ def save_files_manifest(steam_dir: Path, manifest: FilesManifest) -> None:
                     "op": entry.op,
                     "source_hash": entry.source_hash,
                     "had_backup": entry.had_backup,
+                    "source_path": entry.source_path,
                 }
                 for entry in manifest.files
             ],

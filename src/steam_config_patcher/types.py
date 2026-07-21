@@ -130,6 +130,7 @@ class ManagedFile:
     op: Literal["place", "remove"]
     source_hash: Optional[str] = None
     had_backup: bool = False
+    source_path: Optional[str] = None
 
 
 @dataclass
