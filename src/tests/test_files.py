@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from steam_config_patcher.files import apply_file_ops
+from steam_config_patcher.files import FileOpConflict, apply_file_ops
 from steam_config_patcher.files_manifest import backup_path, load_files_manifest
 from steam_config_patcher.types import FileOp, RemoveOp
 
@@ -319,6 +319,18 @@ def test_stale_source_file_is_reverted_on_update(env):
 
     assert (env.install / "a.dll").exists()
     assert not (env.install / "b.dll").exists()
+
+
+def test_conflicting_targets_raise(env):
+    a = source_file(env, "a", "A")
+    b = source_file(env, "b", "B")
+    ops = [
+        FileOp(app_id=620, location="install", target="same.dll", source=a, overwrite_changes=True),
+        FileOp(app_id=620, location="install", target="same.dll", source=b, overwrite_changes=True),
+    ]
+
+    with pytest.raises(FileOpConflict):
+        apply_file_ops(env.steam_dir, ops, [])
 
 
 def test_unsafe_place_target_is_skipped(env):

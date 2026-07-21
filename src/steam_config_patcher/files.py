@@ -117,7 +117,7 @@ def _resolve_placements(file_ops: list[FileOp]) -> dict[FileKey, _Placement]:
                     specificity=specificity,
                     declared=op.target,
                 )
-            elif specificity == existing.specificity and existing.declared != op.target:
+            elif specificity == existing.specificity:
                 raise FileOpConflict(
                     f"app {op.app_id}: conflicting file entries for {op.location}/{target}"
                 )

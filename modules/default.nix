@@ -317,6 +317,22 @@ in
               unsafePath =
                 p:
                 lib.hasPrefix "/" p || lib.hasInfix "../" p || lib.hasSuffix "/.." p || p == "..";
+
+              duplicateTargets = lib.filter (group: lib.length group > 1) (
+                builtins.attrValues (
+                  builtins.groupBy (
+                    e: "${e.appName}\n${e.location}\n${e.entry.target}"
+                  ) enabledFileEntries
+                )
+              );
+
+              duplicateTargetMessages = map (
+                group:
+                let
+                  e = builtins.head group;
+                in
+                ''apps.${e.appName}.files.${e.location} has multiple entries targeting "${e.entry.target}"''
+              ) duplicateTargets;
             in
             [
               {
@@ -343,7 +359,13 @@ in
             ++ map (e: {
               assertion = !unsafePath e.target;
               message = ''steam-config-nix: apps.${e.appName}.removeFiles.${e.location} has an unsafe path "${e.target}" (paths must be relative and must not contain ..)'';
-            }) removeEntries;
+            }) removeEntries
+            ++ [
+              {
+                assertion = duplicateTargets == [ ];
+                message = "steam-config-nix: multiple file entries resolve to the same target\n${lib.concatStringsSep "\n" duplicateTargetMessages}";
+              }
+            ];
         }
 
         (lib.optionalAttrs (format == "nixos") {

@@ -300,6 +300,14 @@ let
       "an unsafe file target should fail"
     && lib.assertMsg (hasFailure "unsafe path" (failingAssertions { removeFiles.install = [ "../escape" ]; }))
       "an unsafe removeFiles path should fail"
+    && lib.assertMsg (hasFailure "same target" (failingAssertions {
+      files.install = {
+        "a".target = "shared.dll";
+        "b".target = "shared.dll";
+      };
+      files.install."a".source = fakeArt;
+      files.install."b".source = fakeArt;
+    })) "duplicate resolved targets should fail"
     && lib.assertMsg (failingAssertions {
       files.install."mods/ok.pak".source = fakeArt;
       removeFiles.install = [ "movies/intro.bik" ];
