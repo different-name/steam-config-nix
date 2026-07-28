@@ -4,6 +4,11 @@ from typing import Literal, Optional, Union
 
 CONFIG_FILE = "config"
 LOCALCONFIG_FILE = "localconfig"
+DISPLAY_RATES_AS_BITS_PATH = (
+    "UserLocalConfigStore",
+    "system",
+    "displayratesasbits",
+)
 APPMANIFEST_FILE_PREFIX = "appmanifest_"
 
 APPMANIFEST_PATH = ("AppState",)
@@ -69,6 +74,7 @@ class PatcherConfig:
     steam_dir: Path
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]
+    display_rates_as_bits: Optional[bool] = None
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
     game_update_behaviors: dict[int, str] = field(default_factory=dict)

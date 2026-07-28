@@ -151,6 +151,17 @@ in
       '';
     };
 
+    displayRatesAsBits = lib.mkOption {
+      type = with types; nullOr bool;
+      default = null;
+      example = false;
+      description = ''
+        Whether to display download rates in bits per second.
+
+        Set to `false` for MB/s (bytes), `true` for Mb/s (bits). `null` leaves the existing Steam setting untouched.
+      '';
+    };
+
     apps = lib.mkOption {
       type = mkAppType steamAppModule;
       default = { };
@@ -242,6 +253,7 @@ in
       patcherConfig = builtins.toJSON {
         inherit (cfg) onSteamRunning;
         defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
+        displayRatesAsBits = cfg.displayRatesAsBits;
         apps = mapFinalConfigs enabledApps;
         nonSteamApps = mapFinalConfigs enabledNonSteamApps;
       };
@@ -290,17 +302,22 @@ in
                 lib.concatLists (
                   lib.mapAttrsToList (
                     appName: app:
-                    lib.concatMap (
-                      location:
-                      lib.mapAttrsToList (path: entry: {
-                        inherit
-                          appName
-                          location
-                          path
-                          entry
-                          ;
-                      }) app.files.${location}
-                    ) [ "install" "prefix" ]
+                    lib.concatMap
+                      (
+                        location:
+                        lib.mapAttrsToList (path: entry: {
+                          inherit
+                            appName
+                            location
+                            path
+                            entry
+                            ;
+                        }) app.files.${location}
+                      )
+                      [
+                        "install"
+                        "prefix"
+                      ]
                   ) enabledApps
                 )
               );
@@ -308,9 +325,12 @@ in
               removeEntries = lib.concatLists (
                 lib.mapAttrsToList (
                   appName: app:
-                  lib.concatMap (
-                    location: map (target: { inherit appName location target; }) app.removeFiles.${location}
-                  ) [ "install" "prefix" ]
+                  lib.concatMap
+                    (location: map (target: { inherit appName location target; }) app.removeFiles.${location})
+                    [
+                      "install"
+                      "prefix"
+                    ]
                 ) enabledApps
               );
 
@@ -318,9 +338,7 @@ in
 
               duplicateTargets = lib.filter (group: lib.length group > 1) (
                 builtins.attrValues (
-                  builtins.groupBy (
-                    e: "${e.appName}\n${e.location}\n${e.entry.target}"
-                  ) enabledFileEntries
+                  builtins.groupBy (e: "${e.appName}\n${e.location}\n${e.entry.target}") enabledFileEntries
                 )
               );
 
