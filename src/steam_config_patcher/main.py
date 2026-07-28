@@ -78,6 +78,7 @@ class NonSteamAppSchema(AppSchema):
 class InputSchema(StrictSchema):
     onSteamRunning: Literal["wait", "close", "force-close", "skip"]
     defaultCompatTool: CompatToolValue
+    displayRatesAsBits: Optional[bool] = None
     apps: dict[str, AppSchema]
     nonSteamApps: dict[str, NonSteamAppSchema]
 
@@ -110,6 +111,7 @@ def parse_input() -> PatcherConfig:
     return PatcherConfig(
         on_steam_running=validated_input.onSteamRunning,
         steam_dir=steam_dir,
+        display_rates_as_bits=validated_input.displayRatesAsBits,
         compat_tool_mapping={
             app.id: CompatToolConfig(
                 name=resolve_compat_tool(app.compatTool),

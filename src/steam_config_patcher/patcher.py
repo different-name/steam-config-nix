@@ -24,6 +24,7 @@ from steam_config_patcher.types import (
     APPMANIFEST_PATH,
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
+    DISPLAY_RATES_AS_BITS_PATH,
     LOCALCONFIG_APPS_PATH,
     LOCALCONFIG_FILE,
     ConfigPatch,
@@ -158,6 +159,7 @@ def generate_appmanifest_patch(
 
 
 def localconfig_vdf_state(
+    cfg: PatcherConfig,
     user_config: UserConfig,
 ) -> tuple[KeyValuesLeaves, list[ManagedKey]]:
     leaves: KeyValuesLeaves = {}
@@ -171,6 +173,18 @@ def localconfig_vdf_state(
                 file=LOCALCONFIG_FILE,
                 key_path=key_path,
                 expected=launch_options,
+            )
+        )
+
+    if cfg.display_rates_as_bits is not None:
+        leaves[DISPLAY_RATES_AS_BITS_PATH] = (
+            "1" if cfg.display_rates_as_bits else "0"
+        )
+        managed_keys.append(
+            ManagedKey(
+                file=LOCALCONFIG_FILE,
+                key_path=DISPLAY_RATES_AS_BITS_PATH,
+                expected="1" if cfg.display_rates_as_bits else "0",
             )
         )
 
@@ -211,7 +225,7 @@ def generate_localconfig_vdf_patch(
     user_config: UserConfig,
     prev_manifest: UserManifest,
 ) -> ConfigPatch:
-    leaves, desired_keys = localconfig_vdf_state(user_config)
+    leaves, desired_keys = localconfig_vdf_state(cfg, user_config)
 
     return ConfigPatch(
         file_path=cfg.steam_dir.joinpath(
@@ -316,7 +330,7 @@ def prepare_patch(config_patch: ConfigPatch) -> Optional[bytes]:
 
 def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifest:
     _, config_keys = config_vdf_state(cfg)
-    _, localconfig_keys = localconfig_vdf_state(user_config)
+    _, localconfig_keys = localconfig_vdf_state(cfg, user_config)
 
     return UserManifest(
         managed_keys=config_keys + game_appmanifest_keys(cfg) + localconfig_keys,
