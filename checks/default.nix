@@ -401,4 +401,9 @@ in
 
     touch $out
   '';
+
+  formatting = pkgs.runCommand "check-formatting" { nativeBuildInputs = [ pkgs.nixfmt ]; } ''
+    nixfmt --check $(find ${self} -name '*.nix')
+    touch $out
+  '';
 }

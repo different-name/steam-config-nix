@@ -33,6 +33,8 @@
           checks = import ./checks {
             inherit inputs self pkgs;
           };
+
+          formatter = pkgs.nixfmt;
         };
 
       flake = {
