@@ -40,6 +40,7 @@ let
     builtins.toJSON {
       onSteamRunning = "wait";
       defaultCompatTool = null;
+      displayRatesAsBits = true;
       apps."Test Game" = {
         id = 620;
         compatTool = "GE-Proton";
@@ -338,6 +339,7 @@ in
 
         grep -q GE-Proton "$steam/config/config.vdf"
         grep -q test-launch-wrapper "$lc"
+        grep -q '"displayratesasbits"[[:space:]]*"1"' "$lc"
         grep -q '"BetaKey"' "$acf"
         grep -q beta "$acf"
         grep -q german "$acf"
