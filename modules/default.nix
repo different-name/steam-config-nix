@@ -251,9 +251,8 @@ in
       );
 
       patcherConfig = builtins.toJSON {
-        inherit (cfg) onSteamRunning;
+        inherit (cfg) onSteamRunning displayRatesAsBits;
         defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
-        displayRatesAsBits = cfg.displayRatesAsBits;
         apps = mapFinalConfigs enabledApps;
         nonSteamApps = mapFinalConfigs enabledNonSteamApps;
       };
