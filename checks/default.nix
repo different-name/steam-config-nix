@@ -276,7 +276,10 @@ let
           {
             programs.steam.config = {
               enable = true;
-              apps."bad" = { id = 111; } // appConfig;
+              apps."bad" = {
+                id = 111;
+              }
+              // appConfig;
             };
           }
         ];
@@ -287,20 +290,21 @@ let
   hasFailure = substr: assertions: lib.any (lib.hasInfix substr) assertions;
 
   assertionsOk =
-    lib.assertMsg (
-      hasFailure "exactly one of" (failingAssertions {
-        files.install."x" = {
-          source = fakeArt;
-          text = "hi";
-        };
-      })
-    ) "setting both source and text should fail"
-    && lib.assertMsg (hasFailure "exactly one of" (failingAssertions { files.install."x" = { }; }))
-      "setting neither source nor text should fail"
-    && lib.assertMsg (hasFailure "unsafe target" (failingAssertions { files.install."../escape".source = fakeArt; }))
-      "an unsafe file target should fail"
-    && lib.assertMsg (hasFailure "unsafe path" (failingAssertions { removeFiles.install = [ "../escape" ]; }))
-      "an unsafe removeFiles path should fail"
+    lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
+      files.install."x" = {
+        source = fakeArt;
+        text = "hi";
+      };
+    })) "setting both source and text should fail"
+    && lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
+      files.install."x" = { };
+    })) "setting neither source nor text should fail"
+    && lib.assertMsg (hasFailure "unsafe target" (failingAssertions {
+      files.install."../escape".source = fakeArt;
+    })) "an unsafe file target should fail"
+    && lib.assertMsg (hasFailure "unsafe path" (failingAssertions {
+      removeFiles.install = [ "../escape" ];
+    })) "an unsafe removeFiles path should fail"
     && lib.assertMsg (hasFailure "same target" (failingAssertions {
       files.install = {
         "a".target = "shared.dll";
@@ -309,10 +313,12 @@ let
       files.install."a".source = fakeArt;
       files.install."b".source = fakeArt;
     })) "duplicate resolved targets should fail"
-    && lib.assertMsg (failingAssertions {
-      files.install."mods/ok.pak".source = fakeArt;
-      removeFiles.install = [ "movies/intro.bik" ];
-    } == [ ]) "a valid file config should not fail";
+    && lib.assertMsg (
+      failingAssertions {
+        files.install."mods/ok.pak".source = fakeArt;
+        removeFiles.install = [ "movies/intro.bik" ];
+      } == [ ]
+    ) "a valid file config should not fail";
 in
 {
   steam-config-patcher = self.packages.${system}.steam-config-patcher;

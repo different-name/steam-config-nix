@@ -78,7 +78,8 @@ let
   );
 
   resolveSource =
-    entry: if entry.source != null then entry.source else pkgs.writeText "steam-config-nix-file" entry.text;
+    entry:
+    if entry.source != null then entry.source else pkgs.writeText "steam-config-nix-file" entry.text;
 
   mkFileOps =
     location: attrs:
@@ -237,7 +238,6 @@ in
         .${config.updateBehavior};
     files = mkFileOps "install" config.files.install ++ mkFileOps "prefix" config.files.prefix;
     removeFiles =
-      mkRemoveOps "install" config.removeFiles.install
-      ++ mkRemoveOps "prefix" config.removeFiles.prefix;
+      mkRemoveOps "install" config.removeFiles.install ++ mkRemoveOps "prefix" config.removeFiles.prefix;
   };
 }
