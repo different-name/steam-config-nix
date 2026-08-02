@@ -52,6 +52,30 @@ def test_missing_vdf_raises(tmp_path):
         resolve_compat_tool_name(tool_dir)
 
 
+def test_resolves_vdf_nested_under_bin(tmp_path):
+    """Chaotic-style packages place compatibilitytool.vdf under bin/."""
+    tool_dir = tmp_path / "tool"
+    bin_dir = tool_dir / "bin"
+    bin_dir.mkdir(parents=True)
+    (bin_dir / "compatibilitytool.vdf").write_text(COMPAT_TOOL_VDF, encoding="utf-8")
+
+    assert resolve_compat_tool_name(tool_dir) == "GE-Proton"
+
+
+def test_root_vdf_preferred_over_bin(tmp_path):
+    tool_dir = make_tool_dir(tmp_path)
+    bin_dir = tool_dir / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "compatibilitytool.vdf").write_text(
+        '"compatibilitytools"\n{\n\t"compat_tools"\n\t{\n'
+        '\t\t"Bin-Tool"\n\t\t{\n\t\t\t"install_path"\t\t"."\n\t\t}\n'
+        "\t}\n}\n",
+        encoding="utf-8",
+    )
+
+    assert resolve_compat_tool_name(tool_dir) == "GE-Proton"
+
+
 def test_vdf_without_tools_raises(tmp_path):
     tool_dir = make_tool_dir(tmp_path, '"compatibilitytools"\n{\n\t"compat_tools"\n\t{\n\t}\n}\n')
 

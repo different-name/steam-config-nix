@@ -98,6 +98,8 @@ Tools provided as packages are installed automatically:
 - NixOS: through `programs.steam.extraCompatPackages`, requires `programs.steam.enable`
 - Home Manager: linked into `~/.local/share/Steam/compatibilitytools.d`
 
+Packages are accepted in either the nixpkgs layout (`steamcompattool` output with `compatibilitytool.vdf` at its root) or with the VDF nested under `bin/` (as used by Chaotic's `proton-cachyos`).
+
 Versions that are not packaged in nixpkgs can be fetched directly from their releases, any archive containing a `compatibilitytool.vdf` at its root will work:
 
 ```nix

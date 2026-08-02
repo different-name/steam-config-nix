@@ -10,6 +10,12 @@
         echo '"compatibilitytools" { "compat_tools" { "Fake-Proton" { "install_path" "." } } }' > $out/compatibilitytool.vdf
       '';
 
+      # Chaotic proton-cachyos style: VDF lives under $out/bin, no steamcompattool output
+      fakeBinCompatTool = pkgs.runCommand "fake-bin-compat-tool" { } ''
+        mkdir -p $out/bin
+        echo '"compatibilitytools" { "compat_tools" { "Bin-Proton" { "install_path" "." } } }' > $out/bin/compatibilitytool.vdf
+      '';
+
       fakeArt = pkgs.runCommand "fake-art.jpg" { } "echo art > $out";
 
       # fixtures + input for the patcher integration check
@@ -367,6 +373,52 @@
           assert assertionsOk;
           "touch $out"
         );
+
+        # Packages that nest compatibilitytool.vdf under bin/ (no steamcompattool
+        # output) must still resolve for the patcher and for HM symlinks.
+        compat-tool-bin-layout =
+          let
+            eval = inputs.nixpkgs.lib.nixosSystem {
+              modules = [
+                self.nixosModules.default
+                {
+                  nixpkgs.hostPlatform = system;
+                  programs.steam.config = {
+                    enable = true;
+                    defaultCompatTool = fakeBinCompatTool;
+                  };
+                }
+              ];
+            };
+            execStart = eval.config.systemd.services."steam-config-patcher@".serviceConfig.ExecStart;
+          in
+          pkgs.runCommand "compat-tool-bin-layout"
+            {
+              nativeBuildInputs = [
+                self.packages.${system}.steam-config-patcher
+                pkgs.jq
+                pkgs.python3
+              ];
+            }
+            ''
+              cfg=$(python3 -c 'import shlex,sys; print(shlex.split(sys.argv[1])[1])' ${lib.escapeShellArg execStart})
+              path=$(jq -r .defaultCompatTool.path "$cfg")
+
+              # resolved path should be the bin/ directory, not the package root
+              test -f "$path/compatibilitytool.vdf"
+              test "$path" != "${fakeBinCompatTool}"
+              grep -q Bin-Proton "$path/compatibilitytool.vdf"
+
+              export HOME="$PWD/home"
+              steam="$HOME/.local/share/Steam"
+              mkdir -p "$steam/config" "$steam/userdata/1/config"
+              echo '"InstallConfigStore" { "Software" { "Valve" { "Steam" { "CompatToolMapping" { } } } } }' > "$steam/config/config.vdf"
+              echo '"UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "Apps" { } } } } }' > "$steam/userdata/1/config/localconfig.vdf"
+              steam-config-patcher "$cfg"
+              grep -q Bin-Proton "$steam/config/config.vdf"
+
+              touch $out
+            '';
 
         nixos-module = pkgs.runCommand "nixos-module-check" { } ''
           diff ${expectedJson} ${actualJson}

@@ -147,6 +147,10 @@ in
       description = ''
         Default compatibility tool to use for Steam Play, either the internal name of an installed tool, or a package containing one.
 
+        Package layouts supported:
+        - nixpkgs-style: a `steamcompattool` output (or `$out`) with `compatibilitytool.vdf` at its root
+        - nested: `compatibilitytool.vdf` under `$out/bin` (e.g. Chaotic's `proton-cachyos`)
+
         This option sets the default compatibility tool in Steam, but does not set the nix module defaults.
       '';
     };
@@ -219,7 +223,29 @@ in
         lib.filter lib.isDerivation ([ cfg.defaultCompatTool ] ++ map (app: app.compatTool) allApps)
       );
 
-      compatToolDir = pkg: lib.getOutput "steamcompattool" pkg;
+      # Resolve the directory that actually contains compatibilitytool.vdf.
+      # nixpkgs tools expose a `steamcompattool` output with the VDF at its root;
+      # others (e.g. chaotic's proton-cachyos) place it under $out/bin instead.
+      compatToolDir =
+        pkg:
+        let
+          base = lib.getOutput "steamcompattool" pkg;
+        in
+        pkgs.runCommand "${lib.getName pkg}-steamcompattool"
+          {
+            preferLocalBuild = true;
+            allowSubstitutes = false;
+          }
+          ''
+            if [ -f ${lib.escapeShellArg "${base}/compatibilitytool.vdf"} ]; then
+              ln -s ${lib.escapeShellArg base} "$out"
+            elif [ -f ${lib.escapeShellArg "${base}/bin/compatibilitytool.vdf"} ]; then
+              ln -s ${lib.escapeShellArg "${base}/bin"} "$out"
+            else
+              echo "steam-config-nix: no compatibilitytool.vdf found in ${base} or ${base}/bin" >&2
+              exit 1
+            fi
+          '';
 
       # desktop entries
 
