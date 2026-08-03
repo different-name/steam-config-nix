@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 CONFIG_FILE = "config"
 LOCALCONFIG_FILE = "localconfig"
@@ -50,10 +50,10 @@ GRID_SLOTS = (
 
 @dataclass
 class GridArt:
-    cover: Optional[str] = None
-    header: Optional[str] = None
-    hero: Optional[str] = None
-    logo: Optional[str] = None
+    cover: str | None = None
+    header: str | None = None
+    hero: str | None = None
+    logo: str | None = None
 
 
 @dataclass
@@ -74,7 +74,7 @@ class PatcherConfig:
     steam_dir: Path
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]
-    display_rates_as_bits: Optional[bool] = None
+    display_rates_as_bits: bool | None = None
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
     game_update_behaviors: dict[int, str] = field(default_factory=dict)
@@ -85,14 +85,14 @@ class PatcherConfig:
 
 
 KeyValuesValue = str | int
-KeyValuesType = dict[str, Union[KeyValuesValue, "KeyValuesType"]]
+KeyValuesType = dict[str, "KeyValuesValue | KeyValuesType"]
 
 
 @dataclass
 class Deletion:
     key_path: tuple[str, ...]
     guard_path: tuple[str, ...] = ()
-    expected: Optional[str] = None
+    expected: str | None = None
 
 
 @dataclass(frozen=True)
@@ -100,7 +100,7 @@ class ManagedKey:
     file: str
     key_path: tuple[str, ...]
     guard_path: tuple[str, ...] = ()
-    expected: Optional[str] = None
+    expected: str | None = None
 
     def to_deletion(self) -> Deletion:
         return Deletion(
@@ -134,9 +134,9 @@ class ManagedFile:
     location: FileLocation
     target: str
     op: Literal["place", "remove"]
-    source_hash: Optional[str] = None
+    source_hash: str | None = None
     had_backup: bool = False
-    source_path: Optional[str] = None
+    source_path: str | None = None
 
 
 @dataclass
@@ -146,7 +146,7 @@ class FileOp:
     target: str
     source: Path
     overwrite_changes: bool
-    executable: Optional[bool] = None
+    executable: bool | None = None
 
 
 @dataclass

@@ -1,5 +1,5 @@
 import struct
-from typing import Callable, Union
+from typing import Callable
 
 _TYPE_DICT = 0x00
 _TYPE_STRING = 0x01
@@ -15,7 +15,7 @@ _UINT64 = struct.Struct("<Q")
 _INT64 = struct.Struct("<q")
 _FLOAT32 = struct.Struct("<f")
 
-BinaryVdfValue = Union[dict, str, int, float]
+BinaryVdfValue = dict | str | int | float
 
 
 class Uint64(int):

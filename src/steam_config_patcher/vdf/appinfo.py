@@ -1,5 +1,4 @@
 import struct
-from typing import Optional
 
 from steam_config_patcher.vdf import binary
 
@@ -41,7 +40,7 @@ def _string_table_key_reader(strings: list[str]) -> binary.KeyReader:
     return read_key
 
 
-def load_common(data: bytes, app_ids: Optional[set[int]] = None) -> dict[int, dict]:
+def load_common(data: bytes, app_ids: set[int] | None = None) -> dict[int, dict]:
     (magic, _universe) = _HEADER.unpack_from(data, 0)
     if magic not in (MAGIC_V40, MAGIC_V41):
         raise AppInfoError(f"unsupported appinfo.vdf version 0x{magic:08x}")
@@ -75,7 +74,7 @@ def load_common(data: bytes, app_ids: Optional[set[int]] = None) -> dict[int, di
     return result
 
 
-def _find_common(block: dict) -> Optional[dict]:
+def _find_common(block: dict) -> dict | None:
     for value in block.values():
         if isinstance(value, dict):
             common = value.get("common")
@@ -84,7 +83,7 @@ def _find_common(block: dict) -> Optional[dict]:
     return None
 
 
-def icon_hash(common: dict) -> Optional[str]:
+def icon_hash(common: dict) -> str | None:
     for key in ("icon", "clienticon"):
         value = common.get(key)
         if isinstance(value, str) and value:

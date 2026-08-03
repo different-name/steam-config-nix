@@ -1,4 +1,4 @@
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 _ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}
 _UNESCAPES = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\t": "\\t", "\r": "\\r"}
@@ -19,9 +19,9 @@ class VdfNode:
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        value: Optional[str] = None,
-        children: Optional[list["VdfNode"]] = None,
+        name: str | None = None,
+        value: str | None = None,
+        children: list["VdfNode"] | None = None,
     ):
         self.name = name
         self.value = value
@@ -56,7 +56,7 @@ class VdfNode:
             elif child.is_block:
                 yield from child.find_all(*rest)
 
-    def find(self, name: str) -> Optional["VdfNode"]:
+    def find(self, name: str) -> "VdfNode | None":
         return next(self.find_all(name), None)
 
     def remove(self, name: str) -> bool:
@@ -106,7 +106,7 @@ def _read_quoted(text: str, start: int, line: int) -> tuple[str, int, int]:
     raise VdfSyntaxError("unterminated string", line)
 
 
-def _tokenize(text: str) -> Iterator[tuple[str, Optional[str], int]]:
+def _tokenize(text: str) -> Iterator[tuple[str, str | None, int]]:
     i = 0
     line = 1
     length = len(text)
@@ -140,7 +140,7 @@ def _tokenize(text: str) -> Iterator[tuple[str, Optional[str], int]]:
 def loads(text: str) -> VdfNode:
     root = VdfNode(children=[])
     stack = [root]
-    pending_key: Optional[str] = None
+    pending_key: str | None = None
     line = 1
 
     for token_type, token_value, token_line in _tokenize(text):

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any, Optional
+from typing import Any
 
 from steam_config_patcher.types import ConfigPatch, Deletion
 from steam_config_patcher.vdf.binary import dumps, loads
@@ -39,7 +39,7 @@ def recursive_update(destination: dict[Any, Any], source: dict[Any, Any]) -> boo
     return modified
 
 
-def prepare_binary_keyvalues(config_patch: ConfigPatch) -> Optional[bytes]:
+def prepare_binary_keyvalues(config_patch: ConfigPatch) -> bytes | None:
     if config_patch.file_path.is_file():
         kv = loads(config_patch.file_path.read_bytes())
     else:

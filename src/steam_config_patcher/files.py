@@ -2,9 +2,9 @@ import hashlib
 import logging
 import os
 import shutil
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Iterator, Optional
 
 from steam_config_patcher.files_manifest import (
     backup_path,
@@ -36,7 +36,7 @@ class _Placement:
     target: str
     source_file: Path
     overwrite_changes: bool
-    executable: Optional[bool]
+    executable: bool | None
     specificity: int
     declared: str
 
@@ -49,7 +49,7 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _resolve_mode(executable: Optional[bool], source_file: Path) -> int:
+def _resolve_mode(executable: bool | None, source_file: Path) -> int:
     if executable is True:
         return 0o755
     if executable is False:
@@ -152,8 +152,8 @@ def _atomic_place(source_file: Path, target_path: Path, mode: int) -> None:
 
 
 def _place_one(
-    steam_dir: Path, root: Path, placement: _Placement, prev: Optional[ManagedFile]
-) -> Optional[ManagedFile]:
+    steam_dir: Path, root: Path, placement: _Placement, prev: ManagedFile | None
+) -> ManagedFile | None:
     target_path = root / placement.target
     is_symlink = target_path.is_symlink()
     exists = target_path.exists() or is_symlink
@@ -229,8 +229,8 @@ def _remove_targets(
 
 def _remove_one(
     steam_dir: Path, root: Path, app_id: int, location: str, target: str,
-    prev: Optional[ManagedFile],
-) -> Optional[ManagedFile]:
+    prev: ManagedFile | None,
+) -> ManagedFile | None:
     target_path = root / target
     if not (target_path.exists() or target_path.is_symlink()):
         return prev
@@ -285,7 +285,7 @@ def _cleanup_created_dirs(
     return survivors
 
 
-def _revert_one(steam_dir: Path, root: Optional[Path], entry: ManagedFile) -> None:
+def _revert_one(steam_dir: Path, root: Path | None, entry: ManagedFile) -> None:
     stored = backup_path(steam_dir, entry.app_id, entry.location, entry.target)
 
     if root is None:
@@ -339,9 +339,9 @@ def apply_file_ops(
 
     prev = {(e.app_id, e.location, e.target): e for e in prev_manifest.files}
 
-    root_cache: dict[tuple[int, str], Optional[Path]] = {}
+    root_cache: dict[tuple[int, str], Path | None] = {}
 
-    def root_for(app_id: int, location: str) -> Optional[Path]:
+    def root_for(app_id: int, location: str) -> Path | None:
         cache_key = (app_id, location)
         if cache_key not in root_cache:
             root_cache[cache_key] = (

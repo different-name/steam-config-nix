@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
 from steam_config_patcher.json_manifest import load_json_manifest, save_json_manifest
 from steam_config_patcher.types import FilesManifest, ManagedDir, ManagedFile
@@ -22,7 +21,7 @@ def backup_path(steam_dir: Path, app_id: int, location: str, target: str) -> Pat
     )
 
 
-def _parse(raw: dict) -> Optional[FilesManifest]:
+def _parse(raw: dict) -> FilesManifest | None:
     version = raw.get("version")
     if version != FILES_MANIFEST_VERSION:
         LOG.warning("ignoring files manifest with unknown version %s", version)

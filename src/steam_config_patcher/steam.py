@@ -3,7 +3,6 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Optional
 
 import psutil
 
@@ -62,7 +61,7 @@ def steam_library_paths(steam_dir: Path) -> list[Path]:
     return unique
 
 
-def find_app_manifest(steam_dir: Path, app_id: int) -> Optional[Path]:
+def find_app_manifest(steam_dir: Path, app_id: int) -> Path | None:
     for library in steam_library_paths(steam_dir):
         manifest = library.joinpath("steamapps", f"appmanifest_{app_id}.acf")
         if manifest.is_file():
@@ -70,7 +69,7 @@ def find_app_manifest(steam_dir: Path, app_id: int) -> Optional[Path]:
     return None
 
 
-def find_app_install_dir(steam_dir: Path, app_id: int) -> Optional[Path]:
+def find_app_install_dir(steam_dir: Path, app_id: int) -> Path | None:
     manifest = find_app_manifest(steam_dir, app_id)
     if manifest is None:
         return None
@@ -84,7 +83,7 @@ def find_app_install_dir(steam_dir: Path, app_id: int) -> Optional[Path]:
     return install_dir if install_dir.is_dir() else None
 
 
-def find_app_compat_prefix(steam_dir: Path, app_id: int) -> Optional[Path]:
+def find_app_compat_prefix(steam_dir: Path, app_id: int) -> Path | None:
     manifest = find_app_manifest(steam_dir, app_id)
     if manifest is None:
         return None
