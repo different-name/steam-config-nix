@@ -2,7 +2,6 @@ import io
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 from PIL import Image
 
@@ -37,7 +36,7 @@ def _remove_managed_icons(hicolor: Path) -> None:
             LOG.warning("could not remove %s", path, exc_info=True)
 
 
-def _librarycache_icon(steam_dir: Path, app_id: int, hash_: str) -> Optional[Path]:
+def _librarycache_icon(steam_dir: Path, app_id: int, hash_: str) -> Path | None:
     directory = steam_dir.joinpath("appcache", "librarycache", str(app_id))
     for ext in (".jpg", ".png", ".ico"):
         candidate = directory / f"{hash_}{ext}"
@@ -54,8 +53,8 @@ def _render_png(source: Path) -> tuple[bytes, tuple[int, int]]:
         return buffer.getvalue(), rgba.size
 
 
-def _fallback_icon() -> Optional[Path]:
-    best: Optional[Path] = None
+def _fallback_icon() -> Path | None:
+    best: Path | None = None
     best_size = -1
     for base in _icon_search_bases():
         hicolor = base / "hicolor"
@@ -84,7 +83,7 @@ def _write_icon(hicolor: Path, app_id: int, data: bytes, size: tuple[int, int]) 
 
 def _resolve_source(
     steam_dir: Path, app_id: int, common: dict[int, dict]
-) -> Optional[Path]:
+) -> Path | None:
     entry = common.get(app_id)
     if entry is None:
         return None

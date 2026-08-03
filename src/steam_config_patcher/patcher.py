@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 from steam_config_patcher.fileio import atomic_write_bytes
 from steam_config_patcher.files import apply_file_ops
@@ -77,7 +77,7 @@ def appmanifest_file_id(app_id: int) -> str:
     return f"{APPMANIFEST_FILE_PREFIX}{app_id}"
 
 
-def appmanifest_app_id(file_id: str) -> Optional[int]:
+def appmanifest_app_id(file_id: str) -> int | None:
     if not file_id.startswith(APPMANIFEST_FILE_PREFIX):
         return None
     suffix = file_id.removeprefix(APPMANIFEST_FILE_PREFIX)
@@ -123,7 +123,7 @@ def configured_appmanifest_ids(cfg: PatcherConfig) -> set[int]:
 
 def generate_appmanifest_patch(
     cfg: PatcherConfig, app_id: int, prev_keys: Iterable[ManagedKey]
-) -> Optional[ConfigPatch]:
+) -> ConfigPatch | None:
     file_id = appmanifest_file_id(app_id)
     settings = appmanifest_settings(cfg, app_id)
 
@@ -319,7 +319,7 @@ def generate_shortcuts_vdf_patch(
     )
 
 
-def prepare_patch(config_patch: ConfigPatch) -> Optional[bytes]:
+def prepare_patch(config_patch: ConfigPatch) -> bytes | None:
     match config_patch.file_format:
         case "keyvalues":
             return prepare_keyvalues(config_patch)

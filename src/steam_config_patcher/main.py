@@ -1,7 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,14 +29,14 @@ class CompatToolRefSchema(StrictSchema):
     path: str
 
 
-CompatToolValue = Optional[Union[str, CompatToolRefSchema]]
+CompatToolValue = str | CompatToolRefSchema | None
 
 
 class ArtworkSchema(StrictSchema):
-    cover: Optional[str] = None
-    header: Optional[str] = None
-    hero: Optional[str] = None
-    logo: Optional[str] = None
+    cover: str | None = None
+    header: str | None = None
+    hero: str | None = None
+    logo: str | None = None
 
 
 class FileOpSchema(StrictSchema):
@@ -44,7 +44,7 @@ class FileOpSchema(StrictSchema):
     target: str
     source: str
     overwriteChanges: bool
-    executable: Optional[bool] = None
+    executable: bool | None = None
 
 
 class RemoveOpSchema(StrictSchema):
@@ -54,11 +54,11 @@ class RemoveOpSchema(StrictSchema):
 
 class AppSchema(StrictSchema):
     id: int
-    launchOptions: Optional[str] = None
+    launchOptions: str | None = None
     compatTool: CompatToolValue = None
-    betaBranch: Optional[str] = None
-    language: Optional[str] = None
-    updateBehavior: Optional[str] = None
+    betaBranch: str | None = None
+    language: str | None = None
+    updateBehavior: str | None = None
     libraryIcon: bool = False
     artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
     files: list[FileOpSchema] = Field(default_factory=list)
@@ -68,8 +68,8 @@ class AppSchema(StrictSchema):
 class NonSteamAppSchema(AppSchema):
     name: str
     target: str
-    startIn: Optional[str]
-    icon: Optional[str]
+    startIn: str | None
+    icon: str | None
     isHidden: bool
     allowOverlay: bool
     inVrLibrary: bool
@@ -78,12 +78,12 @@ class NonSteamAppSchema(AppSchema):
 class InputSchema(StrictSchema):
     onSteamRunning: Literal["wait", "close", "force-close", "skip"]
     defaultCompatTool: CompatToolValue
-    displayRatesAsBits: Optional[bool] = None
+    displayRatesAsBits: bool | None = None
     apps: dict[str, AppSchema]
     nonSteamApps: dict[str, NonSteamAppSchema]
 
 
-def resolve_compat_tool(compat_tool: CompatToolValue) -> Optional[str]:
+def resolve_compat_tool(compat_tool: CompatToolValue) -> str | None:
     if isinstance(compat_tool, CompatToolRefSchema):
         return resolve_compat_tool_name(Path(compat_tool.path))
     return compat_tool

@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Optional
 
 from steam_config_patcher.json_manifest import load_json_manifest, save_json_manifest
 from steam_config_patcher.types import (
@@ -62,7 +61,7 @@ def _parse_v2(raw: dict) -> UserManifest:
     )
 
 
-def _parse(raw: dict) -> Optional[UserManifest]:
+def _parse(raw: dict) -> UserManifest | None:
     version = raw.get("version")
     if version == 1:
         return _parse_v1(raw)

@@ -1,4 +1,4 @@
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 from steam_config_patcher.types import (
     ConfigPatch,
@@ -86,7 +86,7 @@ def delete_key(kv: VdfNode, deletion: Deletion) -> bool:
     return modified
 
 
-def prepare_keyvalues(config_patch: ConfigPatch) -> Optional[bytes]:
+def prepare_keyvalues(config_patch: ConfigPatch) -> bytes | None:
     if not config_patch.file_path.is_file():
         return None
 

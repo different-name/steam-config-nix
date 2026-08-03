@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Callable, Optional, TypeVar
+from typing import Callable, TypeVar
 
 from steam_config_patcher.fileio import atomic_write_text
 
@@ -11,7 +11,7 @@ T = TypeVar("T")
 
 
 def load_json_manifest(
-    path: Path, parse: Callable[[dict], Optional[T]], default: T
+    path: Path, parse: Callable[[dict], T | None], default: T
 ) -> T:
     if not path.is_file():
         return default
