@@ -4,8 +4,15 @@ from steam_config_patcher.vdf import text
 
 
 def resolve_compat_tool_name(tool_dir: Path) -> str:
-    vdf_path = tool_dir / "compatibilitytool.vdf"
-    if not vdf_path.is_file():
+    vdf_paths = [
+        tool_dir / "compatibilitytool.vdf",
+        tool_dir / "bin" / "compatibilitytool.vdf",
+    ]
+
+    for vdf_path in vdf_paths:
+        if vdf_path.is_file():
+            break
+    else:
         raise FileNotFoundError(f"no compatibilitytool.vdf found in {tool_dir}")
 
     root = text.loads(vdf_path.read_text(encoding="utf-8"))
