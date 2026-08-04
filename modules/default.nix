@@ -147,10 +147,6 @@ in
       description = ''
         Default compatibility tool to use for Steam Play, either the internal name of an installed tool, or a package containing one.
 
-        Package layouts supported:
-        - nixpkgs-style: a `steamcompattool` output (or `$out`) with `compatibilitytool.vdf` at its root
-        - nested: `compatibilitytool.vdf` under `$out/bin` (e.g. Chaotic's `proton-cachyos`)
-
         This option sets the default compatibility tool in Steam, but does not set the nix module defaults.
       '';
     };
@@ -223,9 +219,7 @@ in
         lib.filter lib.isDerivation ([ cfg.defaultCompatTool ] ++ map (app: app.compatTool) allApps)
       );
 
-      # Resolve the directory that actually contains compatibilitytool.vdf.
-      # nixpkgs tools expose a `steamcompattool` output with the VDF at its root;
-      # others (e.g. chaotic's proton-cachyos) place it under $out/bin instead.
+      # chaotic's proton-cachyos nests the vdf under bin/ with no steamcompattool output
       compatToolDir =
         pkg:
         let
