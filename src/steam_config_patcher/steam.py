@@ -52,8 +52,8 @@ def steam_library_paths(steam_dir: Path) -> list[Path]:
                     paths.append(Path(path_node.value))
         break
 
-    seen = set()
-    unique = []
+    seen: set[str] = set()
+    unique: list[Path] = []
     for path in paths:
         if str(path) not in seen:
             seen.add(str(path))
@@ -94,7 +94,7 @@ def find_app_compat_prefix(steam_dir: Path, app_id: int) -> Path | None:
 
 def steam_processes() -> list[psutil.Process]:
     uid = os.getuid()
-    processes = []
+    processes: list[psutil.Process] = []
     for proc in psutil.process_iter(["name"]):
         try:
             if proc.info["name"] == "steam" and proc.uids().real == uid:
@@ -110,7 +110,7 @@ def steam_is_running() -> bool:
 
 def game_processes() -> list[psutil.Process]:
     uid = os.getuid()
-    processes = []
+    processes: list[psutil.Process] = []
     for proc in psutil.process_iter(["name", "cmdline"]):
         try:
             if proc.info["name"] != "reaper" or proc.uids().real != uid:

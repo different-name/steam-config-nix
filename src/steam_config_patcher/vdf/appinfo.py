@@ -19,7 +19,7 @@ class AppInfoError(ValueError):
 def _read_string_table(data: bytes, offset: int) -> list[str]:
     (count,) = _UINT32.unpack_from(data, offset)
     position = offset + _UINT32.size
-    strings = []
+    strings: list[str] = []
     for _ in range(count):
         end = data.find(b"\x00", position)
         if end == -1:

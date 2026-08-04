@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Iterable
+from pathlib import Path
 
 from steam_config_patcher.fileio import atomic_write_bytes
 from steam_config_patcher.files import apply_file_ops
@@ -54,7 +55,7 @@ def nest_leaves(leaves: KeyValuesLeaves) -> KeyValuesType:
 
 def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedKey]]:
     leaves: KeyValuesLeaves = {}
-    managed_keys = []
+    managed_keys: list[ManagedKey] = []
 
     for app_id, compat_tool in cfg.compat_tool_mapping.items():
         block_path = COMPAT_TOOL_MAPPING_PATH + (str(app_id),)
@@ -88,7 +89,7 @@ def appmanifest_settings(
     cfg: PatcherConfig, app_id: int
 ) -> list[tuple[tuple[str, ...], str]]:
     # each entry is a key path relative to AppState, with the value to write
-    settings = []
+    settings: list[tuple[tuple[str, ...], str]] = []
     beta_branch = cfg.game_betas.get(app_id)
     if beta_branch is not None:
         settings.append((("UserConfig", APPMANIFEST_BETA_KEY), beta_branch))
@@ -163,7 +164,7 @@ def localconfig_vdf_state(
     user_config: UserConfig,
 ) -> tuple[KeyValuesLeaves, list[ManagedKey]]:
     leaves: KeyValuesLeaves = {}
-    managed_keys = []
+    managed_keys: list[ManagedKey] = []
 
     for app_id, launch_options in user_config.launch_options.items():
         key_path = LOCALCONFIG_APPS_PATH + (str(app_id), "LaunchOptions")
@@ -390,8 +391,8 @@ def patch_config_files(cfg: PatcherConfig):
 
     failed: set[str] = set()
 
-    def prepare_all():
-        prepared = []
+    def prepare_all() -> list[tuple[str, Path, bytes]]:
+        prepared: list[tuple[str, Path, bytes]] = []
         for description, generate in patch_steps:
             try:
                 config_patch = generate()
@@ -447,7 +448,7 @@ def patch_config_files(cfg: PatcherConfig):
     if skip_files:
         LOG.warning(
             "A game is running; skipped file operations. "
-            'Close the game, or set onSteamRunning to "wait" or "close" to apply automatically.'
+            + 'Close the game, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
     else:
         try:
@@ -461,7 +462,7 @@ def patch_config_files(cfg: PatcherConfig):
     if blocked:
         LOG.warning(
             "Steam is running; skipped Steam config writes. "
-            'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
+            + 'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
         return
 

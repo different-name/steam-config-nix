@@ -5,6 +5,7 @@ import shutil
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Callable
 
 from steam_config_patcher.files_manifest import (
     backup_path,
@@ -13,6 +14,7 @@ from steam_config_patcher.files_manifest import (
 )
 from steam_config_patcher.steam import find_app_compat_prefix, find_app_install_dir
 from steam_config_patcher.types import (
+    FileLocation,
     FileOp,
     FilesManifest,
     ManagedDir,
@@ -22,7 +24,7 @@ from steam_config_patcher.types import (
 
 LOG = logging.getLogger(__name__)
 
-FileKey = tuple[int, str, str]
+FileKey = tuple[int, FileLocation, str]
 
 
 class FileOpConflict(ValueError):
@@ -32,7 +34,7 @@ class FileOpConflict(ValueError):
 @dataclass
 class _Placement:
     app_id: int
-    location: str
+    location: FileLocation
     target: str
     source_file: Path
     overwrite_changes: bool
@@ -125,7 +127,7 @@ def _resolve_placements(file_ops: list[FileOp]) -> dict[FileKey, _Placement]:
 
 
 def _dirs_to_create(root: Path, target: str) -> list[str]:
-    created = []
+    created: list[str] = []
     current = root
     for part in PurePosixPath(target).parts[:-1]:
         current = current / part
@@ -228,7 +230,7 @@ def _remove_targets(
 
 
 def _remove_one(
-    steam_dir: Path, root: Path, app_id: int, location: str, target: str,
+    steam_dir: Path, root: Path, app_id: int, location: FileLocation, target: str,
     prev: ManagedFile | None,
 ) -> ManagedFile | None:
     target_path = root / target
@@ -263,9 +265,9 @@ def _cleanup_removed_dir(root: Path, target: str) -> None:
 
 
 def _cleanup_created_dirs(
-    created: set[FileKey], root_for
+    created: set[FileKey], root_for: Callable[[int, str], Path | None]
 ) -> list[ManagedDir]:
-    survivors = []
+    survivors: list[ManagedDir] = []
     for app_id, location, target in sorted(
         created, key=lambda item: len(PurePosixPath(item[2]).parts), reverse=True
     ):
@@ -337,7 +339,9 @@ def apply_file_ops(
     ):
         return
 
-    prev = {(e.app_id, e.location, e.target): e for e in prev_manifest.files}
+    prev: dict[tuple[int, FileLocation, str], ManagedFile] = (
+        {(e.app_id, e.location, e.target): e for e in prev_manifest.files}
+    )
 
     root_cache: dict[tuple[int, str], Path | None] = {}
 
@@ -356,7 +360,9 @@ def apply_file_ops(
 
     new_files: list[ManagedFile] = []
     desired: set[FileKey] = set()
-    created_dirs = {(d.app_id, d.location, d.target) for d in prev_manifest.dirs}
+    created_dirs: set[tuple[int, FileLocation, str]] = (
+        {(d.app_id, d.location, d.target) for d in prev_manifest.dirs}
+    )
 
     for key, placement in placements.items():
         desired.add(key)

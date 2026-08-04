@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from typing import override
 
 _ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}
 _UNESCAPES = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\t": "\\t", "\r": "\\r"}
@@ -11,11 +12,11 @@ _TOKEN_CLOSE = "close"
 class VdfSyntaxError(ValueError):
     def __init__(self, message: str, line: int):
         super().__init__(f"{message} (line {line})")
-        self.line = line
+        self.line: int = line
 
 
 class VdfNode:
-    __slots__ = ("name", "value", "children")
+    __slots__: tuple[str, str, str] = ("name", "value", "children")
 
     def __init__(
         self,
@@ -23,14 +24,15 @@ class VdfNode:
         value: str | None = None,
         children: list["VdfNode"] | None = None,
     ):
-        self.name = name
-        self.value = value
-        self.children = children
+        self.name: str | None = name
+        self.value: str | None = value
+        self.children: list[VdfNode] | None = children
 
     @property
     def is_block(self) -> bool:
         return self.children is not None
 
+    @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, VdfNode):
             return NotImplemented
@@ -40,6 +42,7 @@ class VdfNode:
             and self.children == other.children
         )
 
+    @override
     def __repr__(self) -> str:
         if self.is_block:
             return f"VdfNode({self.name!r}, children={self.children!r})"
@@ -87,7 +90,7 @@ class VdfNode:
 
 
 def _read_quoted(text: str, start: int, line: int) -> tuple[str, int, int]:
-    parts = []
+    parts: list[str] = []
     i = start + 1
     while i < len(text):
         c = text[i]
