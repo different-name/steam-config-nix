@@ -8,7 +8,7 @@ from steam_config_patcher.types import (
 )
 from steam_config_patcher.vdf.text import VdfNode, dumps, loads
 
-type KeyPath = tuple[*tuple[str, ...], str]
+type KeyPath = tuple[str, ...]
 
 
 def iterate_leaves(
@@ -60,9 +60,10 @@ def guard_matches(node: VdfNode, deletion: Deletion) -> bool:
     for key in deletion.guard_path:
         if not target.is_block:
             return False
-        target = target.find(key)
-        if target is None:
+        found = target.find(key)
+        if found is None:
             return False
+        target = found
 
     return not target.is_block and target.value == deletion.expected
 

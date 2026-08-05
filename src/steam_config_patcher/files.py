@@ -216,7 +216,9 @@ def _remove_targets(
 ) -> Iterator[str]:
     base = root / remove_op.target
     if base.is_dir() and not base.is_symlink():
-        candidates = (p.relative_to(root).as_posix() for p in _iter_dir_files(base))
+        candidates: Iterator[str] = (
+            p.relative_to(root).as_posix() for p in _iter_dir_files(base)
+        )
     elif base.exists() or base.is_symlink():
         candidates = iter([remove_op.target])
     else:

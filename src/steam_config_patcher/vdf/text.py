@@ -20,11 +20,11 @@ class VdfNode:
 
     def __init__(
         self,
-        name: str | None = None,
+        name: str = "",
         value: str | None = None,
         children: list["VdfNode"] | None = None,
     ):
-        self.name: str | None = name
+        self.name: str = name
         self.value: str | None = value
         self.children: list[VdfNode] | None = children
 
@@ -63,6 +63,8 @@ class VdfNode:
         return next(self.find_all(name), None)
 
     def remove(self, name: str) -> bool:
+        if self.children is None:
+            return False
         folded = name.casefold()
         remaining = [c for c in self.children if c.name.casefold() != folded]
         removed = len(remaining) != len(self.children)
@@ -79,11 +81,13 @@ class VdfNode:
             )
             if block is None:
                 block = VdfNode(name, children=[])
+                assert node.children is not None
                 node.children.append(block)
             node = block
 
         leaf = next((c for c in node.find_all(leaf_name) if not c.is_block), None)
         if leaf is None:
+            assert node.children is not None
             node.children.append(VdfNode(leaf_name, value=value))
         else:
             leaf.value = value
@@ -158,11 +162,13 @@ def loads(text: str) -> VdfNode:
             else:
                 raise VdfSyntaxError("unexpected '{'", token_line)
         else:
+            top = stack[-1]
+            assert top.children is not None
             if token_type == _TOKEN_STRING:
-                stack[-1].children.append(VdfNode(pending_key, value=token_value))
+                top.children.append(VdfNode(pending_key, value=token_value))
             elif token_type == _TOKEN_OPEN:
                 block = VdfNode(pending_key, children=[])
-                stack[-1].children.append(block)
+                top.children.append(block)
                 stack.append(block)
             else:
                 raise VdfSyntaxError(f"key {pending_key!r} has no value", token_line)
@@ -182,17 +188,18 @@ def _escape(value: str) -> str:
 
 def _write_node(node: VdfNode, depth: int, parts: list[str]) -> None:
     indent = "\t" * depth
-    if node.is_block:
+    if node.children is not None:
         parts.append(f'{indent}"{_escape(node.name)}"\n{indent}{{\n')
         for child in node.children:
             _write_node(child, depth + 1, parts)
         parts.append(f"{indent}}}\n")
     else:
+        assert node.value is not None
         parts.append(f'{indent}"{_escape(node.name)}"\t\t"{_escape(node.value)}"\n')
 
 
 def dumps(root: VdfNode) -> str:
     parts: list[str] = []
-    for child in root.children:
+    for child in root.children or []:
         _write_node(child, 0, parts)
     return "".join(parts)
