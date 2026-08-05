@@ -23,7 +23,7 @@ from steam_config_patcher.types import (
 
 LOG = logging.getLogger(__name__)
 
-FileKey = tuple[int, FileLocation, str]
+type FileKey = tuple[int, FileLocation, str]
 
 
 class FileOpConflict(ValueError):

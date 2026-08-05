@@ -1,5 +1,5 @@
 import struct
-from typing import Callable
+from collections.abc import Callable
 
 _TYPE_DICT = 0x00
 _TYPE_STRING = 0x01
@@ -15,7 +15,7 @@ _UINT64 = struct.Struct("<Q")
 _INT64 = struct.Struct("<q")
 _FLOAT32 = struct.Struct("<f")
 
-BinaryVdfValue = dict | str | int | float
+type BinaryVdfValue = dict | str | int | float
 
 
 class Uint64(int):
@@ -37,7 +37,7 @@ def _read_cstring(data: bytes, offset: int) -> tuple[str, int]:
     return data[offset:end].decode("utf-8"), end + 1
 
 
-KeyReader = Callable[[bytes, int], tuple[str, int]]
+type KeyReader = Callable[[bytes, int], tuple[str, int]]
 
 
 def _read_dict(

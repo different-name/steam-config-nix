@@ -29,7 +29,7 @@ class CompatToolRefSchema(StrictSchema):
     path: str
 
 
-CompatToolValue = str | CompatToolRefSchema | None
+type CompatToolValue = str | CompatToolRefSchema | None
 
 
 class ArtworkSchema(StrictSchema):
