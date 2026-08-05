@@ -448,7 +448,7 @@ def patch_config_files(cfg: PatcherConfig):
     if skip_files:
         LOG.warning(
             "A game is running; skipped file operations. "
-            + 'Close the game, or set onSteamRunning to "wait" or "close" to apply automatically.'
+            'Close the game, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
     else:
         try:
@@ -462,7 +462,7 @@ def patch_config_files(cfg: PatcherConfig):
     if blocked:
         LOG.warning(
             "Steam is running; skipped Steam config writes. "
-            + 'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
+            'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
         return
 
