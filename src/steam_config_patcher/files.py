@@ -2,10 +2,9 @@ import hashlib
 import logging
 import os
 import shutil
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Callable
 
 from steam_config_patcher.files_manifest import (
     backup_path,
@@ -339,9 +338,9 @@ def apply_file_ops(
     ):
         return
 
-    prev: dict[tuple[int, FileLocation, str], ManagedFile] = (
-        {(e.app_id, e.location, e.target): e for e in prev_manifest.files}
-    )
+    prev: dict[FileKey, ManagedFile] = {
+        (e.app_id, e.location, e.target): e for e in prev_manifest.files
+    }
 
     root_cache: dict[tuple[int, str], Path | None] = {}
 
@@ -360,9 +359,9 @@ def apply_file_ops(
 
     new_files: list[ManagedFile] = []
     desired: set[FileKey] = set()
-    created_dirs: set[tuple[int, FileLocation, str]] = (
-        {(d.app_id, d.location, d.target) for d in prev_manifest.dirs}
-    )
+    created_dirs: set[FileKey] = {
+        (d.app_id, d.location, d.target) for d in prev_manifest.dirs
+    }
 
     for key, placement in placements.items():
         desired.add(key)

@@ -16,7 +16,7 @@ class VdfSyntaxError(ValueError):
 
 
 class VdfNode:
-    __slots__: tuple[str, str, str] = ("name", "value", "children")
+    __slots__ = ("name", "value", "children")
 
     def __init__(
         self,

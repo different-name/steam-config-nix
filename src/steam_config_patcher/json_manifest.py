@@ -1,7 +1,8 @@
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 from steam_config_patcher.fileio import atomic_write_text
 
