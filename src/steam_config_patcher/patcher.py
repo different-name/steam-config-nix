@@ -40,7 +40,7 @@ from steam_config_patcher.vdf import binary
 
 LOG = logging.getLogger(__name__)
 
-KeyValuesLeaves = dict[tuple[str, ...], str]
+type KeyValuesLeaves = dict[tuple[str, ...], str]
 
 
 def nest_leaves(leaves: KeyValuesLeaves) -> KeyValuesType:

@@ -8,7 +8,7 @@ from steam_config_patcher.types import (
 )
 from steam_config_patcher.vdf.text import VdfNode, dumps, loads
 
-KeyPath = tuple[*tuple[str, ...], str]
+type KeyPath = tuple[*tuple[str, ...], str]
 
 
 def iterate_leaves(

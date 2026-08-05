@@ -84,8 +84,8 @@ class PatcherConfig:
     remove_ops: list["RemoveOp"] = field(default_factory=list)
 
 
-KeyValuesValue = str | int
-KeyValuesType = dict[str, "KeyValuesValue | KeyValuesType"]
+type KeyValuesValue = str | int
+type KeyValuesType = dict[str, KeyValuesValue | KeyValuesType]
 
 
 @dataclass
@@ -125,7 +125,7 @@ class UserManifest:
     grid_art: dict[str, str] = field(default_factory=dict)
 
 
-FileLocation = Literal["install", "prefix"]
+type FileLocation = Literal["install", "prefix"]
 
 
 @dataclass
