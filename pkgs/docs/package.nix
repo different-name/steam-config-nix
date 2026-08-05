@@ -21,7 +21,7 @@ let
 in
 stdenv.mkDerivation {
   name = "steam-config-nix-docs";
-  src = ./.;
+  dontUnpack = true;
   buildPhase = ''
     mkdir -p $out
     cat ${optionsDoc.optionsCommonMark} > $out/options.md

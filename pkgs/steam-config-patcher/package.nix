@@ -10,14 +10,14 @@
 }:
 buildPythonApplication {
   pname = "steam-config-patcher";
-  version = "0.4.0";
+  version = (lib.importTOML ../../src/pyproject.toml).project.version;
 
   src = builtins.path {
     path = ../../src;
     name = "steam-config-patcher-src";
   };
 
-  format = "pyproject";
+  pyproject = true;
 
   build-system = [
     setuptools
