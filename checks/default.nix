@@ -457,6 +457,29 @@
           nixfmt --check $(find ${self} -name '*.nix')
           touch $out
         '';
+
+        mypy =
+          pkgs.runCommand "mypy-check"
+            {
+              nativeBuildInputs = [
+                (pkgs.python3.withPackages (
+                  ps: with ps; [
+                    mypy
+                    pydantic
+                    psutil
+                    pillow
+                    types-psutil
+                  ]
+                ))
+              ];
+            }
+            ''
+              cp -r ${../src} src
+              chmod -R u+w src
+              cd src
+              mypy steam_config_patcher
+              touch $out
+            '';
       };
     };
 }
