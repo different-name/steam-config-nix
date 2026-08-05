@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import assert_never
 
 from steam_config_patcher.fileio import atomic_write_bytes
 from steam_config_patcher.files import apply_file_ops
@@ -328,7 +329,8 @@ def prepare_patch(config_patch: ConfigPatch) -> bytes | None:
             return prepare_keyvalues(config_patch)
         case "binary-keyvalues":
             return prepare_binary_keyvalues(config_patch)
-    return None
+        case unreachable:
+            assert_never(unreachable)
 
 
 def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifest:
