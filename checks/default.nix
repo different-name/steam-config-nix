@@ -89,6 +89,7 @@
         modules = [
           self.nixosModules.default
           {
+            system.stateVersion = "26.05";
             nixpkgs.hostPlatform = system;
             programs.steam.config = {
               enable = true;
@@ -382,6 +383,7 @@
               modules = [
                 self.nixosModules.default
                 {
+                  system.stateVersion = "26.05";
                   nixpkgs.hostPlatform = system;
                   programs.steam.config = {
                     enable = true;
