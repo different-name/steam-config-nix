@@ -46,7 +46,7 @@ def load_common(data: bytes, app_ids: set[int] | None = None) -> dict[int, dict]
         raise AppInfoError(f"unsupported appinfo.vdf version 0x{magic:08x}")
 
     offset = _HEADER.size
-    read_key = binary._read_cstring
+    read_key: binary.KeyReader = binary._read_cstring
     if magic == MAGIC_V41:
         (string_table_offset,) = _STRING_TABLE_OFFSET.unpack_from(data, offset)
         offset += _STRING_TABLE_OFFSET.size

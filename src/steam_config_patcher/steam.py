@@ -48,7 +48,11 @@ def steam_library_paths(steam_dir: Path) -> list[Path]:
                 if not folder.is_block:
                     continue
                 path_node = folder.find("path")
-                if path_node is not None and not path_node.is_block:
+                if (
+                    path_node is not None
+                    and not path_node.is_block
+                    and path_node.value is not None
+                ):
                     paths.append(Path(path_node.value))
         break
 

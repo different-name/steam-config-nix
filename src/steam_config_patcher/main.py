@@ -114,7 +114,7 @@ def parse_input() -> PatcherConfig:
         display_rates_as_bits=validated_input.displayRatesAsBits,
         compat_tool_mapping={
             app.id: CompatToolConfig(
-                name=resolve_compat_tool(app.compatTool),
+                name=name,
                 priority=250 if app.id != 0 else 75,
             )
             for app in [
@@ -123,6 +123,7 @@ def parse_input() -> PatcherConfig:
                 AppSchema(id=0, compatTool=validated_input.defaultCompatTool),
             ]
             if app.compatTool
+            and (name := resolve_compat_tool(app.compatTool)) is not None
         },
         game_betas={
             app.id: app.betaBranch

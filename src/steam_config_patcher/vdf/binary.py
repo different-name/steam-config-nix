@@ -57,6 +57,7 @@ def _read_dict(
 
         key, offset = read_key(data, offset)
 
+        value: BinaryVdfValue
         if value_type == _TYPE_DICT:
             value, offset = _read_dict(data, offset, top_level=False, read_key=read_key)
         elif value_type == _TYPE_STRING:

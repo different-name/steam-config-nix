@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from steam_config_patcher.fileio import atomic_write_bytes
@@ -48,7 +48,9 @@ def nest_leaves(leaves: KeyValuesLeaves) -> KeyValuesType:
     for key_path, value in leaves.items():
         node = tree
         for key in key_path[:-1]:
-            node = node.setdefault(key, {})
+            child = node.setdefault(key, {})
+            assert isinstance(child, dict)
+            node = child
         node[key_path[-1]] = value
     return tree
 
@@ -358,7 +360,7 @@ def patch_config_files(cfg: PatcherConfig):
         }
     )
 
-    patch_steps = [
+    patch_steps: list[tuple[str, Callable[[], ConfigPatch | None]]] = [
         ("config.vdf", lambda: generate_config_vdf_patch(cfg, all_prev_keys)),
         *[
             (
@@ -396,7 +398,9 @@ def patch_config_files(cfg: PatcherConfig):
         for description, generate in patch_steps:
             try:
                 config_patch = generate()
-                data = None if config_patch is None else prepare_patch(config_patch)
+                if config_patch is None:
+                    continue
+                data = prepare_patch(config_patch)
             except Exception:
                 failed.add(description)
                 LOG.exception("failed to prepare %s", description)
