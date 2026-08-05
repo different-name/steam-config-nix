@@ -2,11 +2,6 @@
 
 Manage Steam launch options, compat tools and other local config declaratively through your nix config
 
-> [!WARNING]
-> This flake is in early development and may be unstable
->
-> Please report bugs or request features via the [issues tab](https://github.com/different-name/steam-launch.nix/issues)
-
 > [!IMPORTANT]  
 > **Steam must be closed** when writing to the Steam config files
 >
