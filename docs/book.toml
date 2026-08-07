@@ -10,7 +10,7 @@ default-theme = "latte"
 preferred-dark-theme = "mocha"
 additional-css = ["theme/catppuccin.css", "theme/custom.css"]
 git-repository-url = "https://github.com/different-name/steam-config-nix"
-edit-url-template = "https://github.com/different-name/steam-config-nix/edit/master/docs/{path}"
+edit-url-template = "https://github.com/different-name/steam-config-nix/edit/main/docs/{path}"
 
 [output.html.playground]
 runnable = false
