@@ -155,10 +155,6 @@ let
   };
 in
 {
-  imports = lib.singleton (
-    lib.mkRenamedOptionModule [ "launchOptions" "extraConfig" ] [ "launchOptions" "preHook" ]
-  );
-
   options = {
     enable = lib.mkOption {
       type = types.bool;
