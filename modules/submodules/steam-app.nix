@@ -91,6 +91,68 @@ let
     }
   );
 
+  patchSubmodule = types.submodule (
+    { name, ... }:
+    {
+      options = {
+        enable = lib.mkOption {
+          type = types.bool;
+          default = true;
+          description = ''
+            Whether to apply this patch.
+
+            When false the patch is ignored, and the target file is reverted to its pre-patch contents.
+          '';
+        };
+
+        target = lib.mkOption {
+          type = types.str;
+          default = name;
+          defaultText = lib.literalExpression "<name>";
+          example = "Engine/Config/BaseEngine.ini";
+          description = "Path relative to the root, defaulting to the attribute name.";
+        };
+
+        format = lib.mkOption {
+          type = types.enum [
+            "ini"
+            "json"
+          ];
+          example = "ini";
+          description = ''
+            Format of the target file, so the patcher can read, merge, and write it back.
+
+            - `"ini"`: `content` is an attrset of section names to attrsets of key/value pairs.
+            - `"json"`: `content` is a nested attrset deep-merged into the file.
+          '';
+        };
+
+        content = lib.mkOption {
+          type = types.attrs;
+          example = lib.literalExpression "{ Display.Fullscreen = 1; }";
+          description = ''
+            Keys to set in the target file, shaped per `format`. Keys already in the file that are not listed here are left untouched.
+          '';
+        };
+
+        whenMissing = lib.mkOption {
+          type = types.enum [
+            "create"
+            "skip"
+          ];
+          default = "create";
+          example = "skip";
+          description = ''
+            What to do when the target file does not exist yet.
+
+            - `"create"`: create it with just these keys.
+            - `"skip"`: leave it for the game to generate, retrying on the next activation.
+          '';
+        };
+      };
+    }
+  );
+
   resolveSource =
     entry:
     if entry.source != null then entry.source else pkgs.writeText "steam-config-nix-file" entry.text;
@@ -104,6 +166,18 @@ let
     }) (lib.filterAttrs (_: entry: entry.enable) attrs);
 
   mkRemoveOps = location: paths: map (target: { inherit location target; }) paths;
+
+  mkPatchOps =
+    location: attrs:
+    lib.mapAttrsToList (_: entry: {
+      inherit location;
+      inherit (entry)
+        target
+        format
+        content
+        whenMissing
+        ;
+    }) (lib.filterAttrs (_: entry: entry.enable) attrs);
 in
 {
   imports = [
@@ -207,6 +281,22 @@ in
       '';
     };
 
+    files.game.patch = lib.mkOption {
+      type = types.attrsOf patchSubmodule;
+      default = { };
+      example = lib.literalExpression ''
+        {
+          "Engine/Config/BaseEngine.ini" = {
+            format = "ini";
+            content.SystemSettings."r.Tonemapper.Sharpen" = 2;
+          };
+        }
+      '';
+      description = ''
+        Files in the game's install directory to patch by merging keys into them. The app must be installed for these to be applied.
+      '';
+    };
+
     files.prefix.place = lib.mkOption {
       type = types.attrsOf placeSubmodule;
       default = { };
@@ -225,6 +315,22 @@ in
       default = [ ];
       description = ''
         Paths in the app's Proton prefix to remove, relative to the prefix root.
+      '';
+    };
+
+    files.prefix.patch = lib.mkOption {
+      type = types.attrsOf patchSubmodule;
+      default = { };
+      example = lib.literalExpression ''
+        {
+          "drive_c/users/steamuser/AppData/Local/game/settings.json" = {
+            format = "json";
+            content.graphics.fullscreen = true;
+          };
+        }
+      '';
+      description = ''
+        Files in the app's Proton prefix to patch by merging keys into them. The app must have been launched once for the prefix to exist.
       '';
     };
   };
@@ -249,6 +355,8 @@ in
     files = mkFileOps "game" config.files.game.place ++ mkFileOps "prefix" config.files.prefix.place;
     removeFiles =
       mkRemoveOps "game" config.files.game.remove ++ mkRemoveOps "prefix" config.files.prefix.remove;
+    patches =
+      mkPatchOps "game" config.files.game.patch ++ mkPatchOps "prefix" config.files.prefix.patch;
   };
 
   # surface the per-file mode migration warnings (place submodule warnings are not collected otherwise)

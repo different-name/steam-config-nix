@@ -412,7 +412,7 @@ def patch_config_files(cfg: PatcherConfig):
         return prepared
 
     prepared = prepare_all()
-    has_file_ops = bool(cfg.file_ops or cfg.remove_ops)
+    has_file_ops = bool(cfg.file_ops or cfg.remove_ops or cfg.patch_ops)
 
     blocked = False
     if prepared and steam_is_running():
@@ -458,7 +458,7 @@ def patch_config_files(cfg: PatcherConfig):
         )
     else:
         try:
-            apply_file_ops(cfg.steam_dir, cfg.file_ops, cfg.remove_ops)
+            apply_file_ops(cfg.steam_dir, cfg.file_ops, cfg.remove_ops, cfg.patch_ops)
         except Exception:
             LOG.exception("failed to apply file operations")
 

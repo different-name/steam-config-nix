@@ -14,6 +14,7 @@ from steam_config_patcher.types import (
     GridArt,
     NonSteamAppConfig,
     PatcherConfig,
+    PatchOp,
     RemoveOp,
     UserConfig,
 )
@@ -52,6 +53,14 @@ class RemoveOpSchema(StrictSchema):
     target: str
 
 
+class PatchOpSchema(StrictSchema):
+    location: Literal["game", "prefix"]
+    target: str
+    format: Literal["ini", "json"]
+    content: dict
+    whenMissing: Literal["create", "skip"]
+
+
 class AppSchema(StrictSchema):
     id: int
     launchOptions: str | None = None
@@ -63,6 +72,7 @@ class AppSchema(StrictSchema):
     artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
     files: list[FileOpSchema] = Field(default_factory=list)
     removeFiles: list[RemoveOpSchema] = Field(default_factory=list)
+    patches: list[PatchOpSchema] = Field(default_factory=list)
 
 
 class NonSteamAppSchema(AppSchema):
@@ -179,6 +189,18 @@ def parse_input() -> PatcherConfig:
             RemoveOp(app_id=app.id, location=op.location, target=op.target)
             for app in validated_input.apps.values()
             for op in app.removeFiles
+        ],
+        patch_ops=[
+            PatchOp(
+                app_id=app.id,
+                location=op.location,
+                target=op.target,
+                format=op.format,
+                content=op.content,
+                when_missing=op.whenMissing,
+            )
+            for app in validated_input.apps.values()
+            for op in app.patches
         ],
         users={
             user_id: UserConfig(

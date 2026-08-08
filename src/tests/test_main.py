@@ -5,7 +5,12 @@ import pytest
 from pydantic import ValidationError
 
 from steam_config_patcher.main import parse_input
-from steam_config_patcher.types import FileOp, NonSteamAppConfig, RemoveOp
+from steam_config_patcher.types import (
+    FileOp,
+    NonSteamAppConfig,
+    PatchOp,
+    RemoveOp,
+)
 
 USER_IDS = (111, 222)
 
@@ -223,11 +228,44 @@ def test_files_map_to_file_ops(tmp_path, monkeypatch):
     ]
 
 
+def test_patches_map_to_patch_ops(tmp_path, monkeypatch):
+    data = base_input(
+        apps={
+            "portal": {
+                "id": 620,
+                "patches": [
+                    {
+                        "location": "game",
+                        "target": "settings.json",
+                        "format": "json",
+                        "content": {"Fullscreen": True},
+                        "whenMissing": "create",
+                    }
+                ],
+            }
+        }
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.patch_ops == [
+        PatchOp(
+            app_id=620,
+            location="game",
+            target="settings.json",
+            format="json",
+            content={"Fullscreen": True},
+            when_missing="create",
+        )
+    ]
+
+
 def test_apps_without_files_have_empty_file_ops(tmp_path, monkeypatch):
     cfg = run_parse(tmp_path, monkeypatch, base_input(apps={"portal": {"id": 620}}))
 
     assert cfg.file_ops == []
     assert cfg.remove_ops == []
+    assert cfg.patch_ops == []
 
 
 def test_unknown_file_op_location_raises(tmp_path, monkeypatch):

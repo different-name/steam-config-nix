@@ -73,6 +73,19 @@
                 target = "unwanted.txt";
               }
             ];
+            patches = [
+              {
+                location = "game";
+                target = "config/game.ini";
+                format = "ini";
+                content = {
+                  Video = {
+                    Fullscreen = 1;
+                  };
+                };
+                whenMissing = "create";
+              }
+            ];
           };
           nonSteamApps = { };
         }
@@ -134,6 +147,10 @@
                   artwork.hero = fakeArt;
                   files.game.place."mods/test.pak".source = fakeArt;
                   files.game.remove = [ "movies/intro.bik" ];
+                  files.game.patch."config/user.ini" = {
+                    format = "ini";
+                    content.Video.Fullscreen = 1;
+                  };
                   env.TZ = null;
                   dllOverrides = {
                     winmm = "n,b";
@@ -174,6 +191,7 @@
             artwork = noArtwork;
             files = [ ];
             removeFiles = [ ];
+            patches = [ ];
           };
 
           "440" = {
@@ -187,6 +205,7 @@
             artwork = noArtwork;
             files = [ ];
             removeFiles = [ ];
+            patches = [ ];
           };
 
           "730" = {
@@ -200,6 +219,7 @@
             artwork = noArtwork;
             files = [ ];
             removeFiles = [ ];
+            patches = [ ];
           };
 
           "999" = {
@@ -214,6 +234,7 @@
             artwork = noArtwork;
             files = [ ];
             removeFiles = [ ];
+            patches = [ ];
           };
 
           cyberpunk = {
@@ -240,6 +261,19 @@
               {
                 location = "game";
                 target = "movies/intro.bik";
+              }
+            ];
+            patches = [
+              {
+                location = "game";
+                target = "config/user.ini";
+                format = "ini";
+                content = {
+                  Video = {
+                    Fullscreen = 1;
+                  };
+                };
+                whenMissing = "create";
               }
             ];
           };
@@ -341,10 +375,21 @@
           dllOverrides.winhttp = "n,b";
           env.WINEDLLOVERRIDES = "d3d11=n";
         })) "setting both dllOverrides and a different env.WINEDLLOVERRIDES should fail"
+        && lib.assertMsg (hasFailure "both places and patches" (failingAssertions {
+          files.game.place."config/x.ini".source = fakeArt;
+          files.game.patch."config/x.ini" = {
+            format = "ini";
+            content.A.b = 1;
+          };
+        })) "placing and patching the same file should fail"
         && lib.assertMsg (
           failingAssertions {
             files.game.place."mods/ok.pak".source = fakeArt;
             files.game.remove = [ "movies/intro.bik" ];
+            files.game.patch."config/ok.ini" = {
+              format = "ini";
+              content.A.b = 1;
+            };
           } == [ ]
         ) "a valid file config should not fail";
     in
@@ -384,6 +429,9 @@
               grep -q modcontent "$install/mods/test.txt"
               test ! -e "$install/unwanted.txt"
               test -f "$steam/config/steam-config-nix-files.json"
+
+              # patch created the ini file with our key
+              grep -q Fullscreen "$install/config/game.ini"
 
               # idempotent second run must still succeed
               steam-config-patcher ${patcherInput}

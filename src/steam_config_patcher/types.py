@@ -82,6 +82,7 @@ class PatcherConfig:
     library_icon_apps: set[int] = field(default_factory=set)
     file_ops: list["FileOp"] = field(default_factory=list)
     remove_ops: list["RemoveOp"] = field(default_factory=list)
+    patch_ops: list["PatchOp"] = field(default_factory=list)
 
 
 type KeyValuesValue = str | int
@@ -133,7 +134,7 @@ class ManagedFile:
     app_id: int
     location: FileLocation
     target: str
-    op: Literal["place", "remove"]
+    op: Literal["place", "remove", "patch"]
     source_hash: str | None = None
     had_backup: bool = False
     source_path: str | None = None
@@ -154,6 +155,16 @@ class RemoveOp:
     app_id: int
     location: FileLocation
     target: str
+
+
+@dataclass
+class PatchOp:
+    app_id: int
+    location: FileLocation
+    target: str
+    format: Literal["ini", "json"]
+    content: dict
+    when_missing: Literal["create", "skip"]
 
 
 @dataclass

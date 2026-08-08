@@ -299,6 +299,30 @@ in
                 ) enabledApps
               );
 
+              enabledPatchEntries = lib.filter (e: e.entry.enable) (
+                lib.concatLists (
+                  lib.mapAttrsToList (
+                    appName: app:
+                    lib.concatMap
+                      (
+                        location:
+                        lib.mapAttrsToList (path: entry: {
+                          inherit
+                            appName
+                            location
+                            path
+                            entry
+                            ;
+                        }) app.files.${location}.patch
+                      )
+                      [
+                        "game"
+                        "prefix"
+                      ]
+                  ) enabledApps
+                )
+              );
+
               unsafePath = p: p == "" || lib.hasPrefix "/" p || lib.elem ".." (lib.splitString "/" p);
 
               duplicateTargets = lib.filter (group: lib.length group > 1) (
@@ -314,6 +338,34 @@ in
                 in
                 ''apps.${e.appName}.files.${e.location}.place has multiple entries targeting "${e.entry.target}"''
               ) duplicateTargets;
+
+              # place and patch on the same resolved file are mutually exclusive
+              placePatchCollisions =
+                lib.filter (group: (lib.any (e: e.op == "place") group) && (lib.any (e: e.op == "patch") group))
+                  (
+                    builtins.attrValues (
+                      builtins.groupBy (e: "${e.appName}\n${e.location}\n${e.target}") (
+                        map (e: {
+                          inherit (e) appName location;
+                          target = e.entry.target;
+                          op = "place";
+                        }) enabledFileEntries
+                        ++ map (e: {
+                          inherit (e) appName location;
+                          target = e.entry.target;
+                          op = "patch";
+                        }) enabledPatchEntries
+                      )
+                    )
+                  );
+
+              placePatchMessages = map (
+                group:
+                let
+                  e = builtins.head group;
+                in
+                ''apps.${e.appName}.files.${e.location} both places and patches "${e.target}"''
+              ) placePatchCollisions;
             in
             [
               {
@@ -334,6 +386,16 @@ in
               assertion = !unsafePath e.target;
               message = ''steam-config-nix: apps.${e.appName}.files.${e.location}.remove has an unsafe path "${e.target}" (paths must be relative and must not contain ..)'';
             }) removeEntries
+            ++ map (e: {
+              assertion = !unsafePath e.entry.target;
+              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}.patch."${e.path}" has an unsafe target "${e.entry.target}" (paths must be relative and must not contain ..)'';
+            }) enabledPatchEntries
+            ++ [
+              {
+                assertion = placePatchCollisions == [ ];
+                message = "steam-config-nix: a file is both placed and patched\n${lib.concatStringsSep "\n" placePatchMessages}";
+              }
+            ]
             ++ [
               {
                 assertion = duplicateTargets == [ ];
