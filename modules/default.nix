@@ -336,6 +336,7 @@ in
                 message = "steam-config-nix: multiple apps configured with the same id\n${lib.concatStringsSep "\n" duplicateMessages}";
               }
             ]
+            ++ lib.concatMap (app: app.assertions) allApps
             ++ lib.mapAttrsToList (name: app: {
               assertion = app.artwork.icon == null;
               message = "steam-config-nix: apps.${name} sets artwork.icon, which is only available for non-Steam apps (Steam manages the icons of its own apps)";

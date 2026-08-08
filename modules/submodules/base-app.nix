@@ -17,6 +17,12 @@ let
   exportUnset = n: v: if v == null then "unset ${n}" else ''export ${n}="${toString v}"'';
   exportAll = lib.concatMapAttrsStringSep "\n" exportUnset;
 
+  mkDllOverrides =
+    overrides:
+    lib.concatStringsSep ";" (
+      lib.mapAttrsToList (dll: mode: "${dll}=${if mode == "disabled" then "" else mode}") overrides
+    );
+
   # Steam's launch runtime sets LD_LIBRARY_PATH/LD_PRELOAD to libs that clash
   # with notify-send, so run it with a clean loader environment
   notify =
@@ -26,7 +32,12 @@ let
   mkAppWrapperPackage =
     app:
     let
-      hasOptions = app.env != { } || app.wrappers != [ ] || app.args != [ ] || app.preHook != "";
+      hasOptions =
+        app.env != { }
+        || app.wrappers != [ ]
+        || app.args != [ ]
+        || app.preHook != ""
+        || app.dllOverrides != { };
       hasRaw = app.rawLaunchOptions != null;
       hasWinetricks = app.winetricks != [ ];
 
@@ -199,6 +210,29 @@ in
       '';
     };
 
+    dllOverrides = lib.mkOption {
+      type = types.attrsOf (
+        types.enum [
+          "n"
+          "b"
+          "n,b"
+          "b,n"
+          "disabled"
+        ]
+      );
+      default = { };
+      example = {
+        winhttp = "n,b";
+      };
+      description = ''
+        DLL overrides for the app, an attribute set mapping a DLL name to its load order.
+
+        Each value is a `WINEDLLOVERRIDES` mode: `"n"` (native), `"b"` (builtin), `"n,b"` (native then builtin), `"b,n"` (builtin then native), or `"disabled"`. These are compiled into the single `WINEDLLOVERRIDES` environment variable, so mods and other presets can contribute overrides without clobbering each other.
+
+        Cannot be combined with setting `WINEDLLOVERRIDES` directly in `env`.
+      '';
+    };
+
     rawLaunchOptions = lib.mkOption {
       type = types.nullOr types.singleLineStr;
       default = null;
@@ -329,6 +363,18 @@ in
       internal = true;
     };
   };
+
+  config.env = lib.mkIf (config.dllOverrides != { }) {
+    WINEDLLOVERRIDES = lib.mkDefault (mkDllOverrides config.dllOverrides);
+  };
+
+  config.assertions =
+    lib.optional
+      (config.dllOverrides != { } && config.env.WINEDLLOVERRIDES != mkDllOverrides config.dllOverrides)
+      {
+        assertion = false;
+        message = "steam-config-nix: ${name} sets both dllOverrides and env.WINEDLLOVERRIDES, set overrides via dllOverrides only";
+      };
 
   config.finalConfig = {
     inherit (config)

@@ -134,9 +134,10 @@
                   artwork.hero = fakeArt;
                   files.install."mods/test.pak".source = fakeArt;
                   removeFiles.install = [ "movies/intro.bik" ];
-                  env = {
-                    WINEDLLOVERRIDES = "winmm,version=n,b";
-                    TZ = null;
+                  env.TZ = null;
+                  dllOverrides = {
+                    winmm = "n,b";
+                    version = "n,b";
                   };
                   args = [ "--launcher-skip" ];
                   wrappers = [ "gamemoderun" ];
@@ -336,6 +337,10 @@
           files.install."a".source = fakeArt;
           files.install."b".source = fakeArt;
         })) "duplicate resolved targets should fail"
+        && lib.assertMsg (hasFailure "dllOverrides and env.WINEDLLOVERRIDES" (failingAssertions {
+          dllOverrides.winhttp = "n,b";
+          env.WINEDLLOVERRIDES = "d3d11=n";
+        })) "setting both dllOverrides and a different env.WINEDLLOVERRIDES should fail"
         && lib.assertMsg (
           failingAssertions {
             files.install."mods/ok.pak".source = fakeArt;
@@ -453,7 +458,7 @@
           grep -F 'protontricks' ${strWrapper}
           grep -F 'vcrun2022' ${strWrapper}
 
-          grep -Fx 'export WINEDLLOVERRIDES="winmm,version=n,b"' ${optionsWrapper}
+          grep -Fx 'export WINEDLLOVERRIDES="version=n,b;winmm=n,b"' ${optionsWrapper}
           grep -Fx 'unset TZ' ${optionsWrapper}
           grep -Fx 'declare -a wrappers=(gamemoderun)' ${optionsWrapper}
           grep -Fx 'declare -a args=(--launcher-skip)' ${optionsWrapper}
