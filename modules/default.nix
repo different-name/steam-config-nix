@@ -30,21 +30,6 @@ let
     );
 in
 {
-  imports = [
-    (lib.mkRemovedOptionModule
-      [
-        "programs"
-        "steam"
-        "config"
-        "users"
-      ]
-      ''
-        Please use global app configuration instead.
-        See https://github.com/different-name/steam-config-nix/discussions/33
-      ''
-    )
-  ];
-
   options.programs.steam.config = {
     enable = lib.mkEnableOption "declarative Steam configuration";
 
