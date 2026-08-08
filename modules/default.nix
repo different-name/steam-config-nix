@@ -97,7 +97,7 @@ in
       description = ''
         Send desktop notifications for slow launch-time steps (e.g. installing winetricks verbs).
 
-        Degrades gracefully: if no notification daemon is reachable the notification is simply skipped.
+        If no notification daemon is reachable the notification is simply skipped.
       '';
     };
 
@@ -130,7 +130,7 @@ in
         {
           "Spin Rhythm XD" = {
             id = 1058830;
-            launchOptionsStr = "DVXK_ASYNC=1 gamemoderun %command%";
+            rawLaunchOptions = "DXVK_ASYNC=1 gamemoderun %command%";
           };
         }'';
       description = "Configuration per Steam app.";
@@ -150,7 +150,7 @@ in
             target = "/home/alice/Games/some-game/start";
             artwork.icon = ./some-game.png;
             compatTool = "proton_experimental";
-            launchOptionsStr = "gamemoderun %command%";
+            rawLaunchOptions = "gamemoderun %command%";
           };
         }'';
       description = "Configuration per non-Steam app.";
@@ -161,7 +161,7 @@ in
     let
       cfg = config.programs.steam.config;
 
-      # only enabled apps are managed; disabled ones are reverted via manifest cleanup
+      # only enabled apps are managed, disabled ones are reverted via manifest cleanup
       enabledApps = lib.filterAttrs (_: app: app.enable) cfg.apps;
       enabledNonSteamApps = lib.filterAttrs (_: app: app.enable) cfg.nonSteamApps;
 
@@ -336,10 +336,6 @@ in
                 message = "steam-config-nix: multiple apps configured with the same id\n${lib.concatStringsSep "\n" duplicateMessages}";
               }
             ]
-            ++ map (entry: {
-              assertion = !entry.app.hasLaunchOptions || entry.app.launchOptionsStr == null;
-              message = "steam-config-nix: ${entry.name} sets both launchOptions and launchOptionsStr, only one may be set";
-            }) namedApps
             ++ lib.mapAttrsToList (name: app: {
               assertion = app.artwork.icon == null;
               message = "steam-config-nix: apps.${name} sets artwork.icon, which is only available for non-Steam apps (Steam manages the icons of its own apps)";
@@ -362,6 +358,11 @@ in
                 message = "steam-config-nix: multiple file entries resolve to the same target\n${lib.concatStringsSep "\n" duplicateTargetMessages}";
               }
             ];
+
+          # submodule warnings are not surfaced automatically
+          warnings = lib.concatMap (app: app.warnings) (
+            lib.attrValues cfg.apps ++ lib.attrValues cfg.nonSteamApps
+          );
         }
 
         (lib.optionalAttrs (format == "nixos") {

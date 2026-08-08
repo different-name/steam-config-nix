@@ -26,8 +26,8 @@ let
   mkAppWrapperPackage =
     app:
     let
-      hasOptions = app.hasLaunchOptions;
-      hasStrOptions = app.launchOptionsStr != null;
+      hasOptions = app.env != { } || app.wrappers != [ ] || app.args != [ ] || app.preHook != "";
+      hasRaw = app.rawLaunchOptions != null;
       hasWinetricks = app.winetricks != [ ];
 
       # runs before the game, when Steam has set STEAM_COMPAT_* in the environment
@@ -50,25 +50,39 @@ let
         fi
       '';
 
-      # for nix style launch options
+      # steam appends a launch string with no %command% as args to the game
+      effectiveRaw =
+        if !hasRaw then
+          null
+        else if lib.hasInfix "%command%" app.rawLaunchOptions then
+          app.rawLaunchOptions
+        else
+          "%command% ${app.rawLaunchOptions}";
+
+      # env applies the raw string's leading VAR=val assignments
+      gameInvocation =
+        if hasRaw then
+          "env ${lib.replaceString "%command%" ''"''${game_command[@]}"'' effectiveRaw}"
+        else
+          ''"''${game_command[@]}"'';
+
       launchStep =
-        if hasStrOptions then
-          # for traditional single line string launch options
-          "exec env ${lib.replaceString "%command%" ''"$@"'' app.launchOptionsStr}"
-        else if hasOptions then
+        if hasOptions then
           ''
             # Steam configuration for ${name}
 
-            ${exportAll app.launchOptions.env}
+            ${exportAll app.env}
 
-            declare -a wrappers=(${lib.escapeShellArgs app.launchOptions.wrappers})
+            declare -a wrappers=(${lib.escapeShellArgs app.wrappers})
             declare -a game_command=("$@")
-            declare -a args=(${lib.escapeShellArgs app.launchOptions.args})
+            declare -a args=(${lib.escapeShellArgs app.args})
 
-            ${app.launchOptions.preHook}
+            ${app.preHook}
 
-            exec env "''${wrappers[@]}" "''${game_command[@]}" "''${args[@]}"
+            exec env "''${wrappers[@]}" ${gameInvocation} "''${args[@]}"
           ''
+        else if hasRaw then
+          "exec env ${lib.replaceString "%command%" ''"$@"'' effectiveRaw}"
         else
           ''exec "$@"'';
 
@@ -77,9 +91,41 @@ let
         ${launchStep}
       '';
     in
-    if hasOptions || hasStrOptions || hasWinetricks then package else null;
+    if hasOptions || hasRaw || hasWinetricks then package else null;
 
-  launchOptionsOptions = {
+in
+{
+  imports = [
+    # declares the `warnings` and `assertions` options this submodule collects upward
+    "${pkgs.path}/nixos/modules/misc/assertions.nix"
+    (lib.mkRenamedOptionModule [ "launchOptions" "env" ] [ "env" ])
+    (lib.mkRenamedOptionModule [ "launchOptions" "args" ] [ "args" ])
+    (lib.mkRenamedOptionModule [ "launchOptions" "wrappers" ] [ "wrappers" ])
+    (lib.mkRenamedOptionModule [ "launchOptions" "preHook" ] [ "preHook" ])
+    (lib.mkRenamedOptionModule [ "launchOptionsStr" ] [ "rawLaunchOptions" ])
+  ];
+
+  options = {
+    enable = lib.mkOption {
+      type = types.bool;
+      default = true;
+      example = false;
+      description = ''
+        Whether to manage this app.
+
+        When false the app is ignored, and any configuration previously applied for it is reverted.
+      '';
+    };
+
+    compatTool = lib.mkOption {
+      type = with types; nullOr (either str package);
+      default = null;
+      example = lib.literalExpression "pkgs.proton-ge-bin";
+      description = ''
+        Compatibility tool to use, either the internal name of an installed tool (e.g. `"proton_experimental"`), or a package containing one.
+      '';
+    };
+
     env = lib.mkOption {
       type =
         with types;
@@ -152,41 +198,18 @@ let
          - `args`: values from the args option
       '';
     };
-  };
-in
-{
-  options = {
-    enable = lib.mkOption {
-      type = types.bool;
-      default = true;
-      example = false;
-      description = ''
-        Whether to manage this app.
 
-        When false the app is ignored, and any configuration previously applied for it is reverted.
-      '';
-    };
-
-    compatTool = lib.mkOption {
-      type = with types; nullOr (either str package);
-      default = null;
-      example = lib.literalExpression "pkgs.proton-ge-bin";
-      description = ''
-        Compatibility tool to use, either the internal name of an installed tool (e.g. `"proton_experimental"`), or a package containing one.
-
-        Packages are installed automatically, see the readme for details.
-      '';
-    };
-
-    launchOptions = launchOptionsOptions;
-
-    launchOptionsStr = lib.mkOption {
+    rawLaunchOptions = lib.mkOption {
       type = types.nullOr types.singleLineStr;
       default = null;
+      example = "gamemoderun %command%";
       description = ''
-        Traditional Steam launch options.
+        Steam style launch options string, works exactly like in Steam:
 
-        Cannot be combined with `launchOptions`.
+        - Use `%command%` to mark where the game command runs.
+        - A string with no `%command%` is appended to the game command as arguments.
+
+        Usage of this option is discouraged in favor of the structured launch options, however this option is compatible with them. Wrapped by `wrappers` with `env` and `args` applied around it.
       '';
     };
 
@@ -214,8 +237,6 @@ in
         example = true;
         description = ''
           Whether to generate a desktop entry that launches this app through Steam.
-
-          Defaults to the global `programs.steam.config.desktopEntries.enable` option.
         '';
       };
 
@@ -283,30 +304,11 @@ in
       description = "Identifier passed to `steam://rungameid/`.";
     };
 
-    hasLaunchOptions = lib.mkOption {
-      type = types.bool;
-      default =
-        config.launchOptions.env != { }
-        || config.launchOptions.wrappers != [ ]
-        || config.launchOptions.args != [ ]
-        || config.launchOptions.preHook != "";
-      visible = false;
-      internal = true;
-      readOnly = true;
-    };
-
-    dataDir = lib.mkOption {
-      default = "${dataDir}/apps/${toString config.id}";
-      visible = false;
-      internal = true;
-      readOnly = true;
-    };
-
     wrapper = lib.mkOption {
       default =
         let
           package = mkAppWrapperPackage config;
-          path = if package == null then null else "${config.dataDir}/wrapper";
+          path = if package == null then null else "${dataDir}/apps/${toString config.id}/wrapper";
           exec = if package == null then null else "${path} %command%";
         in
         {

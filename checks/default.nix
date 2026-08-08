@@ -100,10 +100,16 @@
               apps = {
                 "620" = {
                   id = 620;
-                  launchOptionsStr = "MANGOHUD=1 %command% -vulkan";
+                  rawLaunchOptions = "MANGOHUD=1 %command% -vulkan";
                   winetricks = [ "vcrun2022" ];
                   # an explicit icon always wins over the library-icon default
                   desktopEntry.icon = "custom-icon";
+                };
+
+                # rawLaunchOptions with no %command% appends as args, like steam
+                "440" = {
+                  id = 440;
+                  rawLaunchOptions = "-windowed -novid";
                 };
 
                 # opt out of the global desktop entry default
@@ -128,15 +134,13 @@
                   artwork.hero = fakeArt;
                   files.install."mods/test.pak".source = fakeArt;
                   removeFiles.install = [ "movies/intro.bik" ];
-                  launchOptions = {
-                    env = {
-                      WINEDLLOVERRIDES = "winmm,version=n,b";
-                      TZ = null;
-                    };
-                    args = [ "--launcher-skip" ];
-                    wrappers = [ "gamemoderun" ];
-                    preHook = "echo prehook";
+                  env = {
+                    WINEDLLOVERRIDES = "winmm,version=n,b";
+                    TZ = null;
                   };
+                  args = [ "--launcher-skip" ];
+                  wrappers = [ "gamemoderun" ];
+                  preHook = "echo prehook";
                 };
               };
 
@@ -166,6 +170,19 @@
             updateBehavior = null;
             libraryIcon = false;
             launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
+            artwork = noArtwork;
+            files = [ ];
+            removeFiles = [ ];
+          };
+
+          "440" = {
+            id = 440;
+            compatTool = null;
+            betaBranch = null;
+            language = null;
+            updateBehavior = null;
+            libraryIcon = true;
+            launchOptions = "/var/lib/steam-config-nix/apps/440/wrapper %command%";
             artwork = noArtwork;
             files = [ ];
             removeFiles = [ ];
@@ -250,6 +267,7 @@
       actualJson = pkgs.writeText "actual.json" (builtins.toJSON actual);
 
       strWrapper = lib.getExe cfg.apps."620".wrapper.package;
+      rawArgsWrapper = lib.getExe cfg.apps."440".wrapper.package;
       optionsWrapper = lib.getExe cfg.apps.cyberpunk.wrapper.package;
 
       desktopItems = lib.filter (
@@ -426,6 +444,9 @@
           diff ${expectedJson} ${actualJson}
 
           grep -Fx 'exec env MANGOHUD=1 "$@" -vulkan' ${strWrapper}
+
+          # rawLaunchOptions with no %command% is appended as args to the game
+          grep -Fx 'exec env "$@" -windowed -novid' ${rawArgsWrapper}
 
           # winetricks step runs before the launch, guarded by the prefix + a marker
           grep -F 'STEAM_COMPAT_DATA_PATH/pfx' ${strWrapper}
