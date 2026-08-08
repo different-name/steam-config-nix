@@ -337,10 +337,6 @@ in
               }
             ]
             ++ lib.concatMap (app: app.assertions) allApps
-            ++ lib.mapAttrsToList (name: app: {
-              assertion = app.artwork.icon == null;
-              message = "steam-config-nix: apps.${name} sets artwork.icon, which is only available for non-Steam apps (Steam manages the icons of its own apps)";
-            }) enabledApps
             ++ map (e: {
               assertion = (e.entry.source != null) != (e.entry.text != null);
               message = ''steam-config-nix: apps.${e.appName}.files.${e.location}."${e.path}" must set exactly one of `source` or `text`'';

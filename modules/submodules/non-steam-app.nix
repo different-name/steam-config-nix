@@ -116,12 +116,17 @@ in
       type = types.nullOr types.path;
       default = null;
       example = lib.literalExpression "./icon.png";
-      description = "Icon shown in the taskbar and shortcut list.";
+      description = ''
+        Icon shown in the taskbar and shortcut list, and the default for the app's desktop entry.
+      '';
     };
+
   };
 
   config = {
     steamRunId = mkShortcutGameId config.id;
+
+    desktopEntry.icon = lib.mkIf (config.artwork.icon != null) (lib.mkDefault config.artwork.icon);
 
     finalConfig = {
       inherit (config)

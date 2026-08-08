@@ -156,19 +156,10 @@ in
       description = ''
         Use the app's own icon from your Steam library for its desktop entry, instead of the generic Steam icon.
 
-        Defaults to the global `programs.steam.config.desktopEntries.libraryIcons` option. Setting `desktopEntry.icon` explicitly always takes precedence.
+        Setting `desktopEntry.icon` explicitly always takes precedence.
 
         Has no effect unless `desktopEntry.enable` is set.
       '';
-    };
-
-    # only exists so setting it on a Steam app gives a helpful assertion
-    # instead of "option does not exist"; real icons are non-Steam only
-    artwork.icon = lib.mkOption {
-      type = types.nullOr types.path;
-      default = null;
-      visible = false;
-      internal = true;
     };
 
     files.install = lib.mkOption {
