@@ -8,13 +8,13 @@ Add non-Steam games and applications as Steam shortcuts, so they show up in your
     # target is the executable, a package or an absolute path
     target = pkgs.vintagestory;
     compatTool = "proton_experimental";
-    launchOptions.env.MANGOHUD = "1";
+    env.MANGOHUD = "1";
     artwork.icon = ./vintagestory.png;
   };
 }
 ```
 
-Non-Steam apps share the common per-app options with Steam apps: `compatTool`, `launchOptions` / `launchOptionsStr`, `winetricks`, `desktopEntry` and `artwork`. On top of those they have:
+Non-Steam apps share the common per-app options with Steam apps: `compatTool`, the [launch options](./launch-options.md) (`env`, `dllOverrides`, `wrappers`, `args`, `preHook`, `rawLaunchOptions`), `winetricks`, `desktopEntry` and `artwork`. On top of those they have:
 
 - `target`: the executable to launch, given as a package (resolved with `lib.getExe`) or an absolute path.
 - `name`: the name shown in Steam, defaulting to the attribute name.
@@ -28,4 +28,4 @@ Steam identifies a shortcut by a numeric ID. By default it is derived from a `se
 
 Because the ID feeds the Proton prefix path, changing it (by renaming the app or setting a different `seed` or `id`) creates a fresh Wine prefix. Set an explicit `seed` if you want to rename the app without losing its prefix.
 
-Note that `files`, `removeFiles` and the [Steam app settings](./app-settings.md) (`betaBranch`, `language`, `updateBehavior`) apply to Steam apps only.
+Note that `files` and the [Steam app settings](./app-settings.md) (`betaBranch`, `language`, `updateBehavior`) apply to Steam apps only.

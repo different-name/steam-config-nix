@@ -15,6 +15,6 @@ Verbs are applied at launch. The prefix and Proton come from the environment Ste
 
 The first launch after adding or changing verbs is slower, as the game waits while the verbs install. A desktop notification (see [Configuration](./configuration.md)) is shown while this happens.
 
-This is not fully reproducible (winetricks downloads runtimes), but neither is Steam. For DLL-style components (`dxvk`, `vkd3d`) you can instead drop the DLLs and set `launchOptions.env.WINEDLLOVERRIDES` for a pure setup.
+This is not fully reproducible (winetricks downloads runtimes), but neither is Steam. For DLL-style components (`dxvk`, `vkd3d`) you can instead drop the DLLs and set `dllOverrides` for a pure setup.
 
 Some unusual custom Proton builds are not compatible with protontricks and will fail (harmlessly) to apply verbs.

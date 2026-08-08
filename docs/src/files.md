@@ -1,6 +1,8 @@
 # Game Files & Mods
 
-Place files into a game's install directory or Proton prefix, and remove files from them, for config, asset replacements, mods, or anything else. Every change is tracked and reverted when you remove it from your configuration.
+Place files into a game's install directory or Proton prefix, patch config files in place, and remove files, for config, asset replacements, mods, or anything else. Every change is tracked and reverted when you remove it from your configuration.
+
+Everything lives under `files.<location>`, where the location is `game` (the install directory) or `prefix` (the Proton prefix, `compatdata/<id>/pfx`), and each location has `place`, `patch` and `remove`.
 
 ## Placing and removing files
 
@@ -8,7 +10,7 @@ Place files into a game's install directory or Proton prefix, and remove files f
 {
   programs.steam.config.apps."Lethal Company" = {
     id = 1966720;
-    files.install = {
+    files.game.place = {
       # place a file from a path, keyed by its destination
       "config/settings.ini".source = ./settings.ini;
       # place inline contents instead of a file
@@ -16,22 +18,51 @@ Place files into a game's install directory or Proton prefix, and remove files f
       # a file the game rewrites: written once, then left alone
       "config/user.cfg" = {
         source = ./user.cfg;
-        overwriteChanges = false;
+        mode = "seed";
       };
     };
     # remove a file entirely
-    removeFiles.install = [ "movies/intro.bik" ];
+    files.game.remove = [ "movies/intro.bik" ];
   };
 }
 ```
 
-Each entry sets exactly one of `source` or `text`. A `source` may be a file or a directory, and a directory is copied recursively and merged with whatever is already at the target.
+Each `place` entry sets exactly one of `source` or `text`. A `source` may be a file or a directory, and a directory is copied recursively and merged with whatever is already at the target.
 
 Every placed and removed file is tracked, so removing an entry from your configuration reverts it: replaced and removed files are restored from a backup, and files that were newly created are deleted.
 
-By default a file is re-applied on every activation. Set `overwriteChanges = false` to write it once and then leave it alone, which is what you want for files the game or you edit in place. Delete the file to push a new version.
+Each `place` entry has a `mode`:
 
-Use `files.prefix` and `removeFiles.prefix` to target the Proton prefix (`compatdata/<id>/pfx`) instead, for files under `drive_c/users/steamuser/AppData` and the like.
+- `"enforce"` (the default): re-apply the declared contents on every activation.
+- `"seed"`: write it once and then leave it alone, which is what you want for files the game or you edit in place. Delete the file to push a new version.
+- `"lock"`: like `"enforce"`, but the file is made read-only so nothing else can change it.
+
+Use `files.prefix.place` and `files.prefix.remove` to target the Proton prefix instead, for files under `drive_c/users/steamuser/AppData` and the like.
+
+## Patching config files
+
+When a game generates its own config and you only want to change a few keys, patch it instead of replacing the whole file. The patcher reads the file, merges your keys in, and writes it back, leaving keys you did not mention untouched:
+
+```nix
+{
+  programs.steam.config.apps."Some Game" = {
+    id = 1234560;
+    files.game.patch."Engine/Config/BaseEngine.ini" = {
+      format = "ini";
+      content.SystemSettings."r.Tonemapper.Sharpen" = 2;
+    };
+    files.prefix.patch."drive_c/users/steamuser/AppData/Local/game/settings.json" = {
+      format = "json";
+      content.graphics.fullscreen = true;
+    };
+  };
+}
+```
+
+- `format` is `"ini"` or `"json"`. For `ini`, `content` is sections of key to value. For `json`, `content` is a nested attribute set deep-merged into the file.
+- `whenMissing` defaults to `"create"` (write a new file with just your keys). Set it to `"skip"` to wait until the game generates the file, retrying on the next activation.
+
+A patch is always re-applied, and the original is backed up and restored when you remove it. A file cannot be both placed and patched.
 
 ## Installing mods
 
@@ -45,7 +76,7 @@ Drop a loader (here BepInEx) and its plugins straight into the install directory
 {
   programs.steam.config.apps."Lethal Company" = {
     id = 1966720;
-    files.install = {
+    files.game.place = {
       # the loader, unpacked into the game root (a directory source is merged in)
       ".".source = pkgs.fetchzip {
         url = "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_win_x64_5.4.23.2.zip";
@@ -63,24 +94,24 @@ Because a directory `source` is merged into the target, unpacking a loader over 
 
 ### Keeping mod config editable
 
-Many mods write their own config on first run and expect you (or the mod's in-game menu) to edit it. Ship an initial config but let it be edited in place with `overwriteChanges = false`:
+Many mods write their own config on first run and expect you (or the mod's in-game menu) to edit it. Ship an initial config but let it be edited in place with `mode = "seed"`:
 
 ```nix
 {
-  files.install."BepInEx/config/MoreCompany.cfg" = {
+  files.game.place."BepInEx/config/MoreCompany.cfg" = {
     source = ./MoreCompany.cfg;
-    overwriteChanges = false; # written once, then left alone
+    mode = "seed"; # written once, then left alone
   };
 }
 ```
 
 ### Mods that live in the prefix
 
-For mods or config under the Windows user profile rather than the game directory, target the Proton prefix with `files.prefix`:
+For mods or config under the Windows user profile rather than the game directory, target the Proton prefix with `files.prefix.place`:
 
 ```nix
 {
-  files.prefix."drive_c/users/steamuser/AppData/LocalLow/Studio/Game/mod.xml" = {
+  files.prefix.place."drive_c/users/steamuser/AppData/LocalLow/Studio/Game/mod.xml" = {
     source = ./mod.xml;
   };
 }

@@ -11,18 +11,19 @@
       "Cyberpunk 2077" = {
         id = 1091500;
         compatTool = "GE-Proton";
-        launchOptions = {
-          env.WINEDLLOVERRIDES = "winmm,version=n,b";
-          args = [
-            "--launcher-skip"
-            "-skipStartScreen"
-          ];
+        dllOverrides = {
+          winmm = "n,b";
+          version = "n,b";
         };
+        args = [
+          "--launcher-skip"
+          "-skipStartScreen"
+        ];
       };
 
       "VRChat" = {
         id = 438100;
-        launchOptions.env.TZ = null;
+        env.TZ = null;
       };
     };
   };
