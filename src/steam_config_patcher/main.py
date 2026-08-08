@@ -40,15 +40,15 @@ class ArtworkSchema(StrictSchema):
 
 
 class FileOpSchema(StrictSchema):
-    location: Literal["install", "prefix"]
+    location: Literal["game", "prefix"]
     target: str
     source: str
-    overwriteChanges: bool
+    mode: Literal["enforce", "seed", "lock"]
     executable: bool | None = None
 
 
 class RemoveOpSchema(StrictSchema):
-    location: Literal["install", "prefix"]
+    location: Literal["game", "prefix"]
     target: str
 
 
@@ -169,7 +169,7 @@ def parse_input() -> PatcherConfig:
                 location=op.location,
                 target=op.target,
                 source=Path(op.source),
-                overwrite_changes=op.overwriteChanges,
+                mode=op.mode,
                 executable=op.executable,
             )
             for app in validated_input.apps.values()

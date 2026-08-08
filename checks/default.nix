@@ -60,16 +60,16 @@
             };
             files = [
               {
-                location = "install";
+                location = "game";
                 target = "mods/test.txt";
                 source = "${seedModFile}";
-                overwriteChanges = true;
+                mode = "enforce";
                 executable = null;
               }
             ];
             removeFiles = [
               {
-                location = "install";
+                location = "game";
                 target = "unwanted.txt";
               }
             ];
@@ -132,8 +132,8 @@
                   language = "german";
                   updateBehavior = "onLaunch";
                   artwork.hero = fakeArt;
-                  files.install."mods/test.pak".source = fakeArt;
-                  removeFiles.install = [ "movies/intro.bik" ];
+                  files.game.place."mods/test.pak".source = fakeArt;
+                  files.game.remove = [ "movies/intro.bik" ];
                   env.TZ = null;
                   dllOverrides = {
                     winmm = "n,b";
@@ -229,16 +229,16 @@
             };
             files = [
               {
-                location = "install";
+                location = "game";
                 target = "mods/test.pak";
                 source = "${fakeArt}";
-                overwriteChanges = true;
+                mode = "enforce";
                 executable = null;
               }
             ];
             removeFiles = [
               {
-                location = "install";
+                location = "game";
                 target = "movies/intro.bik";
               }
             ];
@@ -315,27 +315,27 @@
 
       assertionsOk =
         lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
-          files.install."x" = {
+          files.game.place."x" = {
             source = fakeArt;
             text = "hi";
           };
         })) "setting both source and text should fail"
         && lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
-          files.install."x" = { };
+          files.game.place."x" = { };
         })) "setting neither source nor text should fail"
         && lib.assertMsg (hasFailure "unsafe target" (failingAssertions {
-          files.install."../escape".source = fakeArt;
+          files.game.place."../escape".source = fakeArt;
         })) "an unsafe file target should fail"
         && lib.assertMsg (hasFailure "unsafe path" (failingAssertions {
-          removeFiles.install = [ "../escape" ];
+          files.game.remove = [ "../escape" ];
         })) "an unsafe removeFiles path should fail"
         && lib.assertMsg (hasFailure "same target" (failingAssertions {
-          files.install = {
+          files.game.place = {
             "a".target = "shared.dll";
             "b".target = "shared.dll";
           };
-          files.install."a".source = fakeArt;
-          files.install."b".source = fakeArt;
+          files.game.place."a".source = fakeArt;
+          files.game.place."b".source = fakeArt;
         })) "duplicate resolved targets should fail"
         && lib.assertMsg (hasFailure "dllOverrides and env.WINEDLLOVERRIDES" (failingAssertions {
           dllOverrides.winhttp = "n,b";
@@ -343,8 +343,8 @@
         })) "setting both dllOverrides and a different env.WINEDLLOVERRIDES should fail"
         && lib.assertMsg (
           failingAssertions {
-            files.install."mods/ok.pak".source = fakeArt;
-            removeFiles.install = [ "movies/intro.bik" ];
+            files.game.place."mods/ok.pak".source = fakeArt;
+            files.game.remove = [ "movies/intro.bik" ];
           } == [ ]
         ) "a valid file config should not fail";
     in

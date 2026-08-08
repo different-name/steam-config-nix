@@ -21,7 +21,7 @@ def test_round_trip(tmp_path):
         files=[
             ManagedFile(
                 app_id=620,
-                location="install",
+                location="game",
                 target="Mods/foo.dll",
                 op="place",
                 source_hash="abc123",
@@ -35,7 +35,7 @@ def test_round_trip(tmp_path):
                 had_backup=True,
             ),
         ],
-        dirs=[ManagedDir(app_id=620, location="install", target="Mods")],
+        dirs=[ManagedDir(app_id=620, location="game", target="Mods")],
     )
 
     save_files_manifest(steam_dir, manifest)
@@ -76,14 +76,14 @@ def test_save_skips_when_config_dir_missing(tmp_path):
 def test_backup_path_nests_by_app_and_location(tmp_path):
     steam_dir = make_config_dir(tmp_path)
 
-    path = backup_path(steam_dir, 620, "install", "Mods/foo.dll")
+    path = backup_path(steam_dir, 620, "game", "Mods/foo.dll")
 
     assert path == (
         steam_dir
         / "config"
         / "steam-config-nix-backups"
         / "620"
-        / "install"
+        / "game"
         / "Mods"
         / "foo.dll"
     )

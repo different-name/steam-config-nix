@@ -9,9 +9,17 @@ let
   baseAppModule = import ./base-app.nix { inherit lib pkgs dataDir; };
   libraryIconName = "steam-config-nix-${toString config.id}";
 
-  fileSubmodule = types.submodule (
+  placeSubmodule = types.submodule (
     { name, ... }:
     {
+      imports = [
+        # declares the `warnings` option the mode migration writes to
+        "${pkgs.path}/nixos/modules/misc/assertions.nix"
+        (lib.mkChangedOptionModule [ "overwriteChanges" ] [ "mode" ] (
+          entry: if entry.overwriteChanges then "enforce" else "seed"
+        ))
+      ];
+
       options = {
         enable = lib.mkOption {
           type = types.bool;
@@ -52,14 +60,20 @@ let
           description = "Path relative to the root, defaulting to the attribute name.";
         };
 
-        overwriteChanges = lib.mkOption {
-          type = types.bool;
-          default = true;
-          example = false;
+        mode = lib.mkOption {
+          type = types.enum [
+            "enforce"
+            "seed"
+            "lock"
+          ];
+          default = "enforce";
+          example = "seed";
           description = ''
-            Whether to re-apply this file on every activation.
+            How the file is managed across activations.
 
-            When true the declared contents are enforced each activation. When false the file is written once and then left alone, so changes the game or you make to it are preserved. Delete the file to re-apply.
+            - `"enforce"`: re-apply the declared contents every activation, overwriting drift.
+            - `"seed"`: write once if absent, then leave it editable so your and the game's changes are kept. Delete it to re-apply.
+            - `"lock"`: like `"enforce"`, but the placed file is made read-only so nothing else can change it.
           '';
         };
 
@@ -85,14 +99,19 @@ let
     location: attrs:
     lib.mapAttrsToList (_: entry: {
       inherit location;
-      inherit (entry) target overwriteChanges executable;
+      inherit (entry) target mode executable;
       source = "${resolveSource entry}";
     }) (lib.filterAttrs (_: entry: entry.enable) attrs);
 
   mkRemoveOps = location: paths: map (target: { inherit location target; }) paths;
 in
 {
-  imports = [ baseAppModule ];
+  imports = [
+    baseAppModule
+    (lib.mkRenamedOptionModule [ "files" "install" ] [ "files" "game" "place" ])
+    (lib.mkRenamedOptionModule [ "removeFiles" "install" ] [ "files" "game" "remove" ])
+    (lib.mkRenamedOptionModule [ "removeFiles" "prefix" ] [ "files" "prefix" "remove" ])
+  ];
 
   options = {
     id = lib.mkOption {
@@ -162,15 +181,15 @@ in
       '';
     };
 
-    files.install = lib.mkOption {
-      type = types.attrsOf fileSubmodule;
+    files.game.place = lib.mkOption {
+      type = types.attrsOf placeSubmodule;
       default = { };
       example = lib.literalExpression ''
         {
           "BepInEx/plugins/plugin.dll".source = ./plugin.dll;
           "mod.cfg" = {
             source = ./mod.cfg;
-            overwriteChanges = false;
+            mode = "seed";
           };
         }
       '';
@@ -179,8 +198,17 @@ in
       '';
     };
 
-    files.prefix = lib.mkOption {
-      type = types.attrsOf fileSubmodule;
+    files.game.remove = lib.mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      example = [ "movies/intro.bik" ];
+      description = ''
+        Paths in the game's install directory to remove, relative to it. A directory is removed recursively. Removed files are restored when the entry is unset.
+      '';
+    };
+
+    files.prefix.place = lib.mkOption {
+      type = types.attrsOf placeSubmodule;
       default = { };
       example = lib.literalExpression ''
         {
@@ -192,16 +220,7 @@ in
       '';
     };
 
-    removeFiles.install = lib.mkOption {
-      type = types.listOf types.str;
-      default = [ ];
-      example = [ "movies/intro.bik" ];
-      description = ''
-        Paths in the game's install directory to remove, relative to it. A directory is removed recursively. Removed files are restored when the entry is unset.
-      '';
-    };
-
-    removeFiles.prefix = lib.mkOption {
+    files.prefix.remove = lib.mkOption {
       type = types.listOf types.str;
       default = [ ];
       description = ''
@@ -227,8 +246,13 @@ in
           highPriority = "2";
         }
         .${config.updateBehavior};
-    files = mkFileOps "install" config.files.install ++ mkFileOps "prefix" config.files.prefix;
+    files = mkFileOps "game" config.files.game.place ++ mkFileOps "prefix" config.files.prefix.place;
     removeFiles =
-      mkRemoveOps "install" config.removeFiles.install ++ mkRemoveOps "prefix" config.removeFiles.prefix;
+      mkRemoveOps "game" config.files.game.remove ++ mkRemoveOps "prefix" config.files.prefix.remove;
   };
+
+  # surface the per-file mode migration warnings (place submodule warnings are not collected otherwise)
+  config.warnings = lib.concatMap (entry: entry.warnings) (
+    lib.attrValues config.files.game.place ++ lib.attrValues config.files.prefix.place
+  );
 }

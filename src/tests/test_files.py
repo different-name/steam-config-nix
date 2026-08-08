@@ -40,13 +40,13 @@ def source_file(env, name, content="data", mode=0o644):
     return path
 
 
-def place(env, target, source, location="install", overwrite_changes=True, executable=None):
+def place(env, target, source, location="game", mode="enforce", executable=None):
     return FileOp(
         app_id=620,
         location=location,
         target=target,
         source=source,
-        overwrite_changes=overwrite_changes,
+        mode=mode,
         executable=executable,
     )
 
@@ -72,7 +72,7 @@ def test_replace_backs_up_original_and_reverts(env):
     apply_file_ops(env.steam_dir, [place(env, "base.pak", src)], [])
 
     assert target.read_text() == "modded"
-    assert backup_path(env.steam_dir, 620, "install", "base.pak").read_text() == "vanilla"
+    assert backup_path(env.steam_dir, 620, "game", "base.pak").read_text() == "vanilla"
 
     apply_file_ops(env.steam_dir, [], [])
 
@@ -105,7 +105,7 @@ def test_directory_merge_keeps_existing_files(env):
 
 def test_seed_writes_once_and_preserves_edits(env):
     src = source_file(env, "cfg.ini", "default")
-    op = place(env, "cfg.ini", src, overwrite_changes=False)
+    op = place(env, "cfg.ini", src, mode="seed")
     apply_file_ops(env.steam_dir, [op], [])
     target = env.install / "cfg.ini"
     target.write_text("user-edited")
@@ -117,7 +117,7 @@ def test_seed_writes_once_and_preserves_edits(env):
 
 def test_seed_revert_leaves_user_edits_deletes_unmodified(env):
     src = source_file(env, "cfg.ini", "default")
-    op = place(env, "cfg.ini", src, overwrite_changes=False)
+    op = place(env, "cfg.ini", src, mode="seed")
 
     apply_file_ops(env.steam_dir, [op], [])
     apply_file_ops(env.steam_dir, [], [])
@@ -153,7 +153,7 @@ def test_executable_inherited_and_forced(env):
 def test_remove_file_backs_up_and_reverts(env):
     (env.install / "broken.dll").write_text("bad")
 
-    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "broken.dll")])
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "game", "broken.dll")])
     assert not (env.install / "broken.dll").exists()
 
     apply_file_ops(env.steam_dir, [], [])
@@ -166,7 +166,7 @@ def test_remove_directory_recursive_and_reverts(env):
     (junk / "a").write_text("a")
     (junk / "sub" / "b").write_text("b")
 
-    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "junk")])
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "game", "junk")])
     assert not (junk / "a").exists() and not (junk / "sub" / "b").exists()
 
     apply_file_ops(env.steam_dir, [], [])
@@ -181,7 +181,7 @@ def test_remove_symlink_to_directory_does_not_crash(env):
     link = env.install / "link"
     link.symlink_to(real_dir)
 
-    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "link")])
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "game", "link")])
 
     assert not link.is_symlink()
     assert (real_dir / "file").read_text() == "data"
@@ -194,7 +194,7 @@ def test_remove_symlink_to_directory_does_not_crash(env):
 def test_remove_revert_leaves_recreated_file(env):
     target = env.install / "broken.dll"
     target.write_text("original")
-    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "broken.dll")])
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "game", "broken.dll")])
     assert not target.exists()
 
     target.write_text("recreated by game")
@@ -224,7 +224,7 @@ def test_mirror_via_remove_keeps_placed_removes_vanilla(env):
     apply_file_ops(
         env.steam_dir,
         [place(env, "Mods/mymod.dll", src)],
-        [RemoveOp(620, "install", "Mods")],
+        [RemoveOp(620, "game", "Mods")],
     )
 
     assert (mods / "mymod.dll").read_text() == "mine"
@@ -285,7 +285,7 @@ def test_overwrite_changes_re_enforces_exec_bit(env):
 
 def test_seed_does_not_re_enforce_drift(env):
     src = source_file(env, "cfg.ini", "default")
-    op = place(env, "cfg.ini", src, overwrite_changes=False)
+    op = place(env, "cfg.ini", src, mode="seed")
     apply_file_ops(env.steam_dir, [op], [])
     target = env.install / "cfg.ini"
 
@@ -293,6 +293,46 @@ def test_seed_does_not_re_enforce_drift(env):
     apply_file_ops(env.steam_dir, [op], [])
 
     assert target.read_text() == "user edit"
+
+
+def test_lock_places_read_only_file(env):
+    src = source_file(env, "cfg.ini", "locked", mode=0o644)
+    op = place(env, "cfg.ini", src, mode="lock")
+
+    apply_file_ops(env.steam_dir, [op], [])
+
+    target = env.install / "cfg.ini"
+    assert target.read_text() == "locked"
+    assert not os.access(target, os.W_OK)
+    assert target.stat().st_mode & 0o222 == 0
+
+
+def test_lock_re_enforces_drifted_target(env):
+    src = source_file(env, "cfg.ini", "locked")
+    op = place(env, "cfg.ini", src, mode="lock")
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "cfg.ini"
+
+    target.chmod(0o644)
+    target.write_text("clobbered by a game update")
+    apply_file_ops(env.steam_dir, [op], [])
+
+    assert target.read_text() == "locked"
+    assert target.stat().st_mode & 0o222 == 0
+
+
+def test_lock_re_asserts_read_only_on_reactivation(env):
+    src = source_file(env, "cfg.ini", "locked")
+    op = place(env, "cfg.ini", src, mode="lock")
+    apply_file_ops(env.steam_dir, [op], [])
+    target = env.install / "cfg.ini"
+
+    target.chmod(0o644)
+    assert os.access(target, os.W_OK)
+    apply_file_ops(env.steam_dir, [op], [])
+
+    assert not os.access(target, os.W_OK)
+    assert target.stat().st_mode & 0o222 == 0
 
 
 def test_place_over_symlink_replaces_link_not_target(env):
@@ -368,8 +408,8 @@ def test_conflicting_targets_raise(env):
     a = source_file(env, "a", "A")
     b = source_file(env, "b", "B")
     ops = [
-        FileOp(app_id=620, location="install", target="same.dll", source=a, overwrite_changes=True),
-        FileOp(app_id=620, location="install", target="same.dll", source=b, overwrite_changes=True),
+        FileOp(app_id=620, location="game", target="same.dll", source=a, mode="enforce"),
+        FileOp(app_id=620, location="game", target="same.dll", source=b, mode="enforce"),
     ]
 
     with pytest.raises(FileOpConflict):
@@ -390,7 +430,7 @@ def test_unsafe_remove_target_is_skipped(env):
     victim = env.install.parent / "victim"
     victim.write_text("important")
 
-    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "install", "../victim")])
+    apply_file_ops(env.steam_dir, [], [RemoveOp(620, "game", "../victim")])
 
     assert victim.read_text() == "important"
 
@@ -436,7 +476,7 @@ def test_orphan_backup_deleted_when_game_uninstalled(env, monkeypatch):
     op = place(env, "base.pak", src)
 
     apply_file_ops(env.steam_dir, [op], [])
-    stored = backup_path(env.steam_dir, 620, "install", "base.pak")
+    stored = backup_path(env.steam_dir, 620, "game", "base.pak")
     assert stored.exists()
 
     monkeypatch.setattr(
@@ -459,4 +499,4 @@ def test_stale_backup_deleted_when_user_modified(env):
     apply_file_ops(env.steam_dir, [], [])
 
     assert target.read_text() == "user-edited"
-    assert not backup_path(env.steam_dir, 620, "install", "base.pak").exists()
+    assert not backup_path(env.steam_dir, 620, "game", "base.pak").exists()

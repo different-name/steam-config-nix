@@ -194,10 +194,10 @@ def test_files_map_to_file_ops(tmp_path, monkeypatch):
                 "id": 620,
                 "files": [
                     {
-                        "location": "install",
+                        "location": "game",
                         "target": "Mods/foo.dll",
                         "source": "/nix/store/x-foo.dll",
-                        "overwriteChanges": True,
+                        "mode": "enforce",
                         "executable": None,
                     }
                 ],
@@ -211,10 +211,10 @@ def test_files_map_to_file_ops(tmp_path, monkeypatch):
     assert cfg.file_ops == [
         FileOp(
             app_id=620,
-            location="install",
+            location="game",
             target="Mods/foo.dll",
             source=Path("/nix/store/x-foo.dll"),
-            overwrite_changes=True,
+            mode="enforce",
             executable=None,
         )
     ]
@@ -240,7 +240,7 @@ def test_unknown_file_op_location_raises(tmp_path, monkeypatch):
                         "location": "elsewhere",
                         "target": "x",
                         "source": "/s",
-                        "overwriteChanges": True,
+                        "mode": "enforce",
                     }
                 ],
             }

@@ -277,10 +277,10 @@ in
                             path
                             entry
                             ;
-                        }) app.files.${location}
+                        }) app.files.${location}.place
                       )
                       [
-                        "install"
+                        "game"
                         "prefix"
                       ]
                   ) enabledApps
@@ -291,9 +291,9 @@ in
                 lib.mapAttrsToList (
                   appName: app:
                   lib.concatMap
-                    (location: map (target: { inherit appName location target; }) app.removeFiles.${location})
+                    (location: map (target: { inherit appName location target; }) app.files.${location}.remove)
                     [
-                      "install"
+                      "game"
                       "prefix"
                     ]
                 ) enabledApps
@@ -312,7 +312,7 @@ in
                 let
                   e = builtins.head group;
                 in
-                ''apps.${e.appName}.files.${e.location} has multiple entries targeting "${e.entry.target}"''
+                ''apps.${e.appName}.files.${e.location}.place has multiple entries targeting "${e.entry.target}"''
               ) duplicateTargets;
             in
             [
@@ -324,15 +324,15 @@ in
             ++ lib.concatMap (app: app.assertions) allApps
             ++ map (e: {
               assertion = (e.entry.source != null) != (e.entry.text != null);
-              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}."${e.path}" must set exactly one of `source` or `text`'';
+              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}.place."${e.path}" must set exactly one of `source` or `text`'';
             }) enabledFileEntries
             ++ map (e: {
               assertion = !unsafePath e.entry.target;
-              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}."${e.path}" has an unsafe target "${e.entry.target}" (paths must be relative and must not contain ..)'';
+              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}.place."${e.path}" has an unsafe target "${e.entry.target}" (paths must be relative and must not contain ..)'';
             }) enabledFileEntries
             ++ map (e: {
               assertion = !unsafePath e.target;
-              message = ''steam-config-nix: apps.${e.appName}.removeFiles.${e.location} has an unsafe path "${e.target}" (paths must be relative and must not contain ..)'';
+              message = ''steam-config-nix: apps.${e.appName}.files.${e.location}.remove has an unsafe path "${e.target}" (paths must be relative and must not contain ..)'';
             }) removeEntries
             ++ [
               {

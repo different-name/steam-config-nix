@@ -373,10 +373,10 @@ def test_full_run_applies_file_ops(fake_steam, tmp_path):
         file_ops=[
             FileOp(
                 app_id=620,
-                location="install",
+                location="game",
                 target="Mods/mod.dll",
                 source=source,
-                overwrite_changes=True,
+                mode="enforce",
             )
         ],
     )
@@ -394,10 +394,10 @@ def test_file_ops_reverted_on_next_run(fake_steam, tmp_path):
     source.write_text("mod")
     file_op = FileOp(
         app_id=620,
-        location="install",
+        location="game",
         target="Mods/mod.dll",
         source=source,
-        overwrite_changes=True,
+        mode="enforce",
     )
 
     patch_config_files(make_cfg(steam_dir, file_ops=[file_op]))
@@ -623,10 +623,10 @@ def test_file_ops_apply_even_when_steam_running_and_skipping(fake_steam, tmp_pat
         file_ops=[
             FileOp(
                 app_id=620,
-                location="install",
+                location="game",
                 target="Mods/mod.dll",
                 source=source,
-                overwrite_changes=True,
+                mode="enforce",
             )
         ],
     )
@@ -650,10 +650,10 @@ def test_file_ops_skipped_when_game_running_and_skipping(fake_steam, tmp_path):
         file_ops=[
             FileOp(
                 app_id=620,
-                location="install",
+                location="game",
                 target="Mods/mod.dll",
                 source=source,
-                overwrite_changes=True,
+                mode="enforce",
             )
         ],
     )
@@ -671,10 +671,10 @@ def file_op_cfg(steam_dir, **kwargs):
         file_ops=[
             FileOp(
                 app_id=620,
-                location="install",
+                location="game",
                 target="Mods/mod.dll",
                 source=source,
-                overwrite_changes=True,
+                mode="enforce",
             )
         ],
         **kwargs,

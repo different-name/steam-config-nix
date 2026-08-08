@@ -125,7 +125,7 @@ class UserManifest:
     grid_art: dict[str, str] = field(default_factory=dict)
 
 
-type FileLocation = Literal["install", "prefix"]
+type FileLocation = Literal["game", "prefix"]
 
 
 @dataclass
@@ -145,7 +145,7 @@ class FileOp:
     location: FileLocation
     target: str
     source: Path
-    overwrite_changes: bool
+    mode: Literal["enforce", "seed", "lock"]
     executable: bool | None = None
 
 

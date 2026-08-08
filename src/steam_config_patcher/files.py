@@ -36,7 +36,7 @@ class _Placement:
     location: FileLocation
     target: str
     source_file: Path
-    overwrite_changes: bool
+    mode: str
     executable: bool | None
     specificity: int
     declared: str
@@ -50,12 +50,16 @@ def _hash_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _resolve_mode(executable: bool | None, source_file: Path) -> int:
+def _resolve_mode(executable: bool | None, source_file: Path, mode: str) -> int:
     if executable is True:
-        return 0o755
-    if executable is False:
-        return 0o644
-    return 0o755 if source_file.stat().st_mode & 0o111 else 0o644
+        perm = 0o755
+    elif executable is False:
+        perm = 0o644
+    else:
+        perm = 0o755 if source_file.stat().st_mode & 0o111 else 0o644
+    if mode == "lock":
+        perm &= ~0o222
+    return perm
 
 
 def _specificity(declared_target: str) -> int:
@@ -113,7 +117,7 @@ def _resolve_placements(file_ops: list[FileOp]) -> dict[FileKey, _Placement]:
                     location=op.location,
                     target=target,
                     source_file=source_file,
-                    overwrite_changes=op.overwrite_changes,
+                    mode=op.mode,
                     executable=op.executable,
                     specificity=specificity,
                     declared=op.target,
@@ -168,7 +172,7 @@ def _place_one(
         )
         return prev
 
-    if not placement.overwrite_changes and exists:
+    if placement.mode == "seed" and exists:
         return prev
 
     source_path = str(placement.source_file)
@@ -176,7 +180,9 @@ def _place_one(
         source_hash = prev.source_hash
     else:
         source_hash = _hash_file(placement.source_file)
-    desired_mode = _resolve_mode(placement.executable, placement.source_file)
+    desired_mode = _resolve_mode(
+        placement.executable, placement.source_file, placement.mode
+    )
 
     had_backup = prev.had_backup if prev is not None else False
     if exists and prev is None:
@@ -351,7 +357,7 @@ def apply_file_ops(
         if cache_key not in root_cache:
             root_cache[cache_key] = (
                 find_app_install_dir(steam_dir, app_id)
-                if location == "install"
+                if location == "game"
                 else find_app_compat_prefix(steam_dir, app_id)
             )
         return root_cache[cache_key]
