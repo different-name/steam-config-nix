@@ -441,6 +441,40 @@ def test_registry_creates_file_when_missing(env):
     assert '"a"=dword:00000001' in text
 
 
+def test_registry_path_accepts_forward_and_mixed_slashes(env):
+    for i, path in enumerate(("Software\\Acme\\App", "Software/Acme/App", "Software/Acme\\App")):
+        target = f"sep{i}.reg"
+        apply_file_ops(
+            env.steam_dir,
+            [],
+            [],
+            [patch(env, target, {path: {"a": 1}}, fmt="registry", location="prefix")],
+        )
+        text = (env.prefix / target).read_text()
+        assert "[Software\\\\Acme\\\\App]" in text
+        assert '"a"=dword:00000001' in text
+
+
+def test_registry_slashes_in_value_data_are_preserved(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "user.reg",
+                {"Software\\Test": {"path": "C:/Program Files/Game"}},
+                fmt="registry",
+                location="prefix",
+            )
+        ],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    assert reg_value(text, "path") == "C:/Program Files/Game"
+
+
 def test_registry_dword_hex_formatting(env):
     apply_file_ops(
         env.steam_dir,

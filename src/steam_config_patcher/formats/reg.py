@@ -106,6 +106,7 @@ def apply(
     )
     header, sections = _parse(text)
     for path, values in content.items():
+        path = path.replace("/", "\\")
         section = next((s for s in sections if s.path == path), None)
         if section is None:
             tail = sections[-1].body if sections else header
