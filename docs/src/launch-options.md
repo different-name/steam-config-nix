@@ -46,6 +46,28 @@ echo "launching $*"
 exec env "${wrappers[@]}" "${game_command[@]}" "${args[@]}"
 ```
 
+## Gamescope
+
+gamescope is just another wrapper: list it first, with its own flags terminated by `--`, and the game runs inside its nested compositor.
+
+```nix
+{
+  programs.steam.config.apps."Elden Ring" = {
+    id = 1245620;
+    wrappers = [
+      (lib.getExe pkgs.gamescope)
+      "-W" "2560" # output width
+      "-H" "1440" # output height
+      "-r" "144" # refresh rate
+      "-f" # fullscreen
+      "--"
+    ];
+  };
+}
+```
+
+The `--` ends gamescope's own options, so everything after it, the game command and any further wrappers, runs inside the session. To combine it with another wrapper keep gamescope outermost: `[ (lib.getExe pkgs.gamescope) "--" "gamemoderun" ]` runs gamemode inside gamescope.
+
 ## Raw launch options
 
 `rawLaunchOptions` is the classic single-line Steam launch string, where `%command%` stands in for the game's own command:
