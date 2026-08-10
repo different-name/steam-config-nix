@@ -439,28 +439,16 @@ def patch_config_files(cfg: PatcherConfig):
                 failed.add(description)
                 LOG.exception("failed to write %s", description)
 
-    skip_files = False
     if has_file_ops and game_is_running():
-        if cfg.on_steam_running == "skip":
-            skip_files = True
-        elif cfg.on_steam_running == "force-close":
-            LOG.info("a game is running, applying file operations anyway")
-        else:
-            LOG.info(
-                "a game is running, waiting for it to exit before applying file operations"
-            )
-            wait_for_game_exit()
-
-    if skip_files:
-        LOG.warning(
-            "A game is running; skipped file operations. "
-            'Close the game, or set onSteamRunning to "wait" or "close" to apply automatically.'
+        LOG.info(
+            "a game is running, waiting for it to exit before applying file operations"
         )
-    else:
-        try:
-            apply_file_ops(cfg.steam_dir, cfg.file_ops, cfg.remove_ops, cfg.patch_ops)
-        except Exception:
-            LOG.exception("failed to apply file operations")
+        wait_for_game_exit()
+
+    try:
+        apply_file_ops(cfg.steam_dir, cfg.file_ops, cfg.remove_ops, cfg.patch_ops)
+    except Exception:
+        LOG.exception("failed to apply file operations")
 
     if failed:
         raise SystemExit(f"{len(failed)} config file(s) failed to patch; see log above")

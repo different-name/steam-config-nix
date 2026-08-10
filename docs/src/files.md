@@ -120,6 +120,6 @@ For mods or config under the Windows user profile rather than the game directory
 ## Notes
 
 - The game must be installed, and for prefix files launched once (so the prefix exists), otherwise the file operations are skipped with a warning until it is.
-- File operations wait for a running game following `onSteamRunning`, so a game running under `skip` defers them to the next activation.
+- File operations always wait for the game to exit before applying, so changes to a running game's files are deferred until you close it.
 - Steam can overwrite managed files when it updates or verifies a game. They are re-applied on the next activation.
 - For runtime components some mods need (for example a specific DLL redistributable), see [Winetricks](./winetricks.md).

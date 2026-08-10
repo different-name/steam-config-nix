@@ -637,7 +637,7 @@ def test_file_ops_apply_even_when_steam_running_and_skipping(fake_steam, tmp_pat
     assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
-def test_file_ops_skipped_when_game_running_and_skipping(fake_steam, tmp_path):
+def test_file_ops_wait_for_game_then_apply_even_when_skipping(fake_steam, tmp_path):
     fake_steam.running = True
     fake_steam.game_running = True
     steam_dir = make_steam_dir(tmp_path)
@@ -660,7 +660,8 @@ def test_file_ops_skipped_when_game_running_and_skipping(fake_steam, tmp_path):
 
     patch_config_files(cfg)
 
-    assert not (install / "Mods" / "mod.dll").exists()
+    assert fake_steam.game_wait_calls == 1
+    assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
 def file_op_cfg(steam_dir, **kwargs):
@@ -713,7 +714,7 @@ def test_file_op_only_change_does_not_close_steam(fake_steam, tmp_path):
     assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
-def test_force_close_file_op_only_applies_without_waiting_or_closing(fake_steam, tmp_path):
+def test_file_ops_wait_for_game_regardless_of_on_steam_running(fake_steam, tmp_path):
     fake_steam.running = True
     fake_steam.game_running = True
     steam_dir = make_steam_dir(tmp_path)
@@ -723,7 +724,7 @@ def test_force_close_file_op_only_applies_without_waiting_or_closing(fake_steam,
     patch_config_files(cfg)
 
     assert fake_steam.close_calls == 0
-    assert fake_steam.game_wait_calls == 0
+    assert fake_steam.game_wait_calls == 1
     assert (install / "Mods" / "mod.dll").read_text() == "mod"
 
 
