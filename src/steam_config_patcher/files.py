@@ -237,7 +237,7 @@ def _patch_one(
         return prev
 
     if not exists:
-        if patch_op.when_missing == "skip":
+        if not patch_op.create_if_missing:
             print(
                 f"steam-config-nix: waiting for {patch_op.target} "
                 "to be created by the game"
@@ -484,7 +484,7 @@ def apply_file_ops(
         target_path = root / patch_op.target
         will_create = (
             not (target_path.exists() or target_path.is_symlink())
-            and patch_op.when_missing == "create"
+            and patch_op.create_if_missing
         )
         if will_create:
             for rel in _dirs_to_create(root, patch_op.target):

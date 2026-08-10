@@ -83,7 +83,7 @@
                     Fullscreen = 1;
                   };
                 };
-                whenMissing = "create";
+                createIfMissing = true;
               }
               {
                 location = "game";
@@ -94,7 +94,7 @@
                     Difficulty = "hard";
                   };
                 };
-                whenMissing = "create";
+                createIfMissing = true;
               }
               {
                 location = "prefix";
@@ -106,7 +106,7 @@
                     MaxVersionGL = "3.2";
                   };
                 };
-                whenMissing = "create";
+                createIfMissing = true;
               }
               {
                 location = "prefix";
@@ -118,7 +118,7 @@
                     MirrorScale = 0.5;
                   };
                 };
-                whenMissing = "create";
+                createIfMissing = true;
               }
             ];
           };
@@ -308,7 +308,7 @@
                     Fullscreen = 1;
                   };
                 };
-                whenMissing = "create";
+                createIfMissing = false;
               }
             ];
           };

@@ -58,7 +58,7 @@ class PatchOpSchema(StrictSchema):
     target: str
     format: Literal["ini", "json", "registry", "keyvalue", "unityPrefs"]
     content: dict
-    whenMissing: Literal["create", "skip"]
+    createIfMissing: bool
 
 
 class AppSchema(StrictSchema):
@@ -197,7 +197,7 @@ def parse_input() -> PatcherConfig:
                 target=op.target,
                 format=op.format,
                 content=op.content,
-                when_missing=op.whenMissing,
+                create_if_missing=op.createIfMissing,
             )
             for app in validated_input.apps.values()
             for op in app.patches

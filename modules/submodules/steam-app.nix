@@ -141,18 +141,14 @@ let
           '';
         };
 
-        whenMissing = lib.mkOption {
-          type = types.enum [
-            "create"
-            "skip"
-          ];
-          default = "create";
-          example = "skip";
+        createIfMissing = lib.mkOption {
+          type = types.bool;
+          default = false;
+          example = true;
           description = ''
-            What to do when the target file does not exist yet.
+            Create the target file containing just these keys when it does not exist yet.
 
-            - `"create"`: create it with just these keys.
-            - `"skip"`: leave it for the game to generate, retrying on the next activation.
+            When off, the patch waits for the game to generate the file, retrying on each activation until it appears.
           '';
         };
       };
@@ -181,7 +177,7 @@ let
         target
         format
         content
-        whenMissing
+        createIfMissing
         ;
     }) (lib.filterAttrs (_: entry: entry.enable) attrs);
 in

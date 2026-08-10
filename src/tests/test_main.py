@@ -239,7 +239,7 @@ def test_patches_map_to_patch_ops(tmp_path, monkeypatch):
                         "target": "settings.json",
                         "format": "json",
                         "content": {"Fullscreen": True},
-                        "whenMissing": "create",
+                        "createIfMissing": True,
                     }
                 ],
             }
@@ -255,7 +255,7 @@ def test_patches_map_to_patch_ops(tmp_path, monkeypatch):
             target="settings.json",
             format="json",
             content={"Fullscreen": True},
-            when_missing="create",
+            create_if_missing=True,
         )
     ]
 

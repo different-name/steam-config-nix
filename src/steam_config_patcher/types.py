@@ -164,7 +164,7 @@ class PatchOp:
     target: str
     format: Literal["ini", "json", "registry", "keyvalue", "unityPrefs"]
     content: dict
-    when_missing: Literal["create", "skip"]
+    create_if_missing: bool
 
 
 @dataclass

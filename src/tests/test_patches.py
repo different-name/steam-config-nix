@@ -33,14 +33,14 @@ def env(tmp_path, monkeypatch):
     return SimpleNamespace(steam_dir=steam_dir, install=install, prefix=prefix)
 
 
-def patch(env, target, content, fmt="json", location="game", when_missing="create"):
+def patch(env, target, content, fmt="json", location="game", create_if_missing=True):
     return PatchOp(
         app_id=620,
         location=location,
         target=target,
         format=fmt,
         content=content,
-        when_missing=when_missing,
+        create_if_missing=create_if_missing,
     )
 
 
@@ -157,7 +157,7 @@ def test_ini_merge_preserves_other_sections_case_and_percent(env):
 
 
 def test_skip_when_missing_writes_nothing_then_retries(env, capsys):
-    op = patch(env, "settings.json", {"Fullscreen": True}, when_missing="skip")
+    op = patch(env, "settings.json", {"Fullscreen": True}, create_if_missing=False)
 
     apply_file_ops(env.steam_dir, [], [], [op])
 
