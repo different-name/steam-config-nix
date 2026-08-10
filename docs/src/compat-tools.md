@@ -15,7 +15,7 @@
 }
 ```
 
-Tools provided as packages are installed automatically:
+Tools provided as packages are installed for you:
 
 - NixOS: through `programs.steam.extraCompatPackages`, requires `programs.steam.enable`
 - Home Manager: linked into `~/.local/share/Steam/compatibilitytools.d`

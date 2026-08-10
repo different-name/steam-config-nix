@@ -75,9 +75,7 @@ def load_manifest(steam_dir: Path, user_id: int) -> UserManifest:
     return load_json_manifest(manifest_path(steam_dir, user_id), _parse, UserManifest())
 
 
-# the user's config dir should already exist (we patch files in it); if it
-# doesn't there's nothing to manage, so save_json_manifest skips rather than
-# creating stray dirs
+# absent config dir means nothing to manage, so save skips rather than making stray dirs
 def save_manifest(steam_dir: Path, user_id: int, manifest: UserManifest) -> None:
     save_json_manifest(
         manifest_path(steam_dir, user_id),
