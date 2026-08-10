@@ -1,12 +1,7 @@
-import configparser
 import hashlib
-import io
-import json
 import logging
 import os
-import re
 import shutil
-import struct
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -17,9 +12,8 @@ from steam_config_patcher.files_manifest import (
     load_files_manifest,
     save_files_manifest,
 )
+from steam_config_patcher.formats import patches
 from steam_config_patcher.steam import find_app_compat_prefix, find_app_install_dir
-from steam_config_patcher.vdf import text as vdf_text
-from steam_config_patcher.vdf.text import VdfNode
 from steam_config_patcher.types import (
     FileLocation,
     FileOp,
@@ -226,243 +220,6 @@ def _place_one(
     return entry
 
 
-def _deep_merge(base: dict, overlay: dict) -> dict:
-    result = dict(base)
-    for key, value in overlay.items():
-        existing = result.get(key)
-        if isinstance(existing, dict) and isinstance(value, dict):
-            result[key] = _deep_merge(existing, value)
-        else:
-            result[key] = value
-    return result
-
-
-def _render_json_patch(content: dict, existing: bytes) -> bytes:
-    base = json.loads(existing) if existing.strip() else {}
-    if not isinstance(base, dict):
-        base = {}
-    merged = _deep_merge(base, content)
-    return (json.dumps(merged, indent=2) + "\n").encode("utf-8")
-
-
-class _CaseSensitiveConfigParser(configparser.ConfigParser):
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
-
-
-def _render_ini_patch(content: dict, existing: bytes) -> bytes:
-    parser = _CaseSensitiveConfigParser(interpolation=None)
-    if existing.strip():
-        parser.read_string(existing.decode("utf-8"))
-    for section, values in content.items():
-        if not parser.has_section(section):
-            parser.add_section(section)
-        for key, value in values.items():
-            parser.set(section, key, str(value))
-    out = io.StringIO()
-    parser.write(out)
-    return out.getvalue().encode("utf-8")
-
-
-def _kv_apply(root: VdfNode, content: dict, prefix: tuple[str, ...]) -> None:
-    for key, value in content.items():
-        path = (*prefix, str(key))
-        if isinstance(value, dict):
-            _kv_apply(root, value, path)
-        else:
-            root.set_path(path, str(value))
-
-
-def _render_keyvalue_patch(content: dict, existing: bytes) -> bytes:
-    text = existing.decode("utf-8")
-    root = vdf_text.loads(text) if text.strip() else VdfNode(children=[])
-    _kv_apply(root, content, ())
-    return vdf_text.dumps(root).encode("utf-8")
-
-
-_REG_SECTION_RE = re.compile(r"^\[(.*?)\]")
-
-
-@dataclass
-class _RegSection:
-    path: str
-    header_line: str
-    body: list[str]
-
-
-def _reg_escape(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _reg_read_quoted(text: str, start: int) -> tuple[str | None, int]:
-    parts: list[str] = []
-    i = start + 1
-    while i < len(text):
-        c = text[i]
-        if c == "\\" and i + 1 < len(text):
-            parts.append(text[i + 1])
-            i += 2
-            continue
-        if c == '"':
-            return "".join(parts), i + 1
-        parts.append(c)
-        i += 1
-    return None, i
-
-
-def _reg_value_name(line: str) -> str | None:
-    stripped = line.strip()
-    if stripped.startswith("@="):
-        return "@"
-    if not stripped.startswith('"'):
-        return None
-    name, end = _reg_read_quoted(stripped, 0)
-    if name is None or stripped[end : end + 1] != "=":
-        return None
-    return name
-
-
-def _reg_render_value(name: str, value: object) -> str:
-    quoted_name = f'"{_reg_escape(name)}"'
-    if isinstance(value, bool):
-        return f"{quoted_name}=dword:{(1 if value else 0):08x}"
-    if isinstance(value, int):
-        return f"{quoted_name}=dword:{value & 0xFFFFFFFF:08x}"
-    return f'{quoted_name}="{_reg_escape(str(value))}"'
-
-
-def _reg_join_continuations(lines: list[str]) -> list[str]:
-    result: list[str] = []
-    buffer: list[str] | None = None
-    for line in lines:
-        if buffer is not None:
-            buffer.append(line)
-            if not line.endswith("\\"):
-                result.append("\n".join(buffer))
-                buffer = None
-            continue
-        if line.endswith("\\"):
-            buffer = [line]
-        else:
-            result.append(line)
-    if buffer is not None:
-        result.append("\n".join(buffer))
-    return result
-
-
-def _reg_parse(text: str) -> tuple[list[str], list[_RegSection]]:
-    header: list[str] = []
-    sections: list[_RegSection] = []
-    current: _RegSection | None = None
-    for line in _reg_join_continuations(text.split("\n")):
-        match = _REG_SECTION_RE.match(line)
-        if match is not None:
-            current = _RegSection(
-                path=match.group(1).replace("\\\\", "\\"),
-                header_line=line,
-                body=[],
-            )
-            sections.append(current)
-        elif current is None:
-            header.append(line)
-        else:
-            current.body.append(line)
-    return header, sections
-
-
-def _reg_put_line(section: _RegSection, name: str, new_line: str) -> None:
-    for i, line in enumerate(section.body):
-        if _reg_value_name(line) == name:
-            section.body[i] = new_line
-            return
-    insert_at = len(section.body)
-    while insert_at > 0 and section.body[insert_at - 1] == "":
-        insert_at -= 1
-    section.body.insert(insert_at, new_line)
-
-
-def _reg_set_value(section: _RegSection, name: str, value: object) -> None:
-    _reg_put_line(section, name, _reg_render_value(name, value))
-
-
-def _reg_apply_sections(
-    content: dict,
-    existing: bytes,
-    set_value: Callable[[_RegSection, str, object], None],
-) -> bytes:
-    text = (
-        existing.decode("utf-8")
-        if existing.strip()
-        else "WINE REGISTRY Version 2\n\n"
-    )
-    header, sections = _reg_parse(text)
-    for path, values in content.items():
-        section = next((s for s in sections if s.path == path), None)
-        if section is None:
-            tail = sections[-1].body if sections else header
-            if not tail or tail[-1] != "":
-                tail.append("")
-            section = _RegSection(
-                path=path,
-                header_line="[" + path.replace("\\", "\\\\") + "]",
-                body=[],
-            )
-            sections.append(section)
-        for key, value in values.items():
-            set_value(section, key, value)
-    lines = list(header)
-    for section in sections:
-        lines.append(section.header_line)
-        lines.extend(section.body)
-    out = "\n".join(lines)
-    if not out.endswith("\n"):
-        out += "\n"
-    return out.encode("utf-8")
-
-
-def _render_registry_patch(content: dict, existing: bytes) -> bytes:
-    return _reg_apply_sections(content, existing, _reg_set_value)
-
-
-def unity_prefs_hash(key: str) -> int:
-    h = 5381
-    for b in key.encode("utf-8"):
-        h = ((h * 33) ^ b) & 0xFFFFFFFF
-    return h
-
-
-def _unity_render_value(value: object) -> str:
-    if isinstance(value, bool):
-        return f"dword:{(1 if value else 0):08x}"
-    if isinstance(value, int):
-        return f"dword:{value & 0xFFFFFFFF:08x}"
-    if isinstance(value, float):
-        return "hex(4):" + ",".join(f"{b:02x}" for b in struct.pack("<d", value))
-    data = str(value).encode("utf-8") + b"\x00"
-    return "hex:" + ",".join(f"{b:02x}" for b in data)
-
-
-def _render_unity_prefs_patch(content: dict, existing: bytes) -> bytes:
-    def set_value(section: _RegSection, pref_key: str, value: object) -> None:
-        name = f"{pref_key}_h{unity_prefs_hash(pref_key)}"
-        new_line = f'"{_reg_escape(name)}"={_unity_render_value(value)}'
-        _reg_put_line(section, name, new_line)
-
-    return _reg_apply_sections(content, existing, set_value)
-
-
-def _render_patch(patch_op: PatchOp, existing: bytes) -> bytes:
-    if patch_op.format == "json":
-        return _render_json_patch(patch_op.content, existing)
-    if patch_op.format == "ini":
-        return _render_ini_patch(patch_op.content, existing)
-    if patch_op.format == "registry":
-        return _render_registry_patch(patch_op.content, existing)
-    if patch_op.format == "unityPrefs":
-        return _render_unity_prefs_patch(patch_op.content, existing)
-    return _render_keyvalue_patch(patch_op.content, existing)
-
-
 def _patch_one(
     steam_dir: Path, root: Path, patch_op: PatchOp, prev: ManagedFile | None
 ) -> ManagedFile | None:
@@ -501,7 +258,7 @@ def _patch_one(
             )
             had_backup = True
 
-    merged = _render_patch(patch_op, existing)
+    merged = patches.render(patch_op, existing)
     source_hash = hashlib.sha256(merged).hexdigest()
 
     entry = ManagedFile(

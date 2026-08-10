@@ -5,11 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from steam_config_patcher.files import (
-    _reg_read_quoted,
-    apply_file_ops,
-    unity_prefs_hash,
-)
+from steam_config_patcher.files import apply_file_ops
+from steam_config_patcher.formats.patches import unity_prefs_hash
+from steam_config_patcher.formats.reg import read_quoted
 from steam_config_patcher.files_manifest import backup_path, load_files_manifest
 from steam_config_patcher.types import PatchOp, RemoveOp
 from steam_config_patcher.vdf import text as vdf_text
@@ -60,7 +58,7 @@ def reg_value(text, name):
         if stripped.startswith(prefix):
             rest = stripped[len(prefix) :]
             if rest.startswith('"'):
-                value, _ = _reg_read_quoted(rest, 0)
+                value, _ = read_quoted(rest, 0)
                 return value
             return rest
     return None
