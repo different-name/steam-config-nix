@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from steam_config_patcher.files_manifest import (
     save_files_manifest,
 )
 from steam_config_patcher.steam import find_app_compat_prefix, find_app_install_dir
+from steam_config_patcher.vdf import text as vdf_text
+from steam_config_patcher.vdf.text import VdfNode
 from steam_config_patcher.types import (
     FileLocation,
     FileOp,
@@ -260,10 +263,144 @@ def _render_ini_patch(content: dict, existing: bytes) -> bytes:
     return out.getvalue().encode("utf-8")
 
 
+def _kv_apply(root: VdfNode, content: dict, prefix: tuple[str, ...]) -> None:
+    for key, value in content.items():
+        path = (*prefix, str(key))
+        if isinstance(value, dict):
+            _kv_apply(root, value, path)
+        else:
+            root.set_path(path, str(value))
+
+
+def _render_keyvalue_patch(content: dict, existing: bytes) -> bytes:
+    text = existing.decode("utf-8")
+    root = vdf_text.loads(text) if text.strip() else VdfNode(children=[])
+    _kv_apply(root, content, ())
+    return vdf_text.dumps(root).encode("utf-8")
+
+
+_REG_SECTION_RE = re.compile(r"^\[(.*?)\]")
+
+
+@dataclass
+class _RegSection:
+    path: str
+    header_line: str
+    body: list[str]
+
+
+def _reg_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _reg_read_quoted(text: str, start: int) -> tuple[str | None, int]:
+    parts: list[str] = []
+    i = start + 1
+    while i < len(text):
+        c = text[i]
+        if c == "\\" and i + 1 < len(text):
+            parts.append(text[i + 1])
+            i += 2
+            continue
+        if c == '"':
+            return "".join(parts), i + 1
+        parts.append(c)
+        i += 1
+    return None, i
+
+
+def _reg_value_name(line: str) -> str | None:
+    stripped = line.strip()
+    if stripped.startswith("@="):
+        return "@"
+    if not stripped.startswith('"'):
+        return None
+    name, end = _reg_read_quoted(stripped, 0)
+    if name is None or stripped[end : end + 1] != "=":
+        return None
+    return name
+
+
+def _reg_render_value(name: str, value: object) -> str:
+    quoted_name = f'"{_reg_escape(name)}"'
+    if isinstance(value, bool):
+        return f"{quoted_name}=dword:{(1 if value else 0):08x}"
+    if isinstance(value, int):
+        return f"{quoted_name}=dword:{value & 0xFFFFFFFF:08x}"
+    return f'{quoted_name}="{_reg_escape(str(value))}"'
+
+
+def _reg_parse(text: str) -> tuple[list[str], list[_RegSection]]:
+    header: list[str] = []
+    sections: list[_RegSection] = []
+    current: _RegSection | None = None
+    for line in text.split("\n"):
+        match = _REG_SECTION_RE.match(line)
+        if match is not None:
+            current = _RegSection(
+                path=match.group(1).replace("\\\\", "\\"),
+                header_line=line,
+                body=[],
+            )
+            sections.append(current)
+        elif current is None:
+            header.append(line)
+        else:
+            current.body.append(line)
+    return header, sections
+
+
+def _reg_set_value(section: _RegSection, name: str, value: object) -> None:
+    new_line = _reg_render_value(name, value)
+    for i, line in enumerate(section.body):
+        if _reg_value_name(line) == name:
+            section.body[i] = new_line
+            return
+    insert_at = len(section.body)
+    while insert_at > 0 and section.body[insert_at - 1] == "":
+        insert_at -= 1
+    section.body.insert(insert_at, new_line)
+
+
+def _render_registry_patch(content: dict, existing: bytes) -> bytes:
+    text = (
+        existing.decode("utf-8")
+        if existing.strip()
+        else "WINE REGISTRY Version 2\n\n"
+    )
+    header, sections = _reg_parse(text)
+    for path, values in content.items():
+        section = next((s for s in sections if s.path == path), None)
+        if section is None:
+            tail = sections[-1].body if sections else header
+            if not tail or tail[-1] != "":
+                tail.append("")
+            section = _RegSection(
+                path=path,
+                header_line="[" + path.replace("\\", "\\\\") + "]",
+                body=[],
+            )
+            sections.append(section)
+        for name, value in values.items():
+            _reg_set_value(section, name, value)
+    lines = list(header)
+    for section in sections:
+        lines.append(section.header_line)
+        lines.extend(section.body)
+    out = "\n".join(lines)
+    if not out.endswith("\n"):
+        out += "\n"
+    return out.encode("utf-8")
+
+
 def _render_patch(patch_op: PatchOp, existing: bytes) -> bytes:
     if patch_op.format == "json":
         return _render_json_patch(patch_op.content, existing)
-    return _render_ini_patch(patch_op.content, existing)
+    if patch_op.format == "ini":
+        return _render_ini_patch(patch_op.content, existing)
+    if patch_op.format == "registry":
+        return _render_registry_patch(patch_op.content, existing)
+    return _render_keyvalue_patch(patch_op.content, existing)
 
 
 def _patch_one(

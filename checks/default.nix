@@ -85,6 +85,29 @@
                 };
                 whenMissing = "create";
               }
+              {
+                location = "game";
+                target = "config/game.vdf";
+                format = "keyvalue";
+                content = {
+                  Settings = {
+                    Difficulty = "hard";
+                  };
+                };
+                whenMissing = "create";
+              }
+              {
+                location = "prefix";
+                target = "system.reg";
+                format = "registry";
+                content = {
+                  "Software\\Wine\\Direct3D" = {
+                    csmt = 0;
+                    MaxVersionGL = "3.2";
+                  };
+                };
+                whenMissing = "create";
+              }
             ];
           };
           nonSteamApps = { };
@@ -406,7 +429,7 @@
               export HOME="$PWD/home"
               steam="$HOME/.local/share/Steam"
               install="$steam/steamapps/common/Test Game"
-              mkdir -p "$steam/config" "$steam/userdata/111/config" "$steam/steamapps" "$install"
+              mkdir -p "$steam/config" "$steam/userdata/111/config" "$steam/steamapps" "$install" "$steam/steamapps/compatdata/620/pfx"
               cp ${seedConfigVdf} "$steam/config/config.vdf"
               cp ${seedLocalconfigVdf} "$steam/userdata/111/config/localconfig.vdf"
               cp ${seedAppmanifest} "$steam/steamapps/appmanifest_620.acf"
@@ -432,6 +455,14 @@
 
               # patch created the ini file with our key
               grep -q Fullscreen "$install/config/game.ini"
+
+              # keyvalue patch created a VDF file with our key
+              grep -q hard "$install/config/game.vdf"
+
+              # registry patch created a .reg with a REG_SZ and a REG_DWORD
+              pfx="$steam/steamapps/compatdata/620/pfx"
+              grep -q 'dword:00000000' "$pfx/system.reg"
+              grep -Fq '"MaxVersionGL"="3.2"' "$pfx/system.reg"
 
               # idempotent second run must still succeed
               steam-config-patcher ${patcherInput}

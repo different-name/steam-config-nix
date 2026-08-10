@@ -162,7 +162,7 @@ class PatchOp:
     app_id: int
     location: FileLocation
     target: str
-    format: Literal["ini", "json"]
+    format: Literal["ini", "json", "registry", "keyvalue"]
     content: dict
     when_missing: Literal["create", "skip"]
 

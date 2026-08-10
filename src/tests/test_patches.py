@@ -4,9 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from steam_config_patcher.files import apply_file_ops
+from steam_config_patcher.files import _reg_read_quoted, apply_file_ops
 from steam_config_patcher.files_manifest import backup_path, load_files_manifest
 from steam_config_patcher.types import PatchOp, RemoveOp
+from steam_config_patcher.vdf import text as vdf_text
 
 
 @pytest.fixture
@@ -45,6 +46,19 @@ def read_ini(path):
     parser.optionxform = str
     parser.read_string(path.read_text())
     return parser
+
+
+def reg_value(text, name):
+    prefix = f'"{name}"='
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(prefix):
+            rest = stripped[len(prefix) :]
+            if rest.startswith('"'):
+                value, _ = _reg_read_quoted(rest, 0)
+                return value
+            return rest
+    return None
 
 
 def test_json_create_when_missing(env):
@@ -275,3 +289,191 @@ def test_root_not_found_skips_and_keeps_prev(env, monkeypatch):
     apply_file_ops(env.steam_dir, [], [], [op])
 
     assert len(load_files_manifest(env.steam_dir).files) == 1
+
+
+def test_keyvalue_create_when_missing(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "kv.vdf", {"Settings": {"Fullscreen": 1}}, fmt="keyvalue")],
+    )
+
+    root = vdf_text.loads((env.install / "kv.vdf").read_text())
+    assert root.find("Settings").find("Fullscreen").value == "1"
+
+
+def test_keyvalue_merge_preserves_untouched_keys(env):
+    target = env.install / "kv.vdf"
+    target.write_text('"Settings"\n{\n\t"Width"\t\t"1920"\n\t"Volume"\t\t"50"\n}\n')
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "kv.vdf", {"Settings": {"Volume": 100, "Fullscreen": 1}}, fmt="keyvalue")],
+    )
+
+    settings = vdf_text.loads(target.read_text()).find("Settings")
+    assert settings.find("Width").value == "1920"
+    assert settings.find("Volume").value == "100"
+    assert settings.find("Fullscreen").value == "1"
+
+
+def test_keyvalue_creates_nested_blocks(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "kv.vdf", {"a": {"b": {"c": "x"}}}, fmt="keyvalue")],
+    )
+
+    root = vdf_text.loads((env.install / "kv.vdf").read_text())
+    assert root.find("a").find("b").find("c").value == "x"
+
+
+def test_keyvalue_reapply_is_stable(env):
+    op = patch(env, "kv.vdf", {"Settings": {"Fullscreen": 1}}, fmt="keyvalue")
+
+    apply_file_ops(env.steam_dir, [], [], [op])
+    first = load_files_manifest(env.steam_dir)
+    apply_file_ops(env.steam_dir, [], [], [op])
+    second = load_files_manifest(env.steam_dir)
+
+    assert first == second
+
+
+EXISTING_REG = (
+    "WINE REGISTRY Version 2\n"
+    ";; All keys relative to \\\\User\\\\S-1-5-21\n"
+    "\n"
+    "[Software\\\\Wine\\\\Direct3D] 1609459200\n"
+    "#time=1d6c8e0f2\n"
+    '"csmt"=dword:00000000\n'
+    '"MaxVersionGL"="3.2"\n'
+    "\n"
+    "[Software\\\\Wine\\\\X11 Driver]\n"
+    '"Decorated"="N"\n'
+)
+
+
+def test_registry_merges_and_preserves(env):
+    target = env.prefix / "system.reg"
+    target.write_text(EXISTING_REG)
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "system.reg",
+                {"Software\\Wine\\Direct3D": {"csmt": 1, "renderer": "vulkan"}},
+                fmt="registry",
+                location="prefix",
+            )
+        ],
+    )
+
+    text = target.read_text()
+    assert text.startswith("WINE REGISTRY Version 2\n")
+    assert ";; All keys relative to \\\\User\\\\S-1-5-21" in text
+    assert '"csmt"=dword:00000001' in text
+    assert '"renderer"="vulkan"' in text
+    # untouched value in the same section preserved
+    assert '"MaxVersionGL"="3.2"' in text
+    # untouched section preserved
+    assert "[Software\\\\Wine\\\\X11 Driver]" in text
+    assert '"Decorated"="N"' in text
+    # csmt replaced, not duplicated
+    assert text.count('"csmt"=') == 1
+
+
+def test_registry_creates_new_section(env):
+    target = env.prefix / "system.reg"
+    target.write_text(EXISTING_REG)
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "system.reg",
+                {"Software\\Wine\\NewKey": {"foo": "bar"}},
+                fmt="registry",
+                location="prefix",
+            )
+        ],
+    )
+
+    text = target.read_text()
+    assert "[Software\\\\Wine\\\\NewKey]" in text
+    assert '"foo"="bar"' in text
+    # blank line separates the appended section from prior content
+    assert "\n\n[Software\\\\Wine\\\\NewKey]\n" in text
+
+
+def test_registry_creates_file_when_missing(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "user.reg",
+                {"Software\\Test": {"a": 1}},
+                fmt="registry",
+                location="prefix",
+            )
+        ],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    assert text.startswith("WINE REGISTRY Version 2\n")
+    assert "[Software\\\\Test]" in text
+    assert '"a"=dword:00000001' in text
+
+
+def test_registry_dword_hex_formatting(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "user.reg",
+                {"Software\\Test": {"num": 255}},
+                fmt="registry",
+                location="prefix",
+            )
+        ],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    assert reg_value(text, "num") == "dword:000000ff"
+
+
+def test_registry_string_escaping_round_trips(env):
+    raw_value = 'C:\\Games\\"save"'
+    op = patch(
+        env,
+        "user.reg",
+        {"Software\\Test": {"path": raw_value}},
+        fmt="registry",
+        location="prefix",
+    )
+    apply_file_ops(env.steam_dir, [], [], [op])
+
+    target = env.prefix / "user.reg"
+    text = target.read_text()
+    assert reg_value(text, "path") == raw_value
+
+    # re-enforcing does not double-escape or duplicate the value
+    apply_file_ops(env.steam_dir, [], [], [op])
+    assert target.read_text() == text
+    assert reg_value(target.read_text(), "path") == raw_value

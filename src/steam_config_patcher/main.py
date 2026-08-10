@@ -56,7 +56,7 @@ class RemoveOpSchema(StrictSchema):
 class PatchOpSchema(StrictSchema):
     location: Literal["game", "prefix"]
     target: str
-    format: Literal["ini", "json"]
+    format: Literal["ini", "json", "registry", "keyvalue"]
     content: dict
     whenMissing: Literal["create", "skip"]
 

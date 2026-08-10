@@ -117,6 +117,8 @@ let
           type = types.enum [
             "ini"
             "json"
+            "registry"
+            "keyvalue"
           ];
           example = "ini";
           description = ''
@@ -124,6 +126,8 @@ let
 
             - `"ini"`: `content` is an attrset of section names to attrsets of key/value pairs.
             - `"json"`: `content` is a nested attrset deep-merged into the file.
+            - `"registry"`: a Wine registry file (`system.reg`/`user.reg`). `content` maps a backslash-separated key path to an attrset of value names, where a string becomes a `REG_SZ` and an integer a `REG_DWORD`.
+            - `"keyvalue"`: a Valve KeyValues (VDF) file. `content` is a nested attrset deep-merged into the file.
           '';
         };
 

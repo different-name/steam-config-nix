@@ -59,7 +59,7 @@ When a game generates its own config and you only want to change a few keys, pat
 }
 ```
 
-- `format` is `"ini"` or `"json"`. For `ini`, `content` is sections of key to value. For `json`, `content` is a nested attribute set deep-merged into the file.
+- `format` is one of `"ini"`, `"json"`, `"registry"`, or `"keyvalue"`. For `ini`, `content` is sections of key to value. For `json` and `keyvalue` (a Valve KeyValues/VDF file), `content` is a nested attribute set deep-merged into the file. For `registry` (a Wine `system.reg`/`user.reg`), `content` maps a backslash-separated key path to value names, where a string becomes a `REG_SZ` and an integer a `REG_DWORD`.
 - `whenMissing` defaults to `"create"` (write a new file with just your keys). Set it to `"skip"` to wait until the game generates the file, retrying on the next activation.
 
 A patch is always re-applied, and the original is backed up and restored when you remove it. A file cannot be both placed and patched.
