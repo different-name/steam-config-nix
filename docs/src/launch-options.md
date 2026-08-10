@@ -37,7 +37,7 @@ This compiles to a small wrapper script. The example above produces roughly:
 unset TZ
 export WINEDLLOVERRIDES="version=n,b;winmm=n,b"
 
-declare -a wrappers=(gamemoderun /nix/store/…-mangohud/bin/mangohud)
+declare -a wrappers=(gamemoderun /nix/store/...-mangohud/bin/mangohud)
 declare -a game_command=("$@")
 declare -a args=(--launcher-skip)
 

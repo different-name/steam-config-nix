@@ -49,7 +49,7 @@ let
           want=${lib.escapeShellArg (lib.concatStringsSep " " app.winetricks)}
           if [ "$(cat "$marker" 2>/dev/null)" != "$want" ]; then
             echo "steam-config-nix: applying winetricks verbs: $want"
-            ${notify "Installing winetricks: $want…"}
+            ${notify "Installing winetricks: $want..."}
             if ${lib.getExe' pkgs.protontricks "protontricks"} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
               printf '%s' "$want" > "$marker"
               ${notify "winetricks installed: $want"}
