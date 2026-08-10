@@ -108,6 +108,18 @@
                 };
                 whenMissing = "create";
               }
+              {
+                location = "prefix";
+                target = "user.reg";
+                format = "unityPrefs";
+                content = {
+                  "Software\\TestCo\\TestGame" = {
+                    MirrorResolution = 2;
+                    MirrorScale = 0.5;
+                  };
+                };
+                whenMissing = "create";
+              }
             ];
           };
           nonSteamApps = { };
@@ -463,6 +475,12 @@
               pfx="$steam/steamapps/compatdata/620/pfx"
               grep -q 'dword:00000000' "$pfx/system.reg"
               grep -Fq '"MaxVersionGL"="3.2"' "$pfx/system.reg"
+
+              # unityPrefs patch: keys are Unity-hashed, values encoded per type
+              grep -Fq 'Software\\TestCo\\TestGame' "$pfx/user.reg"
+              grep -q 'MirrorResolution_h' "$pfx/user.reg"
+              grep -q 'dword:00000002' "$pfx/user.reg"
+              grep -Fq 'hex(4):00,00,00,00,00,00,e0,3f' "$pfx/user.reg"
 
               # idempotent second run must still succeed
               steam-config-patcher ${patcherInput}

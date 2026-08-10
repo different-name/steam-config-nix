@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import shutil
+import struct
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -330,11 +331,30 @@ def _reg_render_value(name: str, value: object) -> str:
     return f'{quoted_name}="{_reg_escape(str(value))}"'
 
 
+def _reg_join_continuations(lines: list[str]) -> list[str]:
+    result: list[str] = []
+    buffer: list[str] | None = None
+    for line in lines:
+        if buffer is not None:
+            buffer.append(line)
+            if not line.endswith("\\"):
+                result.append("\n".join(buffer))
+                buffer = None
+            continue
+        if line.endswith("\\"):
+            buffer = [line]
+        else:
+            result.append(line)
+    if buffer is not None:
+        result.append("\n".join(buffer))
+    return result
+
+
 def _reg_parse(text: str) -> tuple[list[str], list[_RegSection]]:
     header: list[str] = []
     sections: list[_RegSection] = []
     current: _RegSection | None = None
-    for line in text.split("\n"):
+    for line in _reg_join_continuations(text.split("\n")):
         match = _REG_SECTION_RE.match(line)
         if match is not None:
             current = _RegSection(
@@ -350,8 +370,7 @@ def _reg_parse(text: str) -> tuple[list[str], list[_RegSection]]:
     return header, sections
 
 
-def _reg_set_value(section: _RegSection, name: str, value: object) -> None:
-    new_line = _reg_render_value(name, value)
+def _reg_put_line(section: _RegSection, name: str, new_line: str) -> None:
     for i, line in enumerate(section.body):
         if _reg_value_name(line) == name:
             section.body[i] = new_line
@@ -362,7 +381,15 @@ def _reg_set_value(section: _RegSection, name: str, value: object) -> None:
     section.body.insert(insert_at, new_line)
 
 
-def _render_registry_patch(content: dict, existing: bytes) -> bytes:
+def _reg_set_value(section: _RegSection, name: str, value: object) -> None:
+    _reg_put_line(section, name, _reg_render_value(name, value))
+
+
+def _reg_apply_sections(
+    content: dict,
+    existing: bytes,
+    set_value: Callable[[_RegSection, str, object], None],
+) -> bytes:
     text = (
         existing.decode("utf-8")
         if existing.strip()
@@ -381,8 +408,8 @@ def _render_registry_patch(content: dict, existing: bytes) -> bytes:
                 body=[],
             )
             sections.append(section)
-        for name, value in values.items():
-            _reg_set_value(section, name, value)
+        for key, value in values.items():
+            set_value(section, key, value)
     lines = list(header)
     for section in sections:
         lines.append(section.header_line)
@@ -393,6 +420,37 @@ def _render_registry_patch(content: dict, existing: bytes) -> bytes:
     return out.encode("utf-8")
 
 
+def _render_registry_patch(content: dict, existing: bytes) -> bytes:
+    return _reg_apply_sections(content, existing, _reg_set_value)
+
+
+def unity_prefs_hash(key: str) -> int:
+    h = 5381
+    for b in key.encode("utf-8"):
+        h = ((h * 33) ^ b) & 0xFFFFFFFF
+    return h
+
+
+def _unity_render_value(value: object) -> str:
+    if isinstance(value, bool):
+        return f"dword:{(1 if value else 0):08x}"
+    if isinstance(value, int):
+        return f"dword:{value & 0xFFFFFFFF:08x}"
+    if isinstance(value, float):
+        return "hex(4):" + ",".join(f"{b:02x}" for b in struct.pack("<d", value))
+    data = str(value).encode("utf-8") + b"\x00"
+    return "hex:" + ",".join(f"{b:02x}" for b in data)
+
+
+def _render_unity_prefs_patch(content: dict, existing: bytes) -> bytes:
+    def set_value(section: _RegSection, pref_key: str, value: object) -> None:
+        name = f"{pref_key}_h{unity_prefs_hash(pref_key)}"
+        new_line = f'"{_reg_escape(name)}"={_unity_render_value(value)}'
+        _reg_put_line(section, name, new_line)
+
+    return _reg_apply_sections(content, existing, set_value)
+
+
 def _render_patch(patch_op: PatchOp, existing: bytes) -> bytes:
     if patch_op.format == "json":
         return _render_json_patch(patch_op.content, existing)
@@ -400,6 +458,8 @@ def _render_patch(patch_op: PatchOp, existing: bytes) -> bytes:
         return _render_ini_patch(patch_op.content, existing)
     if patch_op.format == "registry":
         return _render_registry_patch(patch_op.content, existing)
+    if patch_op.format == "unityPrefs":
+        return _render_unity_prefs_patch(patch_op.content, existing)
     return _render_keyvalue_patch(patch_op.content, existing)
 
 

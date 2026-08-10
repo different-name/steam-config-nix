@@ -1,10 +1,15 @@
 import configparser
 import json
+import struct
 from types import SimpleNamespace
 
 import pytest
 
-from steam_config_patcher.files import _reg_read_quoted, apply_file_ops
+from steam_config_patcher.files import (
+    _reg_read_quoted,
+    apply_file_ops,
+    unity_prefs_hash,
+)
 from steam_config_patcher.files_manifest import backup_path, load_files_manifest
 from steam_config_patcher.types import PatchOp, RemoveOp
 from steam_config_patcher.vdf import text as vdf_text
@@ -477,3 +482,143 @@ def test_registry_string_escaping_round_trips(env):
     apply_file_ops(env.steam_dir, [], [], [op])
     assert target.read_text() == text
     assert reg_value(target.read_text(), "path") == raw_value
+
+
+def test_registry_preserves_wrapped_value_and_sets_sibling(env):
+    target = env.prefix / "user.reg"
+    target.write_text(
+        "WINE REGISTRY Version 2\n"
+        "\n"
+        "[Software\\\\VRChat\\\\VRChat]\n"
+        '"Blob_h1518735675"=hex:49,61,49,5a,75,54,79,77,77,\\\n'
+        "  4a,2f,76,71,79,30,49,37,32,53,58,70,67,3d,3d,00\n"
+        '"Keep_h123"=dword:00000005\n'
+    )
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "user.reg",
+                {"Software\\VRChat\\VRChat": {"Extra": 7}},
+                fmt="registry",
+                location="prefix",
+            )
+        ],
+    )
+
+    text = target.read_text()
+    # wrapped binary value survives intact, including its continuation line
+    assert (
+        '"Blob_h1518735675"=hex:49,61,49,5a,75,54,79,77,77,\\\n'
+        "  4a,2f,76,71,79,30,49,37,32,53,58,70,67,3d,3d,00"
+    ) in text
+    # no orphaned continuation line duplicated
+    assert text.count("4a,2f,76,71,79,30") == 1
+    assert '"Keep_h123"=dword:00000005' in text
+    assert '"Extra"=dword:00000007' in text
+
+
+def test_unity_prefs_hash_matches_ground_truth():
+    assert unity_prefs_hash("PersonalMirror.FaceMirrorPosX") == 1476246502
+    assert unity_prefs_hash("PersonalMirror.FaceMirrorPosY") == 1476246503
+    assert unity_prefs_hash("FaceMirrorOwner") == 1560350044
+    assert unity_prefs_hash("PersonalMirror.FaceMirrorScale") == 1462894506
+
+
+def unity_prefs(env, content):
+    return patch(env, "user.reg", content, fmt="unityPrefs", location="prefix")
+
+
+def test_unity_prefs_int_encoding(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"Count": 255}})],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    name = f"Count_h{unity_prefs_hash('Count')}"
+    assert reg_value(text, name) == "dword:000000ff"
+
+
+def test_unity_prefs_bool_encoding(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"On": True, "Off": False}})],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    assert reg_value(text, f"On_h{unity_prefs_hash('On')}") == "dword:00000001"
+    assert reg_value(text, f"Off_h{unity_prefs_hash('Off')}") == "dword:00000000"
+
+
+def test_unity_prefs_float_encoding_round_trips(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"Scale": 0.5}})],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    encoded = reg_value(text, f"Scale_h{unity_prefs_hash('Scale')}")
+    assert encoded == "hex(4):00,00,00,00,00,00,e0,3f"
+    raw = bytes(int(b, 16) for b in encoded[len("hex(4):") :].split(","))
+    assert struct.unpack("<d", raw)[0] == 0.5
+
+
+def test_unity_prefs_string_encoding(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"Owner": "abc"}})],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    encoded = reg_value(text, f"Owner_h{unity_prefs_hash('Owner')}")
+    assert encoded == "hex:61,62,63,00"
+
+
+def test_unity_prefs_merges_into_existing_section(env):
+    target = env.prefix / "user.reg"
+    keep_name = f"Keep_h{unity_prefs_hash('Keep')}"
+    target.write_text(
+        "WINE REGISTRY Version 2\n"
+        "\n"
+        "[Software\\\\Co\\\\Prod]\n"
+        f'"{keep_name}"=dword:00000009\n'
+    )
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"New": 3}})],
+    )
+
+    text = target.read_text()
+    assert reg_value(text, keep_name) == "dword:00000009"
+    assert reg_value(text, f"New_h{unity_prefs_hash('New')}") == "dword:00000003"
+    assert text.count("[Software\\\\Co\\\\Prod]") == 1
+
+
+def test_unity_prefs_creates_file_when_missing(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"Count": 1}})],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    assert text.startswith("WINE REGISTRY Version 2\n")
+    assert "[Software\\\\Co\\\\Prod]" in text
+    assert reg_value(text, f"Count_h{unity_prefs_hash('Count')}") == "dword:00000001"

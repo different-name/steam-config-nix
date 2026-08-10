@@ -119,6 +119,7 @@ let
             "json"
             "registry"
             "keyvalue"
+            "unityPrefs"
           ];
           example = "ini";
           description = ''
@@ -128,6 +129,7 @@ let
             - `"json"`: `content` is a nested attrset deep-merged into the file.
             - `"registry"`: a Wine registry file (`system.reg`/`user.reg`). `content` maps a backslash-separated key path to an attrset of value names, where a string becomes a `REG_SZ` and an integer a `REG_DWORD`.
             - `"keyvalue"`: a Valve KeyValues (VDF) file. `content` is a nested attrset deep-merged into the file.
+            - `"unityPrefs"`: Unity PlayerPrefs in a Wine `user.reg`. `content` maps a backslash-separated registry path (`Software\\<Company>\\<Product>`) to an attrset of PlayerPrefs keys, hashing each key the way Unity does and encoding the value by its type (integer, float, boolean, or string).
           '';
         };
 
