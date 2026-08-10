@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from steam_config_patcher.files import apply_file_ops
+from steam_config_patcher.formats import sourceconvars
 from steam_config_patcher.formats.patches import unity_prefs_hash
 from steam_config_patcher.formats.reg import read_quoted
 from steam_config_patcher.files_manifest import backup_path, load_files_manifest
@@ -654,3 +655,68 @@ def test_unity_prefs_creates_file_when_missing(env):
     assert text.startswith("WINE REGISTRY Version 2\n")
     assert "[Software\\\\Co\\\\Prod]" in text
     assert reg_value(text, f"Count_h{unity_prefs_hash('Count')}") == "dword:00000001"
+
+
+def test_source_convars_updates_in_place_and_preserves_rest():
+    existing = (
+        '// header\n'
+        'bind "1" "slot1"\n'
+        'alias "tr" "toggle cl_crosshair_recoil 1 0"\n'
+        'sensitivity "2.055"\n'
+        'fps_max 400\n'
+    ).encode()
+    out = sourceconvars.render({"sensitivity": 1.8, "fps_max": 300}, existing).decode()
+    assert 'sensitivity "1.8"' in out
+    assert 'fps_max "300"' in out
+    assert 'bind "1" "slot1"' in out
+    assert 'alias "tr" "toggle cl_crosshair_recoil 1 0"' in out
+    assert "// header" in out
+
+
+def test_source_convars_appends_when_absent():
+    out = sourceconvars.render({"fps_max": 400}, b'sensitivity "2"\n').decode()
+    assert 'sensitivity "2"' in out
+    assert out.splitlines()[-1] == 'fps_max "400"'
+
+
+def test_source_convars_ignores_cvar_inside_alias_body():
+    existing = b'alias "tr" "cl_crosshair_recoil 1"\n'
+    out = sourceconvars.render({"cl_crosshair_recoil": True}, existing).decode()
+    assert 'alias "tr" "cl_crosshair_recoil 1"' in out
+    assert out.splitlines()[-1] == 'cl_crosshair_recoil "1"'
+
+
+def test_source_convars_preserves_inline_comment():
+    out = sourceconvars.render({"cl_crosshairsize": 3}, b'cl_crosshairsize "2" // size\n').decode()
+    assert out.strip() == 'cl_crosshairsize "3" // size'
+
+
+def test_source_convars_bool_and_case_insensitive_match():
+    out = sourceconvars.render({"cl_crosshair_recoil": True}, b"Cl_Crosshair_Recoil false\n").decode()
+    assert out.strip() == 'Cl_Crosshair_Recoil "1"'
+
+
+def test_source_convars_updates_last_duplicate():
+    out = sourceconvars.render({"fps_max": 300}, b'fps_max "60"\nfps_max "120"\n').decode()
+    assert out.splitlines() == ['fps_max "60"', 'fps_max "300"']
+
+
+def test_source_convars_creates_when_empty():
+    out = sourceconvars.render({"fps_max": 400, "sensitivity": 1.5}, b"").decode()
+    assert out == 'fps_max "400"\nsensitivity "1.5"\n'
+
+
+def test_source_convars_preserves_crlf():
+    out = sourceconvars.render({"fps_max": 120}, b'sensitivity "2"\r\nfps_max "60"\r\n')
+    assert out.endswith(b'fps_max "120"\r\n')
+    assert out.decode().splitlines() == ['sensitivity "2"', 'fps_max "120"']
+
+
+def test_source_convars_apply_creates_file(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "cfg/autoexec.cfg", {"fps_max": 400}, fmt="sourceConvars", location="game")],
+    )
+    assert (env.install / "cfg/autoexec.cfg").read_text() == 'fps_max "400"\n'

@@ -120,6 +120,16 @@
                 };
                 createIfMissing = true;
               }
+              {
+                location = "game";
+                target = "cfg/autoexec.cfg";
+                format = "sourceConvars";
+                content = {
+                  fps_max = 400;
+                  cl_crosshair_recoil = false;
+                };
+                createIfMissing = true;
+              }
             ];
           };
           nonSteamApps = { };
@@ -481,6 +491,10 @@
               grep -q 'MirrorResolution_h' "$pfx/user.reg"
               grep -q 'dword:00000002' "$pfx/user.reg"
               grep -Fq 'hex(4):00,00,00,00,00,00,e0,3f' "$pfx/user.reg"
+
+              # sourceConvars patch: created the cfg with quoted convar values
+              grep -Fq 'fps_max "400"' "$install/cfg/autoexec.cfg"
+              grep -Fq 'cl_crosshair_recoil "0"' "$install/cfg/autoexec.cfg"
 
               # idempotent second run must still succeed
               steam-config-patcher ${patcherInput}

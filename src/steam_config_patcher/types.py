@@ -162,7 +162,9 @@ class PatchOp:
     app_id: int
     location: FileLocation
     target: str
-    format: Literal["ini", "json", "registry", "keyvalue", "unityPrefs"]
+    format: Literal[
+        "ini", "json", "registry", "keyvalue", "unityPrefs", "sourceConvars"
+    ]
     content: dict
     create_if_missing: bool
 

@@ -3,7 +3,7 @@ import io
 import json
 import struct
 
-from steam_config_patcher.formats import reg
+from steam_config_patcher.formats import reg, sourceconvars
 from steam_config_patcher.types import PatchOp
 from steam_config_patcher.vdf import text as vdf_text
 from steam_config_patcher.vdf.text import VdfNode
@@ -115,4 +115,6 @@ def render(patch_op: PatchOp, existing: bytes) -> bytes:
         return _render_registry_patch(patch_op.content, existing)
     if patch_op.format == "unityPrefs":
         return _render_unity_prefs_patch(patch_op.content, existing)
+    if patch_op.format == "sourceConvars":
+        return sourceconvars.render(patch_op.content, existing)
     return _render_keyvalue_patch(patch_op.content, existing)

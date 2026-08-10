@@ -59,7 +59,15 @@ When a game generates its own config and you only want to change a few keys, pat
 }
 ```
 
-- `format` is one of `"ini"`, `"json"`, `"registry"`, `"keyvalue"`, or `"unityPrefs"`. For `ini`, `content` is sections of key to value. For `json` and `keyvalue` (a Valve KeyValues/VDF file), `content` is a nested attribute set deep-merged into the file. For `registry` (a Wine `system.reg`/`user.reg`), `content` maps a key path to value names, where a string becomes a `REG_SZ` and an integer a `REG_DWORD`. For `unityPrefs` (Unity PlayerPrefs in a Wine `user.reg`), `content` maps a registry path (`Software/<Company>/<Product>`) to plain PlayerPrefs keys and values, hashing each key the way Unity does and encoding an integer, float, boolean, or string per Unity's registry format. In both registry formats the key path may use `/` or `\\` as the separator, so `"Software/VRChat/VRChat"` and `"Software\\VRChat\\VRChat"` are equivalent.
+- `format` selects how `content` is shaped and merged into the file:
+  - `"ini"`: `content` is sections of key to value.
+  - `"json"`: `content` is a nested attribute set deep-merged into the file.
+  - `"keyvalue"`: a Valve KeyValues/VDF file, with `content` a nested attribute set deep-merged into the file.
+  - `"registry"`: a Wine `system.reg`/`user.reg`, with `content` mapping a key path to value names (a string becomes a `REG_SZ`, an integer a `REG_DWORD`).
+  - `"unityPrefs"`: Unity PlayerPrefs in a Wine `user.reg`, with `content` mapping a registry path (`Software/<Company>/<Product>`) to plain PlayerPrefs keys and values, hashing each key the way Unity does and encoding an integer, float, boolean, or string per Unity's registry format.
+  - `"sourceConvars"`: a Source engine console config such as an `autoexec.cfg` (shared across GoldSrc, Source, and Source 2 games), with `content` a flat attribute set of console variable to value. Each variable is set in place or appended if absent, and binds, aliases, and comments are left untouched.
+
+  In the `registry` and `unityPrefs` formats the key path may use `/` or `\\` as the separator, so `"Software/VRChat/VRChat"` and `"Software\\VRChat\\VRChat"` are equivalent.
 - `createIfMissing` writes a new file with just your keys when the target does not exist. It is off by default, so a patch against a missing file waits until the game generates it, retrying on the next activation.
 
 A patch is always re-applied, and the original is backed up and restored when you remove it. A file cannot be both placed and patched.

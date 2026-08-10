@@ -120,6 +120,7 @@ let
             "registry"
             "keyvalue"
             "unityPrefs"
+            "sourceConvars"
           ];
           example = "ini";
           description = ''
@@ -130,6 +131,7 @@ let
             - `"registry"`: a Wine registry file (`system.reg`/`user.reg`). `content` maps a key path to an attrset of value names, where a string becomes a `REG_SZ` and an integer a `REG_DWORD`. The path separator may be `/` or `\\`.
             - `"keyvalue"`: a Valve KeyValues (VDF) file. `content` is a nested attrset deep-merged into the file.
             - `"unityPrefs"`: Unity PlayerPrefs in a Wine `user.reg`. `content` maps a registry path (`Software/<Company>/<Product>`, using `/` or `\\` as the separator) to an attrset of PlayerPrefs keys, hashing each key the way Unity does and encoding the value by its type (integer, float, boolean, or string).
+            - `"sourceConvars"`: a Source engine console config (GoldSrc, Source, or Source 2, such as an `autoexec.cfg`). `content` is a flat attrset of console variable to value. Each named variable is set in place, or appended if absent, and everything else in the file (binds, aliases, comments) is left untouched. A boolean is written as `1`/`0`.
           '';
         };
 
