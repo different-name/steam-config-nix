@@ -17,6 +17,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@v22
       - uses: DeterminateSystems/update-flake-lock@v28
         with:
+          token: ${{ secrets.FLAKE_LOCK_PAT }}
           pr-title: "chore: update flake inputs"
           commit-msg: "chore: update flake inputs"
           branch: update-flake-lock
