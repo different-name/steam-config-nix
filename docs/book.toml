@@ -1,6 +1,6 @@
 [book]
 title = "steam-config-nix"
-description = "Declaratively manage Steam and your apps on NixOS or Home Manager"
+description = "Declaratively manage Steam and your library on NixOS or Home Manager"
 authors = ["different-name"]
 language = "en"
 src = "src"

@@ -1,5 +1,5 @@
 {
-  description = "Declaratively manage Steam and your apps on NixOS or Home Manager";
+  description = "Declaratively manage Steam and your library on NixOS or Home Manager";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";

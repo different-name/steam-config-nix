@@ -1,6 +1,6 @@
 # steam-config-nix
 
-Declaratively manage Steam and your apps on NixOS or Home Manager.
+Declaratively manage Steam and your library on NixOS or Home Manager.
 
 - Launch options
 - Compatibility tools
