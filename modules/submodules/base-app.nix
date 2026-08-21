@@ -457,9 +457,12 @@ in
       type = types.str;
       default = toString config.id;
       defaultText = lib.literalExpression "toString config.id";
-      visible = false;
-      internal = true;
-      description = "Identifier passed to `steam://rungameid/`.";
+      description = ''
+        Identifier passed to `steam://rungameid/`, for launching the app from outside Steam.
+
+        - Steam apps use their app id
+        - non-Steam apps use a 64 bit id derived from theirs, which is a different number
+      '';
     };
 
     wrapper = lib.mkOption {
