@@ -23,6 +23,16 @@ let
       lib.mapAttrsToList (dll: mode: "${dll}=${if mode == "disabled" then "" else mode}") overrides
     );
 
+  slugify =
+    s:
+    lib.concatStringsSep "-" (
+      lib.filter (part: part != "") (
+        lib.splitString "-" (
+          lib.stringAsChars (c: if lib.match "[a-z0-9]" c != null then c else "-") (lib.toLower s)
+        )
+      )
+    );
+
   # Steam's launch runtime sets LD_LIBRARY_PATH/LD_PRELOAD to libs that clash
   # with notify-send, so run it with a clean loader environment
   notify =
@@ -37,7 +47,8 @@ let
         || app.wrappers != [ ]
         || app.args != [ ]
         || app.preHook != ""
-        || app.dllOverrides != { };
+        || app.dllOverrides != { }
+        || app.systemd.enable;
       hasRaw = app.rawLaunchOptions != null;
       hasWinetricks = app.winetricks != [ ];
 
@@ -77,6 +88,34 @@ let
         else
           ''"''${game_command[@]}"'';
 
+      scopeProperties = {
+        Description = name;
+        Wants = app.systemd.target.unitName;
+        After = app.systemd.target.unitName;
+      }
+      // app.systemd.scope.properties;
+
+      mkPropertyArg =
+        key: value:
+        "--property=${key}=${if lib.isBool value then (if value then "yes" else "no") else toString value}";
+
+      # nothing after the game here survives the wrapper being killed
+      scopeStep = lib.optionalString app.systemd.enable ''
+        declare -a scope=()
+        if ${lib.getExe' pkgs.systemd "systemctl"} --user show --property=Version >/dev/null 2>&1; then
+          scope=(
+            ${lib.getExe' pkgs.systemd "systemd-run"} --user --scope --quiet
+            --unit="app-steam-${app.steamRunId}-$RANDOM.scope"
+            ${lib.escapeShellArgs (lib.mapAttrsToList mkPropertyArg scopeProperties)}
+          )
+        else
+          echo "steam-config-nix: no systemd user manager, launching without a scope" >&2
+          ${notify "No systemd user manager, launching ${name} without a scope"}
+        fi
+      '';
+
+      scopePrefix = lib.optionalString app.systemd.enable ''"''${scope[@]}" '';
+
       launchStep =
         if hasOptions then
           ''
@@ -90,7 +129,8 @@ let
 
             ${app.preHook}
 
-            exec env "''${wrappers[@]}" ${gameInvocation} "''${args[@]}"
+            ${scopeStep}
+            exec ${scopePrefix}env "''${wrappers[@]}" ${gameInvocation} "''${args[@]}"
           ''
         else if hasRaw then
           "exec env ${lib.replaceString "%command%" ''"$@"'' effectiveRaw}"
@@ -260,6 +300,8 @@ in
         Applied when the app is launched (via protontricks, using the prefix and Proton that Steam provides in the environment), and re-applied when the verb list changes. The app must use a compatibility tool, and must have been launched once so the prefix exists.
 
         Removing a verb does not uninstall it, as winetricks cannot reliably undo verbs.
+
+        Setting this will overwrite any launch options set manually in Steam.
       '';
     };
 
@@ -328,6 +370,89 @@ in
         logo = mkArtworkOption "logo" "transparent overlay";
       };
 
+    systemd = {
+      enable = lib.mkOption {
+        type = types.bool;
+        default = false;
+        example = true;
+        description = ''
+          Whether to publish a systemd user target that is active while the app is running.
+
+          The app is launched in a transient scope, and that scope activates `steam-app-<name>.target` along with the shared `steam-app.target`. Units are tied to the app's lifetime by setting `PartOf` and `WantedBy` on them, and `Before` to make the app wait until they are up.
+
+          Enabling this will overwrite any launch options set manually in Steam.
+        '';
+      };
+
+      target = {
+        name = lib.mkOption {
+          type = types.str;
+          default = slugify name;
+          defaultText = lib.literalMD "the attribute name, lowercased, with runs of other characters replaced by `-`";
+          example = "vrchat";
+          description = ''
+            Name of the generated target, used as `steam-app-<name>.target`.
+
+            Other configuration refers to this name, so changing it stops units that hook the old name from starting.
+          '';
+        };
+
+        unitConfig = lib.mkOption {
+          type = types.attrsOf (
+            types.oneOf [
+              types.str
+              types.int
+              types.bool
+              (types.listOf types.str)
+            ]
+          );
+          default = { };
+          example = {
+            Description = "VRChat";
+          };
+          description = ''
+            Settings for the `[Unit]` section of the generated target, merged over the ones it sets itself.
+
+            The generated target sets `Description`, `Documentation`, `StopWhenUnneeded`, `RefuseManualStart`, `RefuseManualStop`, and its dependencies on `steam-app.target`. Overriding `StopWhenUnneeded` or those dependencies stops the target being torn down when the app exits.
+          '';
+        };
+
+        unitName = lib.mkOption {
+          type = types.str;
+          default = "steam-app-${config.systemd.target.name}.target";
+          defaultText = lib.literalExpression ''"steam-app-''${config.systemd.target.name}.target"'';
+          readOnly = true;
+          description = "Unit name of the generated target, for referring to it without repeating the string.";
+        };
+      };
+
+      scope.properties = lib.mkOption {
+        type = types.attrsOf (
+          types.oneOf [
+            types.str
+            types.int
+            types.bool
+          ]
+        );
+        default = { };
+        example = {
+          Slice = "games.slice";
+        };
+        description = ''
+          Properties set on the transient scope the app runs in, passed to `systemd-run --property`.
+
+          These cover:
+
+          - resource control, such as `Slice`, `CPUWeight`, `MemoryMax` and `AllowedCPUs`
+          - `OnSuccess`, to activate a unit once the app exits
+
+          `OnFailure` is never triggered, because a scope's result does not follow the exit status of the processes inside it.
+
+          Dependencies that tie other units to the app's lifetime belong on the target instead.
+        '';
+      };
+    };
+
     steamRunId = lib.mkOption {
       type = types.str;
       default = toString config.id;
@@ -373,7 +498,14 @@ in
       {
         assertion = false;
         message = "steam-config-nix: ${name} sets both dllOverrides and env.WINEDLLOVERRIDES, set overrides via dllOverrides only";
-      };
+      }
+    ++
+      lib.optional
+        (config.systemd.enable && lib.match "[A-Za-z0-9:_.-]+" config.systemd.target.name == null)
+        {
+          assertion = false;
+          message = "steam-config-nix: ${name} has an invalid systemd.target.name \"${config.systemd.target.name}\", use letters, digits, and any of :_.-";
+        };
 
   config.finalConfig = {
     inherit (config)

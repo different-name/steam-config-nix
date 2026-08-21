@@ -434,6 +434,12 @@
             content.A.b = 1;
           };
         })) "placing and patching the same file should fail"
+        && lib.assertMsg (hasFailure "invalid systemd.target.name" (failingAssertions {
+          systemd = {
+            enable = true;
+            target.name = "not valid";
+          };
+        })) "an invalid systemd.target.name should fail"
         && lib.assertMsg (
           failingAssertions {
             files.game.place."mods/ok.pak".source = fakeArt;
@@ -447,6 +453,62 @@
     in
     {
       checks = {
+        # an enabled app publishes a target and launches inside a scope, and an
+        # app with no other options must still get no wrapper
+        systemd-targets =
+          let
+            eval = inputs.nixpkgs.lib.nixosSystem {
+              modules = [
+                self.nixosModules.default
+                {
+                  system.stateVersion = "26.05";
+                  nixpkgs.hostPlatform = system;
+                  programs.steam.config = {
+                    enable = true;
+                    apps = {
+                      "VRChat" = {
+                        id = 438100;
+                        systemd = {
+                          enable = true;
+                          scope.properties.Slice = "games.slice";
+                        };
+                      };
+                      "Blank" = {
+                        id = 220;
+                      };
+                    };
+                  };
+                }
+              ];
+            };
+
+            steamConfig = eval.config.programs.steam.config;
+            units = eval.config.systemd.user.units;
+            appTarget = pkgs.writeText "app-target" units."steam-app-vrchat.target".text;
+            sharedTarget = pkgs.writeText "shared-target" units."steam-app.target".text;
+            wrapper = steamConfig.apps."VRChat".wrapper.package;
+          in
+          pkgs.runCommand "systemd-targets" { } (
+            assert lib.assertMsg (
+              steamConfig.apps."Blank".wrapper.package == null
+            ) "an app with no options must not get a wrapper";
+            ''
+              grep -q 'Description=VRChat' ${appTarget}
+              grep -q 'StopWhenUnneeded=yes' ${appTarget}
+              grep -q 'RefuseManualStart=yes' ${appTarget}
+              grep -q 'Wants=steam-app.target' ${appTarget}
+              grep -q 'After=steam-app.target' ${appTarget}
+              grep -q 'StopWhenUnneeded=yes' ${sharedTarget}
+
+              wrapper=${wrapper}/bin/steam-app-wrapper-438100
+              grep -q 'systemd-run --user --scope' "$wrapper"
+              grep -q 'property=Wants=steam-app-vrchat.target' "$wrapper"
+              grep -q 'property=Slice=games.slice' "$wrapper"
+
+              touch $out
+            ''
+          );
+
         steam-config-patcher = self.packages.${system}.steam-config-patcher;
 
         # runs the real patcher binary against a seeded Steam tree (via HOME),

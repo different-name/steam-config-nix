@@ -1,5 +1,8 @@
 # Winetricks
 
+> [!NOTE]
+> Setting `winetricks` overwrites any launch options set manually in Steam. This is because the verbs are installed by a wrapper script, which is applied using Steam's launch options.
+
 Install [winetricks](https://github.com/Winetricks/winetricks) verbs into an app's Proton prefix:
 
 ```nix

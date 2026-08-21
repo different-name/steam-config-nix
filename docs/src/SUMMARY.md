@@ -8,6 +8,7 @@
 - [Quickstart](./quickstart.md)
 - [Configuration](./configuration.md)
 - [Launch Options](./launch-options.md)
+- [Systemd Integration](./systemd-integration.md)
 - [Compatibility Tools](./compat-tools.md)
 - [Steam App Settings](./app-settings.md)
 - [Library Artwork](./artwork.md)

@@ -1,5 +1,10 @@
 # Launch Options
 
+> [!NOTE]
+> These options overwrite any launch options set manually in Steam: `env`, `dllOverrides`, `wrappers`, `args`, `preHook`, `rawLaunchOptions`, [`winetricks`](./winetricks.md) and [`systemd.enable`](./systemd-integration.md).
+>
+> This is because they use a wrapper script, which is applied using Steam's launch options.
+
 An app's launch is assembled from structured pieces set directly on the app: `env`, `dllOverrides`, `wrappers`, `args` and `preHook`. There is also `rawLaunchOptions` for pasting a classic Steam launch string, which composes with the structured pieces rather than replacing them.
 
 ## Structured launch options

@@ -203,6 +203,53 @@ in
           ;
       };
 
+      # systemd targets
+
+      systemdApps = lib.filter (entry: entry.app.systemd.enable) (
+        lib.mapAttrsToList (name: app: { inherit name app; }) enabledApps
+        ++ lib.mapAttrsToList (name: app: { inherit name app; }) enabledNonSteamApps
+      );
+
+      docsUrl = "https://different-name.github.io/steam-config-nix/systemd-integration.html";
+
+      renderUnitValue =
+        value:
+        if lib.isBool value then
+          (if value then "yes" else "no")
+        else if lib.isList value then
+          lib.concatStringsSep " " value
+        else
+          toString value;
+
+      sharedTargetUnit = {
+        Description = "A Steam app is running";
+        Documentation = docsUrl;
+        StopWhenUnneeded = "yes";
+        RefuseManualStart = "yes";
+        RefuseManualStop = "yes";
+      };
+
+      mkTargetUnit =
+        entry:
+        {
+          Description = entry.name;
+          Documentation = docsUrl;
+          StopWhenUnneeded = "yes";
+          RefuseManualStart = "yes";
+          RefuseManualStop = "yes";
+          Wants = "steam-app.target";
+          After = "steam-app.target";
+        }
+        // lib.mapAttrs (_: renderUnitValue) entry.app.systemd.target.unitConfig;
+
+      targetUnits =
+        lib.optionalAttrs (systemdApps != [ ]) { steam-app = sharedTargetUnit; }
+        // lib.listToAttrs (
+          map (
+            entry: lib.nameValuePair "steam-app-${entry.app.systemd.target.name}" (mkTargetUnit entry)
+          ) systemdApps
+        );
+
       # patcher config
 
       mkCompatToolValue =
@@ -366,6 +413,17 @@ in
                 in
                 ''apps.${e.appName}.files.${e.location} both places and patches "${e.target}"''
               ) placePatchCollisions;
+
+              duplicateUnitNames = lib.filterAttrs (_: entries: lib.length entries > 1) (
+                builtins.groupBy (entry: entry.app.systemd.target.name) (
+                  lib.filter (entry: entry.app.systemd.enable) namedApps
+                )
+              );
+
+              duplicateUnitNameMessages = lib.mapAttrsToList (
+                unitName: entries:
+                "systemd.target.name ${unitName} is used by: ${lib.concatMapStringsSep ", " (e: e.name) entries}"
+              ) duplicateUnitNames;
             in
             [
               {
@@ -401,6 +459,12 @@ in
                 assertion = duplicateTargets == [ ];
                 message = "steam-config-nix: multiple file entries resolve to the same target\n${lib.concatStringsSep "\n" duplicateTargetMessages}";
               }
+            ]
+            ++ [
+              {
+                assertion = duplicateUnitNames == { };
+                message = "steam-config-nix: multiple apps configured with the same systemd.target.name\n${lib.concatStringsSep "\n" duplicateUnitNameMessages}";
+              }
             ];
 
           # submodule warnings are not surfaced automatically
@@ -410,6 +474,8 @@ in
         }
 
         (lib.optionalAttrs (format == "nixos") {
+          systemd.user.targets = lib.mapAttrs (_: unit: { unitConfig = unit; }) targetUnits;
+
           programs.steam.extraCompatPackages = compatToolPackages;
 
           environment.systemPackages = map (
@@ -453,6 +519,8 @@ in
         })
 
         (lib.optionalAttrs (format == "home-manager") {
+          systemd.user.targets = lib.mapAttrs (_: unit: { Unit = unit; }) targetUnits;
+
           home.file = lib.listToAttrs (
             map (link: lib.nameValuePair link.target { inherit (link) source; }) wrapperLinks
             ++ map (
