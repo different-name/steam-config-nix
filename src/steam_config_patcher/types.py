@@ -16,6 +16,7 @@ APPMANIFEST_USER_CONFIG_PATH = ("AppState", "UserConfig")
 APPMANIFEST_BETA_KEY = "BetaKey"
 APPMANIFEST_LANGUAGE_KEY = "language"
 APPMANIFEST_AUTO_UPDATE_KEY = "AutoUpdateBehavior"
+APPMANIFEST_ALLOW_OTHER_DOWNLOADS_KEY = "AllowOtherDownloadsWhileRunning"
 
 COMPAT_TOOL_MAPPING_PATH = (
     "InstallConfigStore",
@@ -78,6 +79,7 @@ class PatcherConfig:
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
     game_update_behaviors: dict[int, str] = field(default_factory=dict)
+    game_allow_downloads: dict[int, str] = field(default_factory=dict)
     grid_art: dict[int, GridArt] = field(default_factory=dict)
     library_icon_apps: set[int] = field(default_factory=set)
     file_ops: list["FileOp"] = field(default_factory=list)

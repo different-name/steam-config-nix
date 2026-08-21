@@ -19,6 +19,7 @@ from steam_config_patcher.steam import (
     wait_for_steam_exit,
 )
 from steam_config_patcher.types import (
+    APPMANIFEST_ALLOW_OTHER_DOWNLOADS_KEY,
     APPMANIFEST_AUTO_UPDATE_KEY,
     APPMANIFEST_BETA_KEY,
     APPMANIFEST_FILE_PREFIX,
@@ -102,6 +103,11 @@ def appmanifest_settings(
     update_behavior = cfg.game_update_behaviors.get(app_id)
     if update_behavior is not None:
         settings.append(((APPMANIFEST_AUTO_UPDATE_KEY,), update_behavior))
+    allow_downloads = cfg.game_allow_downloads.get(app_id)
+    if allow_downloads is not None:
+        settings.append(
+            ((APPMANIFEST_ALLOW_OTHER_DOWNLOADS_KEY,), allow_downloads)
+        )
     return settings
 
 
@@ -122,6 +128,7 @@ def configured_appmanifest_ids(cfg: PatcherConfig) -> set[int]:
         set(cfg.game_betas)
         | set(cfg.game_languages)
         | set(cfg.game_update_behaviors)
+        | set(cfg.game_allow_downloads)
     )
 
 

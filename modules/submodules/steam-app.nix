@@ -245,6 +245,27 @@ in
       '';
     };
 
+    allowDownloadsWhileRunning = lib.mkOption {
+      type = types.nullOr (
+        types.enum [
+          "followGlobal"
+          "always"
+          "never"
+        ]
+      );
+      default = null;
+      example = "always";
+      description = ''
+        Whether Steam may download other apps while this app is running:
+
+        - `"followGlobal"`: use the global download setting
+        - `"always"`: always allow downloads while this app runs
+        - `"never"`: never allow downloads while this app runs
+
+        The app must be installed for this to be applied. When unset again, Steam's default behaviour is restored.
+      '';
+    };
+
     desktopEntry.useLibraryIcon = lib.mkOption {
       type = types.bool;
       default = steamConfig.desktopEntries.libraryIcons;
@@ -356,6 +377,16 @@ in
           highPriority = "2";
         }
         .${config.updateBehavior};
+    allowDownloadsWhileRunning =
+      if config.allowDownloadsWhileRunning == null then
+        null
+      else
+        {
+          followGlobal = "0";
+          always = "1";
+          never = "2";
+        }
+        .${config.allowDownloadsWhileRunning};
     files = mkFileOps "game" config.files.game.place ++ mkFileOps "prefix" config.files.prefix.place;
     removeFiles =
       mkRemoveOps "game" config.files.game.remove ++ mkRemoveOps "prefix" config.files.prefix.remove;

@@ -170,6 +170,19 @@ def test_update_behavior_maps_to_game_update_behaviors(tmp_path, monkeypatch):
     assert cfg.game_update_behaviors == {1091500: "1"}
 
 
+def test_allow_downloads_maps_to_game_allow_downloads(tmp_path, monkeypatch):
+    data = base_input(
+        apps={
+            "cyberpunk": {"id": 1091500, "allowDownloadsWhileRunning": "1"},
+            "portal": {"id": 620},
+        }
+    )
+
+    cfg = run_parse(tmp_path, monkeypatch, data)
+
+    assert cfg.game_allow_downloads == {1091500: "1"}
+
+
 def test_artwork_maps_to_grid_art_for_both_app_types(tmp_path, monkeypatch):
     data = base_input(
         apps={"cyberpunk": {"id": 1091500, "artwork": {"hero": "/art/hero.jpg"}}},

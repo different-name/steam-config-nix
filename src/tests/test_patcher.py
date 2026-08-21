@@ -92,6 +92,7 @@ APPMANIFEST_VDF = """\
 BETA_KEY_PATH = ("AppState", "UserConfig", "BetaKey")
 LANGUAGE_KEY_PATH = ("AppState", "UserConfig", "language")
 AUTO_UPDATE_KEY_PATH = ("AppState", "AutoUpdateBehavior")
+ALLOW_OTHER_DOWNLOADS_KEY_PATH = ("AppState", "AllowOtherDownloadsWhileRunning")
 
 
 def write_app_manifest(steam_dir, app_id=1091500):
@@ -109,6 +110,7 @@ def make_cfg(
     game_betas=None,
     game_languages=None,
     game_update_behaviors=None,
+    game_allow_downloads=None,
     grid_art=None,
     file_ops=None,
     remove_ops=None,
@@ -119,6 +121,7 @@ def make_cfg(
         game_betas=game_betas or {},
         game_languages=game_languages or {},
         game_update_behaviors=game_update_behaviors or {},
+        game_allow_downloads=game_allow_downloads or {},
         grid_art=grid_art or {},
         compat_tool_mapping=compat_tool_mapping or {},
         file_ops=file_ops or [],
@@ -518,6 +521,20 @@ def test_update_behavior_written_and_cleaned_up(fake_steam, tmp_path):
     patch_config_files(make_cfg(steam_dir))
 
     assert find_values(manifest, AUTO_UPDATE_KEY_PATH) == []
+    assert load_manifest(steam_dir, USER_ID) == UserManifest()
+
+
+def test_allow_downloads_written_and_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    manifest = write_app_manifest(steam_dir)
+
+    patch_config_files(make_cfg(steam_dir, game_allow_downloads={1091500: "1"}))
+
+    assert find_values(manifest, ALLOW_OTHER_DOWNLOADS_KEY_PATH) == ["1"]
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(manifest, ALLOW_OTHER_DOWNLOADS_KEY_PATH) == []
     assert load_manifest(steam_dir, USER_ID) == UserManifest()
 
 

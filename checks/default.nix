@@ -52,6 +52,7 @@
             betaBranch = "beta";
             language = "german";
             updateBehavior = "1";
+            allowDownloadsWhileRunning = "2";
             artwork = {
               cover = null;
               header = null;
@@ -189,6 +190,7 @@
                   betaBranch = "prerelease";
                   language = "german";
                   updateBehavior = "onLaunch";
+                  allowDownloadsWhileRunning = "always";
                   artwork.hero = fakeArt;
                   files.game.place."mods/test.pak".source = fakeArt;
                   files.game.remove = [ "movies/intro.bik" ];
@@ -231,6 +233,7 @@
             betaBranch = null;
             language = null;
             updateBehavior = null;
+            allowDownloadsWhileRunning = null;
             libraryIcon = false;
             launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
             artwork = noArtwork;
@@ -245,6 +248,7 @@
             betaBranch = null;
             language = null;
             updateBehavior = null;
+            allowDownloadsWhileRunning = null;
             libraryIcon = true;
             launchOptions = "/var/lib/steam-config-nix/apps/440/wrapper %command%";
             artwork = noArtwork;
@@ -259,6 +263,7 @@
             betaBranch = null;
             language = null;
             updateBehavior = null;
+            allowDownloadsWhileRunning = null;
             libraryIcon = false;
             launchOptions = null;
             artwork = noArtwork;
@@ -273,6 +278,7 @@
             betaBranch = null;
             language = null;
             updateBehavior = null;
+            allowDownloadsWhileRunning = null;
             # disabled app: finalConfig still computed but filtered out before use
             libraryIcon = true;
             launchOptions = null;
@@ -288,6 +294,7 @@
             betaBranch = "prerelease";
             language = "german";
             updateBehavior = "1";
+            allowDownloadsWhileRunning = "1";
             libraryIcon = true; # inherits the global default (on)
             launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
             artwork = noArtwork // {
@@ -469,6 +476,7 @@
               grep -q beta "$acf"
               grep -q german "$acf"
               grep -q AutoUpdateBehavior "$acf"
+              grep -q AllowOtherDownloadsWhileRunning "$acf"
               test -f "$steam/userdata/111/config/steam-config-nix-manifest.json"
 
               grep -q modcontent "$install/mods/test.txt"

@@ -9,6 +9,7 @@ Some per-app Steam settings can be managed declaratively. These are written into
     betaBranch = "prerelease";
     language = "german";
     updateBehavior = "onLaunch";
+    allowDownloadsWhileRunning = "always";
   };
 }
 ```
@@ -19,5 +20,9 @@ Some per-app Steam settings can be managed declaratively. These are written into
   - `"always"`: always keep it updated
   - `"onLaunch"`: only update when launched
   - `"highPriority"`: update this app before others
+- `allowDownloadsWhileRunning`: whether Steam may download other apps while this one runs:
+  - `"followGlobal"`: use the global download setting
+  - `"always"`: always allow downloads while it runs
+  - `"never"`: never allow downloads while it runs
 
 These settings apply to Steam apps only, not [non-Steam apps](./non-steam-apps.md).

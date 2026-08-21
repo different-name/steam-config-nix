@@ -70,6 +70,7 @@ class AppSchema(StrictSchema):
     betaBranch: str | None = None
     language: str | None = None
     updateBehavior: str | None = None
+    allowDownloadsWhileRunning: str | None = None
     libraryIcon: bool = False
     artwork: ArtworkSchema = Field(default_factory=ArtworkSchema)
     files: list[FileOpSchema] = Field(default_factory=list)
@@ -151,6 +152,11 @@ def parse_input() -> PatcherConfig:
             app.id: app.updateBehavior
             for app in validated_input.apps.values()
             if app.updateBehavior
+        },
+        game_allow_downloads={
+            app.id: app.allowDownloadsWhileRunning
+            for app in validated_input.apps.values()
+            if app.allowDownloadsWhileRunning
         },
         grid_art={
             app.id: GridArt(
