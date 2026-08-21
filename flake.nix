@@ -32,7 +32,7 @@
             docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) { };
           };
 
-          formatter = pkgs.nixfmt;
+          formatter = pkgs.nixfmt-tree;
         };
 
       flake = {
