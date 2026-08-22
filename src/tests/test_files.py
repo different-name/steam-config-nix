@@ -435,6 +435,35 @@ def test_unsafe_remove_target_is_skipped(env):
     assert victim.read_text() == "important"
 
 
+def test_relocated_prefix_targets_prefix_path(env, tmp_path):
+    relocated = tmp_path / "relocated"
+    (relocated / "pfx").mkdir(parents=True)
+    src = source_file(env, "cfg", "x")
+
+    apply_file_ops(
+        env.steam_dir,
+        [place(env, "drive_c/cfg", src, location="prefix")],
+        [],
+        prefix_paths={620: relocated},
+    )
+
+    assert (relocated / "pfx" / "drive_c" / "cfg").read_text() == "x"
+    assert not (env.prefix / "drive_c" / "cfg").exists()
+
+
+def test_relocated_prefix_missing_is_skipped(env, tmp_path):
+    src = source_file(env, "cfg", "x")
+
+    apply_file_ops(
+        env.steam_dir,
+        [place(env, "drive_c/cfg", src, location="prefix")],
+        [],
+        prefix_paths={620: tmp_path / "not-created-yet"},
+    )
+
+    assert not (env.prefix / "drive_c" / "cfg").exists()
+
+
 def test_prefix_location_targets_prefix_root(env):
     src = source_file(env, "cfg", "x")
 

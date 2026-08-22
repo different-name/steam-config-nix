@@ -1,7 +1,7 @@
 # Launch Options
 
 > [!NOTE]
-> These options overwrite any launch options set manually in Steam: `env`, `dllOverrides`, `wrappers`, `args`, `preHook`, `rawLaunchOptions`, [`winetricks`](./winetricks.md) and [`systemd.enable`](./systemd-integration.md).
+> These options overwrite any launch options set manually in Steam: `env`, `dllOverrides`, `wrappers`, `args`, `preHook`, `rawLaunchOptions`, [`winetricks`](./winetricks.md), [`prefixPath`](./prefixes.md) and [`systemd.enable`](./systemd-integration.md).
 >
 > This is because they use a wrapper script, which is applied using Steam's launch options.
 

@@ -453,7 +453,13 @@ def patch_config_files(cfg: PatcherConfig):
         wait_for_game_exit()
 
     try:
-        apply_file_ops(cfg.steam_dir, cfg.file_ops, cfg.remove_ops, cfg.patch_ops)
+        apply_file_ops(
+            cfg.steam_dir,
+            cfg.file_ops,
+            cfg.remove_ops,
+            cfg.patch_ops,
+            cfg.prefix_paths,
+        )
     except Exception:
         LOG.exception("failed to apply file operations")
 

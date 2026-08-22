@@ -14,7 +14,7 @@ Install [winetricks](https://github.com/Winetricks/winetricks) verbs into an app
 }
 ```
 
-Verbs are applied at launch. The prefix and Proton come from the environment Steam provides, so the app must use a compatibility tool and have been launched once (so the prefix exists). They are re-applied when the verb list changes, and a failure never blocks the game from launching.
+Verbs are applied at launch. The prefix and Proton come from the environment Steam provides, so the app must use a compatibility tool and have been launched once (so the prefix exists). A prefix moved with [`prefixPath`](./prefixes.md) is followed. They are re-applied when the verb list changes, and a failure never blocks the game from launching.
 
 The first launch after adding or changing verbs is slower, as the game waits while the verbs install. A desktop notification (see [Configuration](./configuration.md)) is shown while this happens.
 

@@ -7,6 +7,7 @@
   apps = {
     "620" = {
       id = 620;
+      prefixPath = "/mnt/prefixes/620";
       compatTool = null;
       betaBranch = null;
       language = null;
@@ -22,6 +23,7 @@
 
     "440" = {
       id = 440;
+      prefixPath = null;
       compatTool = null;
       betaBranch = null;
       language = null;
@@ -37,6 +39,7 @@
 
     "730" = {
       id = 730;
+      prefixPath = null;
       compatTool = fakeCompatTool;
       betaBranch = null;
       language = null;
@@ -52,6 +55,7 @@
 
     "999" = {
       id = 999;
+      prefixPath = null;
       compatTool = null;
       betaBranch = null;
       language = null;
@@ -68,6 +72,7 @@
 
     cyberpunk = {
       id = 1091500;
+      prefixPath = null;
       compatTool = "proton_experimental";
       betaBranch = "prerelease";
       language = "german";
@@ -112,6 +117,7 @@
   nonSteamApps = {
     vintage-story = {
       id = 3533133079;
+      prefixPath = null;
       compatTool = null;
       launchOptions = null;
       name = "vintage-story";

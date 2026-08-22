@@ -33,6 +33,35 @@ let
         || app.systemd.enable;
       hasRaw = app.rawLaunchOptions != null;
       hasWinetricks = app.winetricks != [ ];
+      hasPrefix = app.prefixPath != null;
+
+      # points the prefix elsewhere before anything else runs, keeping the path Steam
+      # chose so protontricks can be bound onto it below
+      prefixStep = lib.optionalString hasPrefix ''
+        scn_setup_prefix() {
+          local dir parent
+          dir=${lib.escapeShellArg (toString app.prefixPath)}
+          parent=$(dirname "$dir")
+          if [ ! -d "$parent" ]; then
+            echo "steam-config-nix: prefixPath parent $parent does not exist, refusing to create it" >&2
+            ${notify "prefixPath parent $parent is missing, is the drive mounted?"}
+            exit 1
+          fi
+          mkdir -p "$dir"
+          export STEAM_COMPAT_DATA_PATH="$dir"
+        }
+      '';
+
+      # protontricks finds prefixes by app id under the library, so a relocated prefix is
+      # bound over the one Steam made for the launch instead of being passed as a path
+      protontricksCmd =
+        let
+          protontricks = lib.getExe' pkgs.protontricks "protontricks";
+        in
+        if hasPrefix then
+          ''${lib.getExe' pkgs.bubblewrap "bwrap"} --dev-bind / / --bind "$STEAM_COMPAT_DATA_PATH" "$scn_compat_orig" -- ${protontricks}''
+        else
+          protontricks;
 
       # runs before the game, when Steam has set STEAM_COMPAT_* in the environment
       # marker keyed on the verb list so it only runs when the verbs change
@@ -42,6 +71,10 @@ let
           if [ -z "''${STEAM_COMPAT_DATA_PATH:-}" ] || [ ! -d "$STEAM_COMPAT_DATA_PATH/pfx" ]; then
             return
           fi
+          ${
+            # the bind needs the path Steam picked, which only exists when Steam launched us
+            lib.optionalString hasPrefix ''if [ -z "$scn_compat_orig" ]; then return; fi''
+          }
           marker="$STEAM_COMPAT_DATA_PATH/steam-config-nix-winetricks"
           want=${lib.escapeShellArg (lib.concatStringsSep " " app.winetricks)}
           if [ "$(cat "$marker" 2>/dev/null)" = "$want" ]; then
@@ -49,7 +82,7 @@ let
           fi
           echo "steam-config-nix: applying winetricks verbs: $want"
           ${notify "Installing winetricks: $want..."}
-          if ${lib.getExe' pkgs.protontricks "protontricks"} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
+          if ${protontricksCmd} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
             printf '%s' "$want" > "$marker"
             ${notify "winetricks installed: $want"}
           else
@@ -124,11 +157,18 @@ let
         else
           ''exec "$@"'';
 
-      # the winetricks step is a function so its working variables stay out of the
-      # launch scope and away from preHook
-      calls = lib.optionalString hasWinetricks "scn_apply_winetricks";
+      # the steps with working variables of their own are functions, so those stay out
+      # of the launch scope and away from preHook
+      calls = lib.concatStringsSep "\n" (
+        lib.optional hasPrefix "scn_setup_prefix" ++ lib.optional hasWinetricks "scn_apply_winetricks"
+      );
 
       sections = lib.filter (section: section != "") [
+        # only the winetricks bind needs the path steam picked
+        (lib.optionalString (
+          hasPrefix && hasWinetricks
+        ) ''scn_compat_orig="''${STEAM_COMPAT_DATA_PATH:-}"'')
+        prefixStep
         winetricksStep
         calls
         launch
@@ -138,7 +178,7 @@ let
         lib.concatStringsSep "\n" sections
       );
     in
-    if hasOptions || hasRaw || hasWinetricks then package else null;
+    if hasOptions || hasRaw || hasWinetricks || hasPrefix then package else null;
 in
 {
   options.wrapper = lib.mkOption {

@@ -66,6 +66,7 @@ class PatchOpSchema(StrictSchema):
 class AppSchema(StrictSchema):
     id: int
     launchOptions: str | None = None
+    prefixPath: str | None = None
     compatTool: CompatToolValue = None
     betaBranch: str | None = None
     language: str | None = None
@@ -180,6 +181,11 @@ def parse_input() -> PatcherConfig:
         },
         library_icon_apps={
             app.id for app in validated_input.apps.values() if app.libraryIcon
+        },
+        prefix_paths={
+            app.id: Path(app.prefixPath)
+            for app in validated_input.apps.values()
+            if app.prefixPath
         },
         file_ops=[
             FileOp(

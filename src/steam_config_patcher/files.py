@@ -402,8 +402,10 @@ def apply_file_ops(
     file_ops: list[FileOp],
     remove_ops: list[RemoveOp],
     patch_ops: list[PatchOp] | None = None,
+    prefix_paths: dict[int, Path] | None = None,
 ) -> None:
     patch_ops = patch_ops or []
+    prefix_paths = prefix_paths or {}
     prev_manifest = load_files_manifest(steam_dir)
     if (
         not file_ops
@@ -420,13 +422,21 @@ def apply_file_ops(
 
     root_cache: dict[tuple[int, str], Path | None] = {}
 
+    def compat_prefix(app_id: int) -> Path | None:
+        # a relocated prefix is not under the library, so it cannot be found by app id
+        relocated = prefix_paths.get(app_id)
+        if relocated is None:
+            return find_app_compat_prefix(steam_dir, app_id)
+        prefix = relocated / "pfx"
+        return prefix if prefix.is_dir() else None
+
     def root_for(app_id: int, location: str) -> Path | None:
         cache_key = (app_id, location)
         if cache_key not in root_cache:
             root_cache[cache_key] = (
                 find_app_install_dir(steam_dir, app_id)
                 if location == "game"
-                else find_app_compat_prefix(steam_dir, app_id)
+                else compat_prefix(app_id)
             )
         return root_cache[cache_key]
 

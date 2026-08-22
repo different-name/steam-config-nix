@@ -160,6 +160,22 @@ in
       '';
     };
 
+    prefixPath = lib.mkOption {
+      type = with types; nullOr (either str path);
+      default =
+        let
+          fromEnv = config.env.STEAM_COMPAT_DATA_PATH or null;
+        in
+        if lib.isString fromEnv || lib.isPath fromEnv then fromEnv else null;
+      defaultText = lib.literalExpression "env.STEAM_COMPAT_DATA_PATH";
+      example = "/mnt/games/prefixes/starfield";
+      description = ''
+        Directory to keep the app's Proton prefix in, instead of the default `steamapps/compatdata/<id>`.
+
+        The directory is created on launch if its parent already exists, and prefix aware options such as `winetricks` and `files.prefix` follow it. The parent is never created, so a path on a drive that is not mounted yet fails instead of being written to the mount point.
+      '';
+    };
+
     rawLaunchOptions = lib.mkOption {
       type = types.nullOr types.singleLineStr;
       default = null;
@@ -383,6 +399,7 @@ in
       id # option must be defined by module importing base app
       compatTool
       ;
+    prefixPath = if config.prefixPath == null then null else toString config.prefixPath;
     launchOptions = config.wrapper.exec;
     artwork = {
       inherit (config.artwork)

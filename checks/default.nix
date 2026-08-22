@@ -66,6 +66,7 @@
                   id = 620;
                   rawLaunchOptions = "MANGOHUD=1 %command% -vulkan";
                   winetricks = [ "vcrun2022" ];
+                  prefixPath = "/mnt/prefixes/620";
                   # an explicit icon always wins over the library-icon default
                   desktopEntry.icon = "custom-icon";
                 };
@@ -147,42 +148,61 @@
         paths = desktopItems;
       };
 
+      evalApp =
+        appConfig:
+        lib.evalModules {
+          specialArgs = { inherit pkgs; };
+          modules = [
+            { config._module.check = false; }
+            {
+              options.assertions = lib.mkOption {
+                type = lib.types.listOf lib.types.unspecified;
+                default = [ ];
+              };
+              options.warnings = lib.mkOption {
+                type = lib.types.listOf lib.types.str;
+                default = [ ];
+              };
+            }
+            self.homeModules.default
+            {
+              programs.steam.config = {
+                enable = true;
+                apps."bad" = {
+                  id = 111;
+                }
+                // appConfig;
+              };
+            }
+          ];
+        };
+
       failingAssertions =
         appConfig:
         let
-          eval = lib.evalModules {
-            specialArgs = { inherit pkgs; };
-            modules = [
-              { config._module.check = false; }
-              {
-                options.assertions = lib.mkOption {
-                  type = lib.types.listOf lib.types.unspecified;
-                  default = [ ];
-                };
-                options.warnings = lib.mkOption {
-                  type = lib.types.listOf lib.types.str;
-                  default = [ ];
-                };
-              }
-              self.homeModules.default
-              {
-                programs.steam.config = {
-                  enable = true;
-                  apps."bad" = {
-                    id = 111;
-                  }
-                  // appConfig;
-                };
-              }
-            ];
-          };
+          eval = evalApp appConfig;
         in
         map (a: a.message) (lib.filter (a: !a.assertion) eval.config.assertions);
+
+      resolvedPrefixPath =
+        appConfig: (evalApp appConfig).config.programs.steam.config.apps."bad".prefixPath;
 
       hasFailure = substr: assertions: lib.any (lib.hasInfix substr) assertions;
 
       assertionsOk =
-        lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
+        lib.assertMsg (
+          resolvedPrefixPath { env.STEAM_COMPAT_DATA_PATH = "/mnt/games/pfx"; } == "/mnt/games/pfx"
+        ) "prefixPath should default to env.STEAM_COMPAT_DATA_PATH"
+        && lib.assertMsg (
+          resolvedPrefixPath {
+            env.STEAM_COMPAT_DATA_PATH = "/from/env";
+            prefixPath = "/explicit";
+          } == "/explicit"
+        ) "an explicit prefixPath should win over env.STEAM_COMPAT_DATA_PATH"
+        && lib.assertMsg (
+          resolvedPrefixPath { env.STEAM_COMPAT_DATA_PATH = null; } == null
+        ) "a non path env.STEAM_COMPAT_DATA_PATH should leave prefixPath unset"
+        && lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
           files.game.place."x" = {
             source = fakeArt;
             text = "hi";
@@ -411,6 +431,11 @@
         nixos-module = pkgs.runCommand "nixos-module-check" { } ''
           diff ${expectedJson} ${actualJson}
 
+          # steps with working variables are functions, so match those lines indented
+          stepLine() {
+            sed 's/^[[:space:]]*//' "$2" | grep -Fx "$1"
+          }
+
           grep -Fx 'exec env MANGOHUD=1 "$@" -vulkan' ${strWrapper}
 
           # rawLaunchOptions with no %command% is appended as args to the game
@@ -421,12 +446,12 @@
           grep -F 'protontricks' ${strWrapper}
           grep -F 'vcrun2022' ${strWrapper}
 
-          # steps with working variables are functions, so match those lines indented
-          stepLine() {
-            sed 's/^[[:space:]]*//' "$2" | grep -Fx "$1"
-          }
+          # a relocated prefix is bound over the path steam picked, for protontricks
+          grep -F -- '--bind "$STEAM_COMPAT_DATA_PATH" "$scn_compat_orig"' ${strWrapper}
+          stepLine 'export STEAM_COMPAT_DATA_PATH="$dir"' ${strWrapper}
 
           # step working variables are function local, so preHook cannot see them
+          stepLine 'local dir parent' ${strWrapper}
           stepLine 'local marker want' ${strWrapper}
 
           grep -Fx 'export WINEDLLOVERRIDES="version=n,b;winmm=n,b"' ${optionsWrapper}

@@ -82,6 +82,7 @@ class PatcherConfig:
     game_allow_downloads: dict[int, str] = field(default_factory=dict)
     grid_art: dict[int, GridArt] = field(default_factory=dict)
     library_icon_apps: set[int] = field(default_factory=set)
+    prefix_paths: dict[int, Path] = field(default_factory=dict)
     file_ops: list["FileOp"] = field(default_factory=list)
     remove_ops: list["RemoveOp"] = field(default_factory=list)
     patch_ops: list["PatchOp"] = field(default_factory=list)
