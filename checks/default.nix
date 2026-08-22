@@ -184,6 +184,8 @@
         in
         map (a: a.message) (lib.filter (a: !a.assertion) eval.config.assertions);
 
+      appWarnings = appConfig: (evalApp appConfig).config.warnings;
+
       resolvedPrefixPath =
         appConfig: (evalApp appConfig).config.programs.steam.config.apps."bad".prefixPath;
 
@@ -202,6 +204,15 @@
         && lib.assertMsg (
           resolvedPrefixPath { env.STEAM_COMPAT_DATA_PATH = null; } == null
         ) "a non path env.STEAM_COMPAT_DATA_PATH should leave prefixPath unset"
+        && lib.assertMsg (hasFailure "STEAM_COMPAT_DATA_PATH in rawLaunchOptions" (appWarnings {
+          rawLaunchOptions = "STEAM_COMPAT_DATA_PATH=/blah %command%";
+        })) "STEAM_COMPAT_DATA_PATH in rawLaunchOptions should warn"
+        && lib.assertMsg (hasFailure "WINEDLLOVERRIDES in rawLaunchOptions" (appWarnings {
+          rawLaunchOptions = "WINEDLLOVERRIDES=d3d11=n %command%";
+        })) "WINEDLLOVERRIDES in rawLaunchOptions should warn"
+        && lib.assertMsg (
+          appWarnings { rawLaunchOptions = "gamemoderun %command%"; } == [ ]
+        ) "an ordinary rawLaunchOptions string should not warn"
         && lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
           files.game.place."x" = {
             source = fakeArt;

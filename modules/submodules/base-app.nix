@@ -379,6 +379,13 @@ in
     WINEDLLOVERRIDES = lib.mkDefault (mkDllOverrides config.dllOverrides);
   };
 
+  config.warnings =
+    let
+      rawSets = var: config.rawLaunchOptions != null && lib.hasInfix "${var}=" config.rawLaunchOptions;
+    in
+    lib.optional (rawSets "STEAM_COMPAT_DATA_PATH") "steam-config-nix: ${name} sets STEAM_COMPAT_DATA_PATH in rawLaunchOptions, which prefix aware options such as winetricks and files.prefix cannot follow, set prefixPath instead"
+    ++ lib.optional (rawSets "WINEDLLOVERRIDES") "steam-config-nix: ${name} sets WINEDLLOVERRIDES in rawLaunchOptions, which overrides the compiled dllOverrides at launch, set dllOverrides instead";
+
   config.assertions =
     lib.optional
       (config.dllOverrides != { } && config.env.WINEDLLOVERRIDES != mkDllOverrides config.dllOverrides)
