@@ -421,6 +421,14 @@
           grep -F 'protontricks' ${strWrapper}
           grep -F 'vcrun2022' ${strWrapper}
 
+          # steps with working variables are functions, so match those lines indented
+          stepLine() {
+            sed 's/^[[:space:]]*//' "$2" | grep -Fx "$1"
+          }
+
+          # step working variables are function local, so preHook cannot see them
+          stepLine 'local marker want' ${strWrapper}
+
           grep -Fx 'export WINEDLLOVERRIDES="version=n,b;winmm=n,b"' ${optionsWrapper}
           grep -Fx 'unset TZ' ${optionsWrapper}
           grep -Fx 'declare -a wrappers=(gamemoderun)' ${optionsWrapper}

@@ -37,21 +37,26 @@ let
       # runs before the game, when Steam has set STEAM_COMPAT_* in the environment
       # marker keyed on the verb list so it only runs when the verbs change
       winetricksStep = lib.optionalString hasWinetricks ''
-        if [ -n "''${STEAM_COMPAT_DATA_PATH:-}" ] && [ -d "$STEAM_COMPAT_DATA_PATH/pfx" ]; then
+        scn_apply_winetricks() {
+          local marker want
+          if [ -z "''${STEAM_COMPAT_DATA_PATH:-}" ] || [ ! -d "$STEAM_COMPAT_DATA_PATH/pfx" ]; then
+            return
+          fi
           marker="$STEAM_COMPAT_DATA_PATH/steam-config-nix-winetricks"
           want=${lib.escapeShellArg (lib.concatStringsSep " " app.winetricks)}
-          if [ "$(cat "$marker" 2>/dev/null)" != "$want" ]; then
-            echo "steam-config-nix: applying winetricks verbs: $want"
-            ${notify "Installing winetricks: $want..."}
-            if ${lib.getExe' pkgs.protontricks "protontricks"} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
-              printf '%s' "$want" > "$marker"
-              ${notify "winetricks installed: $want"}
-            else
-              echo "steam-config-nix: winetricks failed, continuing to launch" >&2
-              ${notify "winetricks failed for app ${toString app.id}"}
-            fi
+          if [ "$(cat "$marker" 2>/dev/null)" = "$want" ]; then
+            return
           fi
-        fi
+          echo "steam-config-nix: applying winetricks verbs: $want"
+          ${notify "Installing winetricks: $want..."}
+          if ${lib.getExe' pkgs.protontricks "protontricks"} "''${STEAM_COMPAT_APP_ID}" -q ${lib.escapeShellArgs app.winetricks}; then
+            printf '%s' "$want" > "$marker"
+            ${notify "winetricks installed: $want"}
+          else
+            echo "steam-config-nix: winetricks failed, continuing to launch" >&2
+            ${notify "winetricks failed for app ${toString app.id}"}
+          fi
+        }
       '';
 
       # steam appends a launch string with no %command% as args to the game
@@ -98,7 +103,7 @@ let
 
       scopePrefix = lib.optionalString app.systemd.enable ''"''${scope[@]}" '';
 
-      launchStep =
+      launch =
         if hasOptions then
           ''
             # Steam configuration for ${name}
@@ -119,10 +124,19 @@ let
         else
           ''exec "$@"'';
 
-      package = pkgs.writeShellScriptBin "steam-app-wrapper-${toString app.id}" ''
-        ${winetricksStep}
-        ${launchStep}
-      '';
+      # the winetricks step is a function so its working variables stay out of the
+      # launch scope and away from preHook
+      calls = lib.optionalString hasWinetricks "scn_apply_winetricks";
+
+      sections = lib.filter (section: section != "") [
+        winetricksStep
+        calls
+        launch
+      ];
+
+      package = pkgs.writeShellScriptBin "steam-app-wrapper-${toString app.id}" (
+        lib.concatStringsSep "\n" sections
+      );
     in
     if hasOptions || hasRaw || hasWinetricks then package else null;
 in
