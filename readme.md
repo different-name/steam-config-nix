@@ -3,6 +3,7 @@
 Declaratively manage Steam and your library on NixOS or Home Manager.
 
 - Launch options
+- Systemd integration
 - Compatibility tools
 - Beta branches, languages & update behavior
 - Library artwork & desktop entries
