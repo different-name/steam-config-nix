@@ -3,11 +3,18 @@
   pkgs,
   dataDir,
 }:
-{ config, steamConfig, ... }:
+{
+  config,
+  name,
+  steamConfig,
+  ...
+}:
 let
   inherit (lib) types;
   baseAppModule = import ./base-app.nix { inherit lib pkgs dataDir; };
   steamAppFilesModule = import ./steam-app-files.nix { inherit lib pkgs; };
+  keyIsId = lib.match "[0-9]+" name != null;
+  notKeyedById = ''steam-config-nix: apps."${name}" must be keyed by its Steam App ID, as apps."<id>" = { name = "${name}"; ... }'';
   libraryIconName = "steam-config-nix-${toString config.id}";
 in
 {
@@ -19,8 +26,20 @@ in
   options = {
     id = lib.mkOption {
       type = types.int;
+      default = if keyIsId then lib.toInt name else throw notKeyedById;
+      defaultText = lib.literalMD "the attribute name";
+      apply =
+        v:
+        if !keyIsId then
+          throw notKeyedById
+        else if v != lib.toInt name then
+          throw ''steam-config-nix: apps."${name}" sets id ${toString v}, which disagrees with its key''
+        else
+          v;
       example = 438100;
-      description = "The Steam App ID. App IDs can be found through the game's store page URL.";
+      description = ''
+        The Steam App ID, taken from the attribute name. App IDs can be found through the game's store page URL.
+      '';
     };
 
     betaBranch = lib.mkOption {

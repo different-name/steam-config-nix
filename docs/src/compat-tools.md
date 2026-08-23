@@ -7,8 +7,8 @@
   programs.steam.config = {
     defaultCompatTool = "proton_experimental";
 
-    apps."Cyberpunk 2077" = {
-      id = 1091500;
+    apps."1091500" = {
+      name = "Cyberpunk 2077";
       compatTool = pkgs.proton-ge-bin;
     };
   };

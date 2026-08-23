@@ -71,13 +71,6 @@ in
       '';
     };
 
-    name = lib.mkOption {
-      type = types.singleLineStr;
-      default = name;
-      description = "Name to give this app.";
-      example = "Vintage Story";
-    };
-
     target = lib.mkOption {
       type = with types; coercedTo package lib.getExe path;
       description = "Executable for the app, either a package or absolute path.";

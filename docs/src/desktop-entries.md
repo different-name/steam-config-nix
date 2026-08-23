@@ -4,8 +4,8 @@ Any app can generate a desktop entry that launches it through Steam, so your app
 
 ```nix
 {
-  programs.steam.config.apps."Cyberpunk 2077" = {
-    id = 1091500;
+  programs.steam.config.apps."1091500" = {
+    name = "Cyberpunk 2077";
     # name, comment, icon and categories all have sensible defaults
     desktopEntry.enable = true;
   };

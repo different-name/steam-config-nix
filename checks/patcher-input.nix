@@ -4,7 +4,7 @@ pkgs.writeText "patcher-input.json" (
     onSteamRunning = "wait";
     defaultCompatTool = null;
     displayRatesAsBits = true;
-    apps."Test Game" = {
+    apps."620" = {
       id = 620;
       compatTool = "GE-Proton";
       launchOptions = "test-launch-wrapper %command%";

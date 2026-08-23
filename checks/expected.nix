@@ -70,7 +70,7 @@
       patches = [ ];
     };
 
-    cyberpunk = {
+    "1091500" = {
       id = 1091500;
       prefixPath = null;
       compatTool = "proton_experimental";

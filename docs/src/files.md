@@ -8,8 +8,8 @@ Everything lives under `files.<location>`, where the location is `game` (the ins
 
 ```nix
 {
-  programs.steam.config.apps."Lethal Company" = {
-    id = 1966720;
+  programs.steam.config.apps."1966720" = {
+    name = "Lethal Company";
     files.game.place = {
       # place a file from a path, keyed by its destination
       "config/settings.ini".source = ./settings.ini;
@@ -45,8 +45,8 @@ When a game generates its own config and you only want to change a few keys, pat
 
 ```nix
 {
-  programs.steam.config.apps."Some Game" = {
-    id = 1234560;
+  programs.steam.config.apps."1234560" = {
+    name = "Some Game";
     files.game.patch."Engine/Config/BaseEngine.ini" = {
       format = "ini";
       content.SystemSettings."r.Tonemapper.Sharpen" = 2;
@@ -82,8 +82,8 @@ Drop a loader (here BepInEx) and its plugins straight into the install directory
 
 ```nix
 {
-  programs.steam.config.apps."Lethal Company" = {
-    id = 1966720;
+  programs.steam.config.apps."1966720" = {
+    name = "Lethal Company";
     files.game.place = {
       # the loader, unpacked into the game root (a directory source is merged in)
       ".".source = pkgs.fetchzip {

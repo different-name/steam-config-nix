@@ -232,7 +232,7 @@ in
       mkTargetUnit =
         entry:
         {
-          Description = entry.name;
+          Description = entry.app.name;
           Documentation = docsUrl;
           StopWhenUnneeded = "yes";
           RefuseManualStart = "yes";

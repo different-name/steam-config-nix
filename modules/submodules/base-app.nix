@@ -208,6 +208,16 @@ in
       '';
     };
 
+    name = lib.mkOption {
+      type = types.singleLineStr;
+      default = name;
+      defaultText = lib.literalExpression "<name>";
+      example = "VRChat";
+      description = ''
+        Name for this app, used for its desktop entry and systemd target.
+      '';
+    };
+
     desktopEntry = {
       enable = lib.mkOption {
         type = types.bool;
@@ -221,8 +231,8 @@ in
 
       name = lib.mkOption {
         type = types.str;
-        default = name;
-        defaultText = lib.literalExpression "<name>";
+        default = config.name;
+        defaultText = lib.literalExpression "config.name";
         example = "Cyberpunk 2077";
         description = "Name shown for the desktop entry.";
       };
@@ -290,8 +300,8 @@ in
       target = {
         name = lib.mkOption {
           type = types.str;
-          default = slugify name;
-          defaultText = lib.literalMD "the attribute name, lowercased, with runs of other characters replaced by `-`";
+          default = slugify config.name;
+          defaultText = lib.literalMD "`name`, lowercased, with runs of other characters replaced by `-`";
           example = "vrchat";
           description = ''
             Name of the generated target, used as `steam-app-<name>.target`.

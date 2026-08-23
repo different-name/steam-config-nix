@@ -7,8 +7,8 @@ Install [winetricks](https://github.com/Winetricks/winetricks) verbs into an app
 
 ```nix
 {
-  programs.steam.config.apps."Some Game" = {
-    id = 1234560;
+  programs.steam.config.apps."1234560" = {
+    name = "Some Game";
     winetricks = [ "vcrun2022" "corefonts" ];
   };
 }

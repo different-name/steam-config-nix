@@ -63,7 +63,6 @@
 
               apps = {
                 "620" = {
-                  id = 620;
                   rawLaunchOptions = "MANGOHUD=1 %command% -vulkan";
                   winetricks = [ "vcrun2022" ];
                   prefixPath = "/mnt/prefixes/620";
@@ -73,25 +72,22 @@
 
                 # rawLaunchOptions with no %command% appends as args, like steam
                 "440" = {
-                  id = 440;
                   rawLaunchOptions = "-windowed -novid";
                 };
 
                 # opt out of the global desktop entry default
                 "730" = {
-                  id = 730;
                   compatTool = fakeCompatTool;
                   desktopEntry.enable = false;
                 };
 
                 # a disabled app is ignored entirely, even with desktopEntries on
                 "999" = {
-                  id = 999;
                   enable = false;
                 };
 
-                cyberpunk = {
-                  id = 1091500;
+                "1091500" = {
+                  name = "cyberpunk";
                   compatTool = "proton_experimental";
                   betaBranch = "prerelease";
                   language = "german";
@@ -138,7 +134,7 @@
 
       strWrapper = lib.getExe cfg.apps."620".wrapper.package;
       rawArgsWrapper = lib.getExe cfg.apps."440".wrapper.package;
-      optionsWrapper = lib.getExe cfg.apps.cyberpunk.wrapper.package;
+      optionsWrapper = lib.getExe cfg.apps."1091500".wrapper.package;
 
       desktopItems = lib.filter (
         pkg: lib.hasPrefix "steam-config-nix-" (pkg.name or "")
@@ -168,8 +164,8 @@
             {
               programs.steam.config = {
                 enable = true;
-                apps."bad" = {
-                  id = 111;
+                apps."111" = {
+                  name = "bad";
                 }
                 // appConfig;
               };
@@ -187,7 +183,7 @@
       appWarnings = appConfig: (evalApp appConfig).config.warnings;
 
       resolvedPrefixPath =
-        appConfig: (evalApp appConfig).config.programs.steam.config.apps."bad".prefixPath;
+        appConfig: (evalApp appConfig).config.programs.steam.config.apps."111".prefixPath;
 
       hasFailure = substr: assertions: lib.any (lib.hasInfix substr) assertions;
 
@@ -279,16 +275,14 @@
                   programs.steam.config = {
                     enable = true;
                     apps = {
-                      "VRChat" = {
-                        id = 438100;
+                      "438100" = {
+                        name = "VRChat";
                         systemd = {
                           enable = true;
                           scope.properties.Slice = "games.slice";
                         };
                       };
-                      "Blank" = {
-                        id = 220;
-                      };
+                      "220" = { };
                     };
                   };
                 }
@@ -299,11 +293,11 @@
             units = eval.config.systemd.user.units;
             appTarget = pkgs.writeText "app-target" units."steam-app-vrchat.target".text;
             sharedTarget = pkgs.writeText "shared-target" units."steam-app.target".text;
-            wrapper = steamConfig.apps."VRChat".wrapper.package;
+            wrapper = steamConfig.apps."438100".wrapper.package;
           in
           pkgs.runCommand "systemd-targets" { } (
             assert lib.assertMsg (
-              steamConfig.apps."Blank".wrapper.package == null
+              steamConfig.apps."220".wrapper.package == null
             ) "an app with no options must not get a wrapper";
             ''
               grep -q 'Description=VRChat' ${appTarget}

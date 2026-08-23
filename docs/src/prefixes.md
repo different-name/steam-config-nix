@@ -4,8 +4,8 @@ By default Proton keeps an app's prefix in the Steam library, at `steamapps/comp
 
 ```nix
 {
-  programs.steam.config.apps."Cyberpunk 2077" = {
-    id = 1091500;
+  programs.steam.config.apps."1091500" = {
+    name = "Cyberpunk 2077";
     prefixPath = "/mnt/games/prefixes/cyberpunk";
   };
 }

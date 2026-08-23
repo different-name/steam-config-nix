@@ -4,8 +4,8 @@ Some per-app Steam settings can be managed declaratively. These are written into
 
 ```nix
 {
-  programs.steam.config.apps."Cyberpunk 2077" = {
-    id = 1091500;
+  programs.steam.config.apps."1091500" = {
+    name = "Cyberpunk 2077";
     betaBranch = "prerelease";
     language = "german";
     updateBehavior = "onLaunch";

@@ -11,8 +11,8 @@ An app's launch is assembled from structured pieces set directly on the app: `en
 
 ```nix
 {
-  programs.steam.config.apps."Cyberpunk 2077" = {
-    id = 1091500;
+  programs.steam.config.apps."1091500" = {
+    name = "Cyberpunk 2077";
     env.TZ = null; # unset a variable by giving it null
     dllOverrides = {
       winmm = "n,b";
@@ -57,8 +57,8 @@ gamescope is just another wrapper: list it first, with its own flags terminated 
 
 ```nix
 {
-  programs.steam.config.apps."Elden Ring" = {
-    id = 1245620;
+  programs.steam.config.apps."1245620" = {
+    name = "Elden Ring";
     wrappers = [
       (lib.getExe pkgs.gamescope)
       "-W" "2560" # output width
@@ -79,8 +79,8 @@ The `--` ends gamescope's own options, so everything after it, the game command 
 
 ```nix
 {
-  programs.steam.config.apps."Some Game" = {
-    id = 1234560;
+  programs.steam.config.apps."1234560" = {
+    name = "Some Game";
     rawLaunchOptions = "DXVK_ASYNC=1 gamemoderun %command% -vulkan";
   };
 }

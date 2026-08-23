@@ -7,8 +7,8 @@ An app can publish a systemd user target that is active while it runs, so units 
 
 ```nix
 {
-  programs.steam.config.apps."VRChat" = {
-    id = 438100;
+  programs.steam.config.apps."438100" = {
+    name = "VRChat";
     systemd.enable = true;
   };
 
@@ -26,7 +26,7 @@ An app can publish a systemd user target that is active while it runs, so units 
 
 Two targets are generated:
 
-- `steam-app-<name>.target` is active while that app runs. The name comes from `systemd.target.name`, which defaults to the attribute name, lowercased.
+- `steam-app-<name>.target` is active while that app runs. The name comes from `systemd.target.name`, which defaults to the app's `name`, lowercased.
 - `steam-app.target` is active while any app with `systemd.enable` runs. Use it for units that should run during any game, such as pausing a sync daemon.
 
 `steam-app.target` stops when the last app exits, so it stays active if you have two games open and close one.
@@ -38,7 +38,7 @@ The full unit name is available as `systemd.target.unitName`, if you would rathe
 ```nix
 {
   systemd.user.services.oscleash.Install.WantedBy = [
-    config.programs.steam.config.apps."VRChat".systemd.target.unitName
+    config.programs.steam.config.apps."438100".systemd.target.unitName
   ];
 }
 ```
@@ -69,7 +69,7 @@ The app is launched inside a transient scope, and `systemd.scope.properties` set
 
 ```nix
 {
-  programs.steam.config.apps."VRChat".systemd.scope.properties = {
+  programs.steam.config.apps."438100".systemd.scope.properties = {
     Slice = "games.slice";
     CPUWeight = 200;
   };
@@ -84,7 +84,7 @@ Without this the scope is placed under `app.slice`, wherever `systemd-run` puts 
 
 ```nix
 {
-  programs.steam.config.apps."VRChat".systemd.scope.properties.OnSuccess = "sync-saves.service";
+  programs.steam.config.apps."438100".systemd.scope.properties.OnSuccess = "sync-saves.service";
 }
 ```
 
