@@ -139,7 +139,7 @@ let
       launch =
         if hasOptions then
           ''
-            # Steam configuration for ${name}
+            # Steam configuration for ${name}${lib.optionalString (config.name != name) " (${config.name})"}
 
             ${exportAll app.env}
 
