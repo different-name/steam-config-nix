@@ -21,6 +21,8 @@ let
     body:
     lib.optionalString steamConfig.notifications ''( unset LD_LIBRARY_PATH LD_PRELOAD; ${lib.getExe' pkgs.libnotify "notify-send"} -a steam-config-nix "steam-config-nix" "${body}" ) >/dev/null 2>&1 || true'';
 
+  displayName = if config.name == name then name else "${config.name} (${name})";
+
   mkAppWrapperPackage =
     app:
     let
@@ -109,7 +111,7 @@ let
           ''"''${game_command[@]}"'';
 
       scopeProperties = {
-        Description = name;
+        Description = displayName;
         Wants = app.systemd.target.unitName;
         After = app.systemd.target.unitName;
       }
@@ -129,8 +131,8 @@ let
             ${lib.escapeShellArgs (lib.mapAttrsToList mkPropertyArg scopeProperties)}
           )
         else
-          echo "steam-config-nix: no systemd user manager, launching without a scope" >&2
-          ${notify "No systemd user manager, launching ${name} without a scope"}
+          echo "steam-config-nix: no systemd user manager, launching ${displayName} without a scope" >&2
+          ${notify "No systemd user manager, launching ${displayName} without a scope"}
         fi
       '';
 
@@ -139,7 +141,7 @@ let
       launch =
         if hasOptions then
           ''
-            # Steam configuration for ${name}${lib.optionalString (config.name != name) " (${config.name})"}
+            # Steam configuration for ${displayName}
 
             ${exportAll app.env}
 
