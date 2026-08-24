@@ -282,6 +282,13 @@
                           scope.properties.Slice = "games.slice";
                         };
                       };
+                      "1002" = {
+                        name = ''Sven "Co-op"'';
+                        systemd = {
+                          enable = true;
+                          target.name = "sven-co-op";
+                        };
+                      };
                       "220" = { };
                     };
                   };
@@ -294,6 +301,7 @@
             appTarget = pkgs.writeText "app-target" units."steam-app-vrchat.target".text;
             sharedTarget = pkgs.writeText "shared-target" units."steam-app.target".text;
             wrapper = steamConfig.apps."438100".wrapper.package;
+            quotedNameWrapper = steamConfig.apps."1002".wrapper.package;
           in
           pkgs.runCommand "systemd-targets" { } (
             assert lib.assertMsg (
@@ -311,6 +319,10 @@
               grep -q 'systemd-run --user --scope' "$wrapper"
               grep -q 'property=Wants=steam-app-vrchat.target' "$wrapper"
               grep -q 'property=Slice=games.slice' "$wrapper"
+
+              quoted=${quotedNameWrapper}/bin/steam-app-wrapper-1002
+              grep -q "scn_app_name='Sven" "$quoted"
+              grep -q 'launching ''$scn_app_name without a scope' "$quoted"
 
               touch $out
             ''

@@ -131,8 +131,9 @@ let
             ${lib.escapeShellArgs (lib.mapAttrsToList mkPropertyArg scopeProperties)}
           )
         else
-          echo "steam-config-nix: no systemd user manager, launching ${displayName} without a scope" >&2
-          ${notify "No systemd user manager, launching ${displayName} without a scope"}
+          scn_app_name=${lib.escapeShellArg displayName}
+          echo "steam-config-nix: no systemd user manager, launching $scn_app_name without a scope" >&2
+          ${notify "No systemd user manager, launching $scn_app_name without a scope"}
         fi
       '';
 
