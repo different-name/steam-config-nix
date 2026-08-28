@@ -1,4 +1,4 @@
-self: format:
+{ self, format }:
 {
   lib,
   config,
@@ -17,8 +17,10 @@ let
       throw "unexpected `format`, must be one of: nixos, home-manager";
   dataDir = "${dataHome}/steam-config-nix";
 
-  steamAppModule = import ./submodules/steam-app.nix { inherit lib pkgs dataDir; };
-  nonSteamAppModule = import ./submodules/non-steam-app.nix { inherit lib pkgs dataDir; };
+  steamAppModule = lib.modules.importApply ./submodules/steam-app.nix { inherit lib pkgs dataDir; };
+  nonSteamAppModule = lib.modules.importApply ./submodules/non-steam-app.nix {
+    inherit lib pkgs dataDir;
+  };
 
   mkAppType =
     module:

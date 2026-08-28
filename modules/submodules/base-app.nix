@@ -11,7 +11,7 @@
 }:
 let
   inherit (lib) types;
-  baseAppWrapperModule = import ./base-app-wrapper.nix { inherit lib pkgs dataDir; };
+  baseAppWrapperModule = lib.modules.importApply ./base-app-wrapper.nix { inherit lib pkgs dataDir; };
 
   mkDllOverrides =
     overrides:

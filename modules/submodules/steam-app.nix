@@ -11,8 +11,8 @@
 }:
 let
   inherit (lib) types;
-  baseAppModule = import ./base-app.nix { inherit lib pkgs dataDir; };
-  steamAppFilesModule = import ./steam-app-files.nix { inherit lib pkgs; };
+  baseAppModule = lib.modules.importApply ./base-app.nix { inherit lib pkgs dataDir; };
+  steamAppFilesModule = lib.modules.importApply ./steam-app-files.nix { inherit lib pkgs; };
   keyIsId = lib.match "[0-9]+" name != null;
   notKeyedById = ''steam-config-nix: apps."${name}" must be keyed by its Steam App ID, as apps."<id>" = { name = "${name}"; ... }'';
   libraryIconName = "steam-config-nix-${toString config.id}";
