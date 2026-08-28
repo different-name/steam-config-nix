@@ -6,7 +6,7 @@
 { name, config, ... }:
 let
   inherit (lib) types;
-  baseAppModule = import ./base-app.nix { inherit lib pkgs dataDir; };
+  baseAppModule = lib.modules.importApply ./base-app.nix { inherit lib pkgs dataDir; };
 
   appIdMin = lib.fromHexString "0x80000000";
   appIdMax = lib.fromHexString "0xFFFFFFFF";
