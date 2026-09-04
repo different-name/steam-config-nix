@@ -1,0 +1,514 @@
+/* hextra reads theme colours through --hx-color-* vars, so remapping needs no theme rebuild */
+
+:root {
+  --ctp-rosewater: #dc8a78;
+  --ctp-flamingo: #dd7878;
+  --ctp-pink: #ea76cb;
+  --ctp-mauve: #8839ef;
+  --ctp-red: #d20f39;
+  --ctp-maroon: #e64553;
+  --ctp-peach: #fe640b;
+  --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b;
+  --ctp-teal: #179299;
+  --ctp-sky: #04a5e5;
+  --ctp-sapphire: #209fb5;
+  --ctp-blue: #1e66f5;
+  --ctp-lavender: #7287fd;
+  --ctp-text: #4c4f69;
+  --ctp-subtext1: #5c5f77;
+  --ctp-subtext0: #6c6f85;
+  --ctp-overlay2: #7c7f93;
+  --ctp-overlay1: #8c8fa1;
+  --ctp-overlay0: #9ca0b0;
+  --ctp-surface2: #acb0be;
+  --ctp-surface1: #bcc0cc;
+  --ctp-surface0: #ccd0da;
+  --ctp-base: #eff1f5;
+  --ctp-mantle: #e6e9ef;
+  --ctp-crust: #dce0e8;
+
+  /* mauve lightness over 0.9 so hextra primary-600 (lightness * 45/50) lands on mauve */
+  --primary-hue: 266deg;
+  --primary-saturation: 85%;
+  --primary-lightness: 64.4%;
+}
+
+.dark {
+  --ctp-rosewater: #f5e0dc;
+  --ctp-flamingo: #f2cdcd;
+  --ctp-pink: #f5c2e7;
+  --ctp-mauve: #cba6f7;
+  --ctp-red: #f38ba8;
+  --ctp-maroon: #eba0ac;
+  --ctp-peach: #fab387;
+  --ctp-yellow: #f9e2af;
+  --ctp-green: #a6e3a1;
+  --ctp-teal: #94e2d5;
+  --ctp-sky: #89dceb;
+  --ctp-sapphire: #74c7ec;
+  --ctp-blue: #89b4fa;
+  --ctp-lavender: #b4befe;
+  --ctp-text: #cdd6f4;
+  --ctp-subtext1: #bac2de;
+  --ctp-subtext0: #a6adc8;
+  --ctp-overlay2: #9399b2;
+  --ctp-overlay1: #7f849c;
+  --ctp-overlay0: #6c7086;
+  --ctp-surface2: #585b70;
+  --ctp-surface1: #45475a;
+  --ctp-surface0: #313244;
+  --ctp-base: #1e1e2e;
+  --ctp-mantle: #181825;
+  --ctp-crust: #11111b;
+
+  --primary-hue: 267deg;
+  --primary-saturation: 84%;
+  --primary-lightness: 90%;
+}
+
+/* hextra takes every non-surface colour off the gray ramp, mocha inverts it */
+:root {
+  --hx-color-white: var(--ctp-base);
+  --hx-color-black: var(--ctp-crust);
+  --hx-color-dark: var(--ctp-base);
+
+  --hx-color-gray-50: var(--ctp-mantle);
+  --hx-color-gray-100: var(--ctp-crust);
+  --hx-color-gray-200: var(--ctp-surface0);
+  --hx-color-gray-300: var(--ctp-surface1);
+  --hx-color-gray-400: var(--ctp-overlay0);
+  --hx-color-gray-500: var(--ctp-subtext0);
+  --hx-color-gray-600: var(--ctp-subtext1);
+  --hx-color-gray-700: var(--ctp-text);
+  --hx-color-gray-800: var(--ctp-text);
+  --hx-color-gray-900: var(--ctp-text);
+
+  --hx-color-neutral-50: var(--ctp-mantle);
+  --hx-color-neutral-200: var(--ctp-surface0);
+  --hx-color-neutral-300: var(--ctp-surface1);
+  --hx-color-neutral-400: var(--ctp-overlay0);
+  --hx-color-neutral-500: var(--ctp-subtext0);
+  --hx-color-neutral-600: var(--ctp-subtext1);
+  --hx-color-neutral-700: var(--ctp-text);
+  --hx-color-neutral-800: var(--ctp-text);
+  --hx-color-neutral-900: var(--ctp-text);
+
+  --hx-color-slate-50: var(--ctp-mantle);
+  --hx-color-slate-100: var(--ctp-crust);
+  --hx-color-slate-900: var(--ctp-text);
+}
+
+.dark {
+  --hx-color-white: var(--ctp-base);
+  --hx-color-black: var(--ctp-crust);
+  --hx-color-dark: var(--ctp-base);
+
+  --hx-color-gray-50: var(--ctp-text);
+  --hx-color-gray-100: var(--ctp-text);
+  --hx-color-gray-200: var(--ctp-subtext1);
+  --hx-color-gray-300: var(--ctp-subtext0);
+  --hx-color-gray-400: var(--ctp-overlay1);
+  --hx-color-gray-500: var(--ctp-overlay0);
+  --hx-color-gray-600: var(--ctp-surface2);
+  --hx-color-gray-700: var(--ctp-surface1);
+  --hx-color-gray-800: var(--ctp-surface0);
+  --hx-color-gray-900: var(--ctp-mantle);
+
+  --hx-color-neutral-50: var(--ctp-text);
+  --hx-color-neutral-200: var(--ctp-subtext1);
+  --hx-color-neutral-300: var(--ctp-subtext0);
+  --hx-color-neutral-400: var(--ctp-overlay1);
+  --hx-color-neutral-500: var(--ctp-overlay0);
+  --hx-color-neutral-600: var(--ctp-surface2);
+  --hx-color-neutral-700: var(--ctp-surface1);
+  --hx-color-neutral-800: var(--ctp-surface0);
+  --hx-color-neutral-900: var(--ctp-mantle);
+
+  --hx-color-slate-50: var(--ctp-text);
+  --hx-color-slate-100: var(--ctp-text);
+  --hx-color-slate-900: var(--ctp-mantle);
+}
+
+/* callouts and badges pick their tints from the named scales */
+:root,
+.dark {
+  --hx-color-blue-100: var(--ctp-surface0);
+  --hx-color-blue-200: var(--ctp-blue);
+  --hx-color-blue-900: var(--ctp-blue);
+
+  --hx-color-green-100: var(--ctp-surface0);
+  --hx-color-green-200: var(--ctp-green);
+  --hx-color-green-900: var(--ctp-green);
+
+  --hx-color-red-100: var(--ctp-surface0);
+  --hx-color-red-200: var(--ctp-red);
+  --hx-color-red-900: var(--ctp-red);
+
+  --hx-color-yellow-50: var(--ctp-surface0);
+  --hx-color-yellow-100: var(--ctp-surface0);
+  --hx-color-yellow-200: var(--ctp-yellow);
+  --hx-color-yellow-700: var(--ctp-yellow);
+  --hx-color-yellow-900: var(--ctp-yellow);
+
+  --hx-color-amber-100: var(--ctp-surface0);
+  --hx-color-amber-200: var(--ctp-peach);
+  --hx-color-amber-900: var(--ctp-peach);
+
+  --hx-color-orange-50: var(--ctp-surface0);
+  --hx-color-orange-100: var(--ctp-surface0);
+  --hx-color-orange-300: var(--ctp-peach);
+  --hx-color-orange-400: var(--ctp-peach);
+  --hx-color-orange-800: var(--ctp-peach);
+
+  --hx-color-purple-100: var(--ctp-surface0);
+  --hx-color-purple-200: var(--ctp-mauve);
+  --hx-color-purple-900: var(--ctp-mauve);
+
+  --hx-color-indigo-100: var(--ctp-surface0);
+  --hx-color-indigo-200: var(--ctp-lavender);
+  --hx-color-indigo-900: var(--ctp-lavender);
+}
+
+/* chroma ships literal hex, so selectors match the theme nesting depth to win without !important */
+.highlight .chroma .err,
+.dark .highlight .chroma .err {
+  color: var(--ctp-red);
+  background-color: transparent;
+}
+
+.highlight .chroma .k,
+.highlight .chroma .kc,
+.highlight .chroma .kd,
+.highlight .chroma .kn,
+.highlight .chroma .kp,
+.highlight .chroma .kr,
+.highlight .chroma .nt,
+.highlight .chroma .ow,
+.dark .highlight .chroma .k,
+.dark .highlight .chroma .kc,
+.dark .highlight .chroma .kd,
+.dark .highlight .chroma .kn,
+.dark .highlight .chroma .kp,
+.dark .highlight .chroma .kr,
+.dark .highlight .chroma .nt,
+.dark .highlight .chroma .ow {
+  color: var(--ctp-mauve);
+}
+
+.highlight .chroma .kt,
+.highlight .chroma .nc,
+.highlight .chroma .nn,
+.highlight .chroma .ne,
+.dark .highlight .chroma .kt,
+.dark .highlight .chroma .nc,
+.dark .highlight .chroma .nn,
+.dark .highlight .chroma .ne {
+  color: var(--ctp-yellow);
+}
+
+.highlight .chroma .nf,
+.highlight .chroma .fm,
+.highlight .chroma .na,
+.highlight .chroma .py,
+.dark .highlight .chroma .nf,
+.dark .highlight .chroma .fm,
+.dark .highlight .chroma .na,
+.dark .highlight .chroma .py {
+  color: var(--ctp-blue);
+}
+
+.highlight .chroma .nb,
+.highlight .chroma .bp,
+.highlight .chroma .no,
+.highlight .chroma .m,
+.highlight .chroma .mb,
+.highlight .chroma .mf,
+.highlight .chroma .mh,
+.highlight .chroma .mi,
+.highlight .chroma .il,
+.highlight .chroma .mo,
+.dark .highlight .chroma .nb,
+.dark .highlight .chroma .bp,
+.dark .highlight .chroma .no,
+.dark .highlight .chroma .m,
+.dark .highlight .chroma .mb,
+.dark .highlight .chroma .mf,
+.dark .highlight .chroma .mh,
+.dark .highlight .chroma .mi,
+.dark .highlight .chroma .il,
+.dark .highlight .chroma .mo {
+  color: var(--ctp-peach);
+}
+
+.highlight .chroma .s,
+.highlight .chroma .sa,
+.highlight .chroma .sb,
+.highlight .chroma .sc,
+.highlight .chroma .dl,
+.highlight .chroma .sd,
+.highlight .chroma .s1,
+.highlight .chroma .s2,
+.highlight .chroma .sh,
+.highlight .chroma .sx,
+.highlight .chroma .ss,
+.dark .highlight .chroma .s,
+.dark .highlight .chroma .sa,
+.dark .highlight .chroma .sb,
+.dark .highlight .chroma .sc,
+.dark .highlight .chroma .dl,
+.dark .highlight .chroma .sd,
+.dark .highlight .chroma .s1,
+.dark .highlight .chroma .s2,
+.dark .highlight .chroma .sh,
+.dark .highlight .chroma .sx,
+.dark .highlight .chroma .ss {
+  color: var(--ctp-green);
+}
+
+.highlight .chroma .se,
+.highlight .chroma .si,
+.highlight .chroma .sr,
+.dark .highlight .chroma .se,
+.dark .highlight .chroma .si,
+.dark .highlight .chroma .sr {
+  color: var(--ctp-pink);
+}
+
+.highlight .chroma .o,
+.dark .highlight .chroma .o {
+  color: var(--ctp-sky);
+}
+
+.highlight .chroma .p,
+.dark .highlight .chroma .p {
+  color: var(--ctp-overlay2);
+}
+
+.highlight .chroma .n,
+.highlight .chroma .nx,
+.highlight .chroma .nv,
+.highlight .chroma .vc,
+.highlight .chroma .vg,
+.highlight .chroma .vi,
+.highlight .chroma .vm,
+.highlight .chroma .nl,
+.dark .highlight .chroma .n,
+.dark .highlight .chroma .nx,
+.dark .highlight .chroma .nv,
+.dark .highlight .chroma .vc,
+.dark .highlight .chroma .vg,
+.dark .highlight .chroma .vi,
+.dark .highlight .chroma .vm,
+.dark .highlight .chroma .nl {
+  color: var(--ctp-text);
+}
+
+.highlight .chroma .nd,
+.highlight .chroma .ni,
+.dark .highlight .chroma .nd,
+.dark .highlight .chroma .ni {
+  color: var(--ctp-teal);
+}
+
+.highlight .chroma .c,
+.highlight .chroma .ch,
+.highlight .chroma .cm,
+.highlight .chroma .c1,
+.highlight .chroma .cs,
+.highlight .chroma .cp,
+.highlight .chroma .cpf,
+.dark .highlight .chroma .c,
+.dark .highlight .chroma .ch,
+.dark .highlight .chroma .cm,
+.dark .highlight .chroma .c1,
+.dark .highlight .chroma .cs,
+.dark .highlight .chroma .cp,
+.dark .highlight .chroma .cpf {
+  color: var(--ctp-overlay0);
+  font-style: italic;
+}
+
+.highlight .chroma .gd,
+.dark .highlight .chroma .gd {
+  color: var(--ctp-red);
+}
+
+.highlight .chroma .gi,
+.dark .highlight .chroma .gi {
+  color: var(--ctp-green);
+}
+
+.highlight .chroma .gh,
+.highlight .chroma .gu,
+.dark .highlight .chroma .gh,
+.dark .highlight .chroma .gu {
+  color: var(--ctp-blue);
+}
+
+.highlight .chroma .hl,
+.dark .highlight .chroma .hl {
+  background-color: var(--ctp-surface0);
+}
+
+.highlight .chroma .ln,
+.highlight .chroma .lnt,
+.dark .highlight .chroma .ln,
+.dark .highlight .chroma .lnt {
+  color: var(--ctp-overlay0);
+}
+
+/* the sticky footers fade with a hardcoded white/#111 shadow that smears on catppuccin */
+[class*="shadow-[0_-12px_16px"],
+.dark [class*="shadow-[0_-12px_16px"] {
+  box-shadow: 0 -12px 16px var(--ctp-base);
+}
+
+/* hextra washes code in the accent, and chroma nests its pre inside .highlight */
+pre,
+.hextra-code-block pre,
+.dark .hextra-code-block pre,
+.highlight .chroma,
+.dark .highlight .chroma,
+.highlight pre,
+.dark .highlight pre {
+  background-color: var(--ctp-mantle);
+  color: var(--ctp-text);
+}
+
+pre.mermaid,
+.dark pre.mermaid,
+.highlight .chroma.mermaid {
+  background-color: transparent;
+}
+
+.hextra-code-block .hextra-code-filename,
+.dark .hextra-code-block .hextra-code-filename {
+  background-color: var(--ctp-crust);
+  color: var(--ctp-subtext0);
+}
+
+.content code,
+.dark .content code {
+  background-color: var(--ctp-surface0);
+  border-color: var(--ctp-surface1);
+  color: var(--ctp-text);
+}
+
+.content pre code,
+.dark .content pre code,
+pre code,
+.hextra-code-block pre code,
+.highlight .chroma code {
+  background-color: transparent;
+  border: 0;
+  color: inherit;
+}
+
+/* kbd carries the same invisible black/white alpha tint as inline code */
+.content kbd,
+.dark .content kbd {
+  background-color: var(--ctp-surface0);
+  border-color: var(--ctp-surface1);
+  color: var(--ctp-text);
+}
+
+/* diff and error tokens carry a hardcoded background as well as a colour */
+.highlight .chroma .err,
+.dark .highlight .chroma .err {
+  background-color: transparent;
+}
+
+.highlight .chroma .gd,
+.dark .highlight .chroma .gd {
+  color: var(--ctp-red);
+  background-color: color-mix(in oklab, var(--ctp-red) 15%, transparent);
+}
+
+.highlight .chroma .gi,
+.dark .highlight .chroma .gi {
+  color: var(--ctp-green);
+  background-color: color-mix(in oklab, var(--ctp-green) 15%, transparent);
+}
+
+/* the scrollbar thumb rides on the gray ramp, keep it off the surfaces */
+:is(.hextra-scrollbar, .hextra-scrollbar *)::-webkit-scrollbar-thumb {
+  background-color: var(--ctp-surface1);
+}
+
+:is(.hextra-scrollbar, .hextra-scrollbar *):hover::-webkit-scrollbar-thumb {
+  background-color: var(--ctp-surface2);
+}
+
+/* hextra tints the whole alert container, catppuccin keeps body text neutral */
+.content [class*="bg-blue-100"] {
+  --ctp-alert: var(--ctp-blue);
+}
+
+.content [class*="bg-green-100"] {
+  --ctp-alert: var(--ctp-green);
+}
+
+.content [class*="bg-purple-100"] {
+  --ctp-alert: var(--ctp-mauve);
+}
+
+.content [class*="bg-amber-100"] {
+  --ctp-alert: var(--ctp-yellow);
+}
+
+.content [class*="bg-red-100"] {
+  --ctp-alert: var(--ctp-red);
+}
+
+.content [class*="bg-blue-100"],
+.content [class*="bg-green-100"],
+.content [class*="bg-purple-100"],
+.content [class*="bg-amber-100"],
+.content [class*="bg-red-100"] {
+  background-color: color-mix(in oklab, var(--ctp-alert) 16%, var(--ctp-base));
+  border-color: color-mix(in oklab, var(--ctp-alert) 55%, var(--ctp-base));
+  color: var(--ctp-text);
+}
+
+.content [class*="bg-blue-100"] > p:first-child,
+.content [class*="bg-green-100"] > p:first-child,
+.content [class*="bg-purple-100"] > p:first-child,
+.content [class*="bg-amber-100"] > p:first-child,
+.content [class*="bg-red-100"] > p:first-child {
+  color: var(--ctp-alert);
+}
+
+/* inline code inside an alert sits on the tinted panel, not the page */
+.content [class*="bg-blue-100"] code,
+.content [class*="bg-green-100"] code,
+.content [class*="bg-purple-100"] code,
+.content [class*="bg-amber-100"] code,
+.content [class*="bg-red-100"] code {
+  background-color: color-mix(in oklab, var(--ctp-alert) 28%, var(--ctp-base));
+  border-color: color-mix(in oklab, var(--ctp-alert) 45%, var(--ctp-base));
+}
+
+/* the shortcut chip is not under .content, so it needs its own rule */
+.hextra-search-input,
+.dark .hextra-search-input {
+  background-color: var(--ctp-surface0);
+  color: var(--ctp-text);
+}
+
+.hextra-search-input:focus-visible,
+.dark .hextra-search-input:focus-visible {
+  background-color: var(--ctp-surface1);
+}
+
+.hextra-search-input::placeholder,
+.dark .hextra-search-input::placeholder {
+  color: var(--ctp-overlay0);
+}
+
+.hextra-search-input + kbd,
+.dark .hextra-search-input + kbd {
+  background-color: var(--ctp-base);
+  border-color: var(--ctp-surface2);
+  color: var(--ctp-subtext0);
+}

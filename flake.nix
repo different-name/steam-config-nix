@@ -10,6 +10,18 @@
     };
 
     systems.url = "github:nix-systems/x86_64-linux";
+
+    # only the docs use this, so it should not put a second nixpkgs and its own
+    # transitive inputs into every downstream consumer of this flake
+    nuschtos-search = {
+      url = "github:NuschtOS/search";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    hextra = {
+      url = "github:imfing/hextra/v0.12.3";
+      flake = false;
+    };
   };
 
   outputs =
@@ -29,12 +41,19 @@
       imports = [ ./checks ];
 
       perSystem =
-        { self', pkgs, ... }:
+        {
+          self',
+          pkgs,
+          inputs',
+          ...
+        }:
         {
           packages = {
             default = self'.packages.steam-config-patcher;
             steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
-            docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) { };
+            docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) {
+              inherit (inputs'.nuschtos-search.packages) mkSearch;
+            };
           };
 
           formatter = pkgs.nixfmt-tree;
