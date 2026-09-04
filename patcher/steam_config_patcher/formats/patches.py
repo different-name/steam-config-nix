@@ -1,4 +1,5 @@
 import json
+import math
 import struct
 
 from steam_config_patcher.formats import ini, reg, sourceconvars
@@ -72,7 +73,13 @@ def _unity_render_value(value: object) -> str:
     if isinstance(value, int):
         return f"dword:{value & 0xFFFFFFFF:08x}"
     if isinstance(value, float):
-        return "hex(4):" + ",".join(f"{b:02x}" for b in struct.pack("<d", value))
+        # unity stores a 32 bit float, so narrowing here stops every launch rewriting the same value
+        try:
+            narrowed = struct.unpack("<f", struct.pack("<f", value))[0]
+        except OverflowError:
+            # c# turns a value too large for a float into an infinity rather than failing
+            narrowed = math.copysign(math.inf, value)
+        return "hex(4):" + ",".join(f"{b:02x}" for b in struct.pack("<d", narrowed))
     data = str(value).encode("utf-8") + b"\x00"
     return "hex:" + ",".join(f"{b:02x}" for b in data)
 
