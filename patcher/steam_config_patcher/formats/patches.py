@@ -20,6 +20,8 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
 
 def _render_json_patch(content: dict, existing: bytes) -> bytes:
     base = json.loads(existing) if existing.strip() else {}
+    if not isinstance(base, dict):
+        raise ValueError("the json file has no object at its root to merge keys into")
     merged = _deep_merge(base, content)
     return (json.dumps(merged, indent=2) + "\n").encode("utf-8")
 
