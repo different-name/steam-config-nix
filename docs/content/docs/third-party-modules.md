@@ -33,6 +33,5 @@ Use `lib.mkDefault` for anything a user might reasonably want to override.
 An app with anything under `files` has those entries written into its install
 directory or its Proton prefix on activation. Your users get that whether or not
 they know your module sets it, so say so in your readme, and think about whether
-the app has anti-cheat before shipping a `files` entry for it. See
-[Add, replace or hide game files]({{< relref "/docs/manage-files" >}}).
-
+the app has anti-cheat before shipping a `files` entry for it. See [Add, replace
+or hide game files]({{< relref "/docs/manage-files" >}}).
