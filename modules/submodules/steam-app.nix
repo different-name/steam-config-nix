@@ -38,7 +38,19 @@ in
           v;
       example = 438100;
       description = ''
-        The Steam App ID, taken from the attribute name. App IDs can be found through the game's store page URL.
+        The Steam App ID, taken from the attribute name.
+      '';
+    };
+
+    name = lib.mkOption {
+      type = types.singleLineStr;
+      default = toString config.id;
+      defaultText = lib.literalExpression "toString config.id";
+      example = "VRChat";
+      description = ''
+        Name for this app, used for its desktop entry, its systemd target, and the wrapper's own messages.
+
+        Steam has its own name for the app, which this does not change.
       '';
     };
 
@@ -49,9 +61,9 @@ in
       description = ''
         Beta branch to opt this app into.
 
-        The app must be installed for this to be applied, Steam will download the branch's build on its next start.
+        The app must be installed for this to be applied. Steam downloads the branch's build on its next start.
 
-        When unset again, the app is reverted to the default branch.
+        When unset again, Steam's own default is restored.
       '';
     };
 
@@ -60,11 +72,11 @@ in
       default = null;
       example = "german";
       description = ''
-        Language to use for this app, as a Steam API language name (e.g. `"english"`, `"german"`, `"schinese"`).
+        Language to use for this app, as a Steam API language code (e.g. `"english"`, `"german"`, `"schinese"`). The full set is the API language code column of [Steam's supported languages](https://partner.steamgames.com/doc/store/localization/languages).
 
-        The app must be installed for this to be applied, Steam will download the language's depots on its next start.
+        The app must be installed for this to be applied. Steam downloads the language's depots on its next start.
 
-        When unset again, Steam reverts to its default language for the app.
+        When unset again, Steam's own default is restored.
       '';
     };
 
@@ -85,7 +97,7 @@ in
         - `"onLaunch"`: only update the app when it is launched
         - `"highPriority"`: always update this app before others
 
-        The app must be installed for this to be applied. When unset again, Steam's default update behaviour is restored.
+        The app must be installed for this to be applied. When unset again, Steam's own default is restored.
       '';
     };
 
@@ -106,7 +118,7 @@ in
         - `"always"`: always allow downloads while this app runs
         - `"never"`: never allow downloads while this app runs
 
-        The app must be installed for this to be applied. When unset again, Steam's default behaviour is restored.
+        The app must be installed for this to be applied. When unset again, Steam's own default is restored.
       '';
     };
 

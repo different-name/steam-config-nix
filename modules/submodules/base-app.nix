@@ -51,7 +51,7 @@ in
       description = ''
         Whether to manage this app.
 
-        When false the app is ignored, and any configuration previously applied for it is reverted.
+        When false the app is ignored and what this module set for it is undone: Steam settings return to their defaults, a non-Steam app's shortcut is removed along with its artwork and play time, files placed under `files` are removed, and a patched or deleted file is put back as it was. Anything the game itself wrote is left alone.
       '';
     };
 
@@ -79,12 +79,15 @@ in
       default = { };
       example = lib.literalExpression ''
         {
-          WINEDLLOVERRIDES = "winmm,version=n,b";
+          DXVK_HUD = "fps,gpuload";
+          PROTON_ENABLE_WAYLAND = 1;
           TZ = null;
         }
       '';
       description = ''
-        Environment variables to export in the launch script. You can also unset variables by setting their value to `null`.
+        Environment variables to export in the app's wrapper script, so they apply to this app rather than to Steam as a whole. Set a value to `null` to unset that variable.
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
       '';
     };
 
@@ -94,11 +97,15 @@ in
       example = lib.literalExpression ''
         [
           (lib.getExe' pkgs.mangohud "mangohud")
-          pkgs.myWrapperProgram
+          pkgs.gamescope
           "gamemoderun"
         ]
       '';
-      description = "Executables to wrap the game with.";
+      description = ''
+        Executables to wrap the game with.
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
+      '';
     };
 
     args = lib.mkOption {
@@ -111,7 +118,11 @@ in
           "-skipStartScreen"
         ]
       '';
-      description = "Arguments to pass to the game.";
+      description = ''
+        Arguments to pass to the game.
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
+      '';
     };
 
     preHook = lib.mkOption {
@@ -127,13 +138,15 @@ in
         done
       '';
       description = ''
-        Extra bash code to run before executing the game
+        Extra bash code to run before executing the game.
 
-        These variables are available in scope for you to read / modify in this hook:
+        The variables from `env` are already exported at this point, and these arrays are in scope to read or modify:
 
-         - `wrappers`: values from the wrappers option
-         - `game_command`: the %command% passed from steam
-         - `args`: values from the args option
+        - `wrappers`
+        - `game_command`: the `%command%` Steam passes in
+        - `args`
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
       '';
     };
 
@@ -154,9 +167,19 @@ in
       description = ''
         DLL overrides for the app, an attribute set mapping a DLL name to its load order.
 
-        Each value is a `WINEDLLOVERRIDES` mode: `"n"` (native), `"b"` (builtin), `"n,b"` (native then builtin), `"b,n"` (builtin then native), or `"disabled"`. These are compiled into the single `WINEDLLOVERRIDES` environment variable, so mods and other presets can contribute overrides without clobbering each other.
+        Each value is a `WINEDLLOVERRIDES` mode:
+
+        - `"n"`: native
+        - `"b"`: builtin
+        - `"n,b"`: native, then builtin
+        - `"b,n"`: builtin, then native
+        - `"disabled"`: do not load the DLL
+
+        These are compiled into the single `WINEDLLOVERRIDES` environment variable.
 
         Cannot be combined with setting `WINEDLLOVERRIDES` directly in `env`.
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
       '';
     };
 
@@ -167,12 +190,14 @@ in
           fromEnv = config.env.STEAM_COMPAT_DATA_PATH or null;
         in
         if lib.isString fromEnv || lib.isPath fromEnv then fromEnv else null;
-      defaultText = lib.literalExpression "env.STEAM_COMPAT_DATA_PATH";
+      defaultText = lib.literalMD "`env.STEAM_COMPAT_DATA_PATH` if it is set to a string or a path, otherwise `null`";
       example = "/mnt/games/prefixes/starfield";
       description = ''
         Directory to keep the app's Proton prefix in, instead of the default `steamapps/compatdata/<id>`.
 
-        The directory is created on launch if its parent already exists, and prefix aware options such as `winetricks` and `files.prefix` follow it. The parent is never created, so a path on a drive that is not mounted yet fails instead of being written to the mount point.
+        The directory is created on launch if its parent already exists, and `winetricks` follows it. The parent is never created, so a path on a drive that is not mounted yet fails instead of being written to the mount point.
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
       '';
     };
 
@@ -186,7 +211,9 @@ in
         - Use `%command%` to mark where the game command runs.
         - A string with no `%command%` is appended to the game command as arguments.
 
-        Usage of this option is discouraged in favor of the structured launch options, however this option is compatible with them. Wrapped by `wrappers` with `env` and `args` applied around it.
+        Usage of this option is discouraged in favour of `env`, `wrappers`, `args` and `preHook`, though it composes with them: the raw string is wrapped by `wrappers`, with `env` exported before it and `args` appended after.
+
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself.
       '';
     };
 
@@ -204,17 +231,7 @@ in
 
         Removing a verb does not uninstall it, as winetricks cannot reliably undo verbs.
 
-        Setting this will overwrite any launch options set manually in Steam.
-      '';
-    };
-
-    name = lib.mkOption {
-      type = types.singleLineStr;
-      default = name;
-      defaultText = lib.literalExpression "<name>";
-      example = "VRChat";
-      description = ''
-        Name for this app, used for its desktop entry and systemd target.
+        Setting this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
       '';
     };
 
@@ -248,12 +265,14 @@ in
         type = types.str;
         default = "Launch ${config.desktopEntry.name} with Steam";
         defaultText = lib.literalExpression ''"Launch ''${config.desktopEntry.name} with Steam"'';
+        example = "Social VR, with mods";
         description = "Tooltip comment for the desktop entry.";
       };
 
       icon = lib.mkOption {
         type = with types; nullOr (either str path);
         default = "steam";
+        defaultText = lib.literalMD ''the app's library icon when `desktopEntry.useLibraryIcon` is set, a non-Steam app's `artwork.icon` when it has one, otherwise `"steam"`'';
         example = lib.literalExpression "./icon.png";
         description = "Icon for the desktop entry, an icon name or image file.";
       };
@@ -261,6 +280,10 @@ in
       categories = lib.mkOption {
         type = types.listOf types.str;
         default = [ "Game" ];
+        example = [
+          "Game"
+          "ActionGame"
+        ];
         description = "Freedesktop categories for the desktop entry.";
       };
     };
@@ -268,19 +291,19 @@ in
     artwork =
       let
         mkArtworkOption =
-          description: dimensions:
+          name: ext: text:
           lib.mkOption {
             type = types.nullOr types.path;
             default = null;
-            example = lib.literalExpression "./${description}.jpg";
-            description = "${description} (${dimensions}) shown in the Steam library.";
+            example = lib.literalExpression "./${name}.${ext}";
+            description = text;
           };
       in
       {
-        cover = mkArtworkOption "cover" "600x900 portrait";
-        header = mkArtworkOption "header" "460x215 horizontal";
-        hero = mkArtworkOption "hero" "background";
-        logo = mkArtworkOption "logo" "transparent overlay";
+        cover = mkArtworkOption "cover" "jpg" "Portrait cover, 600x900, shown in the Steam library.";
+        header = mkArtworkOption "header" "jpg" "Horizontal capsule, 460x215, shown in the Steam library.";
+        hero = mkArtworkOption "hero" "jpg" "Wide banner shown behind the app page.";
+        logo = mkArtworkOption "logo" "png" "Transparent title logo overlaid on the hero image.";
       };
 
     systemd = {
@@ -291,9 +314,11 @@ in
         description = ''
           Whether to publish a systemd user target that is active while the app is running.
 
-          The app is launched in a transient scope, and that scope activates `steam-app-<name>.target` along with the shared `steam-app.target`. Units are tied to the app's lifetime by setting `PartOf` and `WantedBy` on them, and `Before` to make the app wait until they are up.
+          The app is launched in a transient scope, and that scope activates `steam-app-<name>.target`, along with a shared `steam-app.target` that is active while any app with `systemd.enable` set is running.
 
-          Enabling this will overwrite any launch options set manually in Steam.
+          To tie your own units to the app's lifetime, point their `PartOf` and `WantedBy` at the target, and their `Before` at it to make the app wait until they are up.
+
+          Enabling this overwrites any launch options set by hand in Steam, because the module writes the launch options field itself. Move a string you want to keep into `rawLaunchOptions`.
         '';
       };
 
@@ -301,7 +326,7 @@ in
         name = lib.mkOption {
           type = types.str;
           default = slugify config.name;
-          defaultText = lib.literalMD "`name`, lowercased, with runs of other characters replaced by `-`";
+          defaultText = lib.literalMD "the app name, lowercased, with runs of other characters replaced by -";
           example = "vrchat";
           description = ''
             Name of the generated target, used as `steam-app-<name>.target`.
@@ -335,7 +360,7 @@ in
           default = "steam-app-${config.systemd.target.name}.target";
           defaultText = lib.literalExpression ''"steam-app-''${config.systemd.target.name}.target"'';
           readOnly = true;
-          description = "Unit name of the generated target, for referring to it without repeating the string.";
+          description = "Unit name of the generated target.";
         };
       };
 
@@ -374,7 +399,7 @@ in
         Identifier passed to `steam://rungameid/`, for launching the app from outside Steam.
 
         - Steam apps use their app id
-        - non-Steam apps use a 64 bit id derived from theirs, which is a different number
+        - non-Steam apps use a 64 bit id derived from their app id
       '';
     };
 
@@ -413,7 +438,7 @@ in
 
   config.finalConfig = {
     inherit (config)
-      id # option must be defined by module importing base app
+      id
       compatTool
       ;
     prefixPath = if config.prefixPath == null then null else toString config.prefixPath;
