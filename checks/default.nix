@@ -477,6 +477,11 @@
           touch $out
         '';
 
+        docs-options = pkgs.runCommand "check-docs-options" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+          python3 ${./docs-options.py} ${self'.packages.docs.optionsJson} ${../docs/content}
+          touch $out
+        '';
+
         formatting = pkgs.runCommand "check-formatting" { nativeBuildInputs = [ pkgs.nixfmt ]; } ''
           nixfmt --check $(find ${self} -name '*.nix')
           touch $out
