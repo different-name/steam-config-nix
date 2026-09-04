@@ -1,4 +1,0 @@
-/* hide the auto-generated chapter numbers in the sidebar */
-.chapter strong[aria-hidden="true"] {
-  display: none;
-}

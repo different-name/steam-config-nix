@@ -1,7 +1,12 @@
 { inputs, self, ... }:
 {
   perSystem =
-    { pkgs, system, ... }:
+    {
+      pkgs,
+      system,
+      self',
+      ...
+    }:
     let
       inherit (pkgs) lib;
 

@@ -1,0 +1,9 @@
+/* the mobile sidebar renders group labels as links with an empty href */
+.hextra-sidebar-item > a[href=""] {
+  pointer-events: none;
+  cursor: default;
+  font-weight: 600;
+  /* the palette inverts the gray scale between themes, so gray-900 is a
+     background shade in dark mode. --ctp-text means text in both */
+  color: var(--ctp-text);
+}

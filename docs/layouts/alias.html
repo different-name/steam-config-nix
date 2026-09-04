@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ .Permalink }}</title>
+    <link rel="canonical" href="{{ .Permalink }}" />
+    <meta name="robots" content="noindex" />
+    <!-- replace rather than push, or going back here bounces forward again -->
+    <script>
+      location.replace("{{ .Permalink }}");
+    </script>
+    <noscript>
+      <meta http-equiv="refresh" content="0; url={{ .Permalink }}" />
+    </noscript>
+  </head>
+  <body>
+    <a href="{{ .Permalink }}">This page moved</a>
+  </body>
+</html>
