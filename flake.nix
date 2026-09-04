@@ -56,7 +56,22 @@
             };
           };
 
-          formatter = pkgs.nixfmt-tree;
+          formatter = pkgs.nixfmt-tree.override {
+            runtimeInputs = [
+              pkgs.prettier
+            ];
+            settings.formatter.prettier = {
+              command = "prettier";
+              options = [
+                "--write"
+                "--prose-wrap"
+                "always"
+                "--print-width"
+                "80"
+              ];
+              includes = [ "*.md" ];
+            };
+          };
         };
 
       flake = {

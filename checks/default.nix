@@ -607,8 +607,10 @@
           touch $out
         '';
 
-        formatting = pkgs.runCommand "check-formatting" { nativeBuildInputs = [ pkgs.nixfmt ]; } ''
-          nixfmt --check $(find ${self} -name '*.nix')
+        formatting = pkgs.runCommand "check-formatting" { nativeBuildInputs = [ self'.formatter ]; } ''
+          cp -r ${self} src
+          chmod -R u+w src
+          treefmt --tree-root src --no-cache --fail-on-change --walk filesystem
           touch $out
         '';
 
