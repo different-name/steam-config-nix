@@ -913,3 +913,37 @@ def test_failing_file_does_not_stop_others(fake_steam, tmp_path):
     assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == [
         "wrapper %command%"
     ]
+
+
+# forgetting a key we could not write leaves the value behind with nothing to clean it up
+def test_a_key_we_could_not_write_stays_in_the_manifest(fake_steam, tmp_path, monkeypatch):
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(steam_dir, compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)})
+    patch_config_files(cfg)
+    assert load_manifest(steam_dir, USER_ID).managed_keys
+
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("steam_config_patcher.patcher.atomic_write_bytes", boom)
+    with pytest.raises(SystemExit):
+        patch_config_files(make_cfg(steam_dir))
+
+    assert [key.key_path for key in load_manifest(steam_dir, USER_ID).managed_keys] == [
+        MAPPING_PATH + ("1091500",)
+    ]
+
+
+def test_a_shortcut_we_could_not_remove_stays_in_the_manifest(fake_steam, tmp_path, monkeypatch):
+    steam_dir = make_steam_dir(tmp_path)
+    patch_config_files(make_cfg(steam_dir, non_steam_apps={555: non_steam_app()}))
+    assert load_manifest(steam_dir, USER_ID).shortcuts == [555]
+
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("steam_config_patcher.patcher.atomic_write_bytes", boom)
+    with pytest.raises(SystemExit):
+        patch_config_files(make_cfg(steam_dir))
+
+    assert load_manifest(steam_dir, USER_ID).shortcuts == [555]
