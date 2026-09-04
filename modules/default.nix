@@ -40,6 +40,7 @@ in
       default =
         self.packages.${pkgs.stdenv.hostPlatform.system}.steam-config-patcher
           or (throw "steam-config-nix supports x86_64-linux only, not ${pkgs.stdenv.hostPlatform.system}");
+      defaultText = lib.literalMD "the steam-config-patcher package from this flake";
       description = "The steam-config-patcher package to use.";
     };
 
@@ -58,7 +59,7 @@ in
         - `"wait"`: wait for Steam to exit, then apply the changes
         - `"close"`: close Steam and apply the changes, waiting for any running games to exit first
         - `"force-close"`: close Steam and apply the changes immediately, even if a game is running
-        - `"skip"`: skip writing, changes will be applied on the next activation
+        - `"skip"`: skip writing, and apply the changes on the next activation
       '';
     };
 
@@ -72,7 +73,7 @@ in
         description = ''
           Use each Steam app's own icon from your Steam library for its desktop entry, instead of the generic Steam icon.
 
-          Icons are taken from Steam's local library cache, so an app must have been seen by Steam at least once for its icon to be available. They are small (typically 32x32), and fall back to the Steam icon when they cannot be resolved.
+          Icons are taken from Steam's local library cache, so an app must have been seen by Steam at least once for its icon to be available. When one cannot be resolved the entry falls back to the Steam icon.
 
           Individual apps can opt out with `desktopEntry.useLibraryIcon = false`, and setting `desktopEntry.icon` explicitly always takes precedence.
         '';
@@ -84,9 +85,9 @@ in
       default = true;
       example = false;
       description = ''
-        Send desktop notifications for slow launch-time steps (e.g. installing winetricks verbs).
+        Send desktop notifications from the app wrapper, for slow launch steps such as installing winetricks verbs, and for problems that stop part of the configuration being applied.
 
-        If no notification daemon is reachable the notification is simply skipped.
+        If no notification daemon is reachable the notification is skipped.
       '';
     };
 
@@ -97,7 +98,7 @@ in
       description = ''
         Default compatibility tool to use for Steam Play, either the internal name of an installed tool, or a package containing one.
 
-        This option sets the default compatibility tool in Steam, but does not set the nix module defaults.
+        This sets the default in Steam. It does not change the default for `apps.<name>.compatTool`.
       '';
     };
 
@@ -108,7 +109,9 @@ in
       description = ''
         Whether to display download rates in bits per second.
 
-        Set to `false` for MB/s (bytes), `true` for Mb/s (bits). `null` leaves the existing Steam setting untouched.
+        - `false`: MB/s (bytes)
+        - `true`: Mb/s (bits)
+        - `null`: leave the existing Steam setting untouched
       '';
     };
 
@@ -117,12 +120,14 @@ in
       default = { };
       example = lib.literalExpression ''
         {
-          "Spin Rhythm XD" = {
-            id = 1058830;
+          "1058830" = {
+            name = "Spin Rhythm XD";
             rawLaunchOptions = "DXVK_ASYNC=1 gamemoderun %command%";
           };
         }'';
-      description = "Configuration per Steam app.";
+      description = ''
+        Configuration per Steam app, indexed by Steam App ID, which can be found through the game's store page URL.
+      '';
     };
 
     nonSteamApps = lib.mkOption {
@@ -131,7 +136,6 @@ in
       example = lib.literalExpression ''
         {
           "Vintage Story" = {
-            # target is the executable, accepts a package or a path
             target = pkgs.vintagestory;
           };
 
@@ -142,7 +146,9 @@ in
             rawLaunchOptions = "gamemoderun %command%";
           };
         }'';
-      description = "Configuration per non-Steam app.";
+      description = ''
+        Configuration per non-Steam app, indexed by a name of your choosing.
+      '';
     };
   };
 
@@ -150,11 +156,9 @@ in
     let
       cfg = config.programs.steam.config;
 
-      # only enabled apps are managed, disabled ones are reverted via manifest cleanup
+      # disabled apps are reverted via manifest cleanup
       enabledApps = lib.filterAttrs (_: app: app.enable) cfg.apps;
       enabledNonSteamApps = lib.filterAttrs (_: app: app.enable) cfg.nonSteamApps;
-
-      # wrapper symlinks
 
       allApps = (lib.attrValues enabledApps) ++ (lib.attrValues enabledNonSteamApps);
       launchOptionApps = lib.filter (app: app.wrapper.package != null) allApps;
@@ -162,8 +166,6 @@ in
         target = app.wrapper.path;
         source = lib.getExe app.wrapper.package;
       }) launchOptionApps;
-
-      # compat tool packages
 
       compatToolPackages = lib.unique (
         lib.filter lib.isDerivation ([ cfg.defaultCompatTool ] ++ map (app: app.compatTool) allApps)
@@ -191,8 +193,6 @@ in
             fi
           '';
 
-      # desktop entries
-
       desktopEntryApps = lib.filter (app: app.desktopEntry.enable) allApps;
 
       mkDesktopEntry = app: {
@@ -207,14 +207,12 @@ in
           ;
       };
 
-      # systemd targets
-
       systemdApps = lib.filter (entry: entry.app.systemd.enable) (
         lib.mapAttrsToList (name: app: { inherit name app; }) enabledApps
         ++ lib.mapAttrsToList (name: app: { inherit name app; }) enabledNonSteamApps
       );
 
-      docsUrl = "https://different-name.github.io/steam-config-nix/systemd-integration.html";
+      docsUrl = "https://different-name.github.io/steam-config-nix/docs/run-alongside-game/";
 
       renderUnitValue =
         value:
@@ -254,8 +252,6 @@ in
           ) systemdApps
         );
 
-      # patcher config
-
       mkCompatToolValue =
         value: if lib.isDerivation value then { path = compatToolDir value; } else value;
 
@@ -273,8 +269,6 @@ in
         apps = mapFinalConfigs enabledApps;
         nonSteamApps = mapFinalConfigs enabledNonSteamApps;
       };
-
-      # patcher service
 
       service = {
         description = "Steam config patcher script";
@@ -336,8 +330,7 @@ in
             link: "L+ ${lib.escapeShellArg link.target} - - - - ${lib.escapeShellArg link.source}"
           ) wrapperLinks;
 
-          # system service instead of a user service due to https://github.com/NixOS/nixpkgs/issues/246611
-          # nixos user services also don't restart on rebuild, requiring a user activation script
+          # user services don't restart on rebuild and hit https://github.com/NixOS/nixpkgs/issues/246611
           systemd.services."steam-config-patcher@" = {
             inherit (service) description restartTriggers;
 
