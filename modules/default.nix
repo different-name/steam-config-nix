@@ -37,7 +37,9 @@ in
 
     package = lib.mkOption {
       type = types.package;
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.steam-config-patcher;
+      default =
+        self.packages.${pkgs.stdenv.hostPlatform.system}.steam-config-patcher
+          or (throw "steam-config-nix supports x86_64-linux only, not ${pkgs.stdenv.hostPlatform.system}");
       description = "The steam-config-patcher package to use.";
     };
 

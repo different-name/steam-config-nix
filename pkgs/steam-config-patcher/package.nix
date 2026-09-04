@@ -36,6 +36,6 @@ buildPythonApplication {
     homepage = "https://github.com/different-name/steam-config-nix";
     license = lib.licenses.gpl3Plus;
     mainProgram = "steam-config-patcher";
-    platforms = lib.platforms.all;
+    platforms = lib.platforms.linux;
   };
 }
