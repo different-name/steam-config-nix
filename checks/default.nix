@@ -477,6 +477,29 @@
           touch $out
         '';
 
+        docs-links =
+          pkgs.runCommand "check-docs-links"
+            {
+              nativeBuildInputs = [ pkgs.lychee ];
+              # lychee builds its http client even when offline
+              SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+            }
+            ''
+              # links resolve from the domain root, so mirror the path prefix
+              mkdir -p root
+              ln -s ${self'.packages.docs} "root${self'.packages.docs.basePath}"
+
+              lychee \
+                --offline \
+                --include-fragments \
+                --index-files index.html \
+                --root-dir "$PWD/root" \
+                --exclude-path ${self'.packages.docs}/search \
+                '${self'.packages.docs}/**/*.html'
+
+              touch $out
+            '';
+
         docs-options = pkgs.runCommand "check-docs-options" { nativeBuildInputs = [ pkgs.python3 ]; } ''
           python3 ${./docs-options.py} ${self'.packages.docs.optionsJson} ${../docs/content}
           touch $out

@@ -1,0 +1,69 @@
+name: links
+
+# external links go dead independently of commits, so this never blocks a push
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  ISSUE_TITLE: Dead links in the docs
+
+jobs:
+  external:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v22
+      - run: nix build .#docs
+      - name: check external links
+        id: lychee
+        continue-on-error: true
+        run: |
+          base=$(nix eval --raw .#docs.basePath)
+          site="root$base"
+          mkdir -p "$(dirname "$site")"
+          cp -rL result "$site"
+          nix run nixpkgs#lychee -- \
+            --no-progress \
+            --include-fragments \
+            --index-files index.html \
+            --root-dir "$PWD/root" \
+            --exclude-path "$site/search" \
+            --output lychee.md \
+            --format markdown \
+            "$site/**/*.html"
+
+      # without this the run opens a second copy of last week's report
+      - name: look for an open report
+        id: report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number=$(gh issue list \
+            --state open \
+            --label docs \
+            --json number,title \
+            --jq "first(.[] | select(.title == \"$ISSUE_TITLE\") | .number)")
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: report the dead links
+        if: steps.lychee.outcome == 'failure'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          issue-number: ${{ steps.report.outputs.number }}
+          title: ${{ env.ISSUE_TITLE }}
+          content-filepath: lychee.md
+          labels: docs
+
+      - name: close the report once the links resolve
+        if: steps.lychee.outcome == 'success' && steps.report.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue close ${{ steps.report.outputs.number }} \
+            --comment "Every link resolves again."
