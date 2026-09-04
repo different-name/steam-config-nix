@@ -872,6 +872,15 @@ def test_source_convars_apply_creates_file(env):
     )
     assert (env.install / "cfg/autoexec.cfg").read_text() == 'fps_max "400"\n'
 
+def test_json_patch_refuses_to_discard_a_non_object_root(env):
+    target = env.install / "list.json"
+    target.write_text("[1, 2, 3]")
+
+    with pytest.raises(ValueError):
+        apply_file_ops(env.steam_dir, [], [], [patch(env, "list.json", {"a": 1})])
+
+    assert target.read_text() == "[1, 2, 3]"
+
 
 # the old file ops let a format error out rather than reporting it per entry, so
 # what is pinned here is that the target is left as it was
