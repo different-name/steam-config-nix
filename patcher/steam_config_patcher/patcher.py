@@ -82,6 +82,11 @@ def appmanifest_file_id(app_id: int) -> str:
     return f"{APPMANIFEST_FILE_PREFIX}{app_id}"
 
 
+# shortcuts are recorded per user, so the file they live in is named per user too
+def shortcuts_file_id(user_id: int) -> str:
+    return f"shortcuts_{user_id}"
+
+
 def appmanifest_app_id(file_id: str) -> int | None:
     if not file_id.startswith(APPMANIFEST_FILE_PREFIX):
         return None
@@ -350,6 +355,21 @@ def desired_manifest(cfg: PatcherConfig, user_config: UserConfig) -> UserManifes
     )
 
 
+# a file we could not write still holds what the last run put there, so its record has to survive
+def _keep_unwritten(
+    manifest: UserManifest, previous: UserManifest, unwritten: set[str], user_id: int
+) -> None:
+    if not unwritten:
+        return
+    manifest.managed_keys = [
+        key for key in manifest.managed_keys if key.file not in unwritten
+    ] + [key for key in previous.managed_keys if key.file in unwritten]
+    if shortcuts_file_id(user_id) in unwritten:
+        manifest.shortcuts = list(
+            dict.fromkeys(manifest.shortcuts + previous.shortcuts)
+        )
+
+
 def patch_config_files(cfg: PatcherConfig):
     prev_manifests = {
         user_id: load_manifest(cfg.steam_dir, user_id) for user_id in cfg.users
@@ -369,11 +389,17 @@ def patch_config_files(cfg: PatcherConfig):
         }
     )
 
-    patch_steps: list[tuple[str, Callable[[], ConfigPatch | None]]] = [
-        ("config.vdf", lambda: generate_config_vdf_patch(cfg, all_prev_keys)),
+    # each step names the file it writes, so a failure can be kept out of that file's record
+    patch_steps: list[tuple[str, str, Callable[[], ConfigPatch | None]]] = [
+        (
+            "config.vdf",
+            CONFIG_FILE,
+            lambda: generate_config_vdf_patch(cfg, all_prev_keys),
+        ),
         *[
             (
                 f"appmanifest_{app_id}.acf",
+                appmanifest_file_id(app_id),
                 lambda app_id=app_id: generate_appmanifest_patch(
                     cfg, app_id, all_prev_keys
                 ),
@@ -383,6 +409,7 @@ def patch_config_files(cfg: PatcherConfig):
         *[
             (
                 f"localconfig.vdf (user {user_id})",
+                LOCALCONFIG_FILE,
                 lambda user_id=user_id, user=user: generate_localconfig_vdf_patch(
                     cfg, user_id, user, prev_manifests[user_id]
                 ),
@@ -392,6 +419,7 @@ def patch_config_files(cfg: PatcherConfig):
         *[
             (
                 f"shortcuts.vdf (user {user_id})",
+                shortcuts_file_id(user_id),
                 lambda user_id=user_id, user=user: generate_shortcuts_vdf_patch(
                     cfg, user_id, user, prev_manifests[user_id]
                 ),
@@ -401,10 +429,11 @@ def patch_config_files(cfg: PatcherConfig):
     ]
 
     failed: set[str] = set()
+    unwritten: set[str] = set()
 
-    def prepare_all() -> list[tuple[str, Path, bytes]]:
-        prepared: list[tuple[str, Path, bytes]] = []
-        for description, generate in patch_steps:
+    def prepare_all() -> list[tuple[str, str, Path, bytes]]:
+        prepared: list[tuple[str, str, Path, bytes]] = []
+        for description, file_id, generate in patch_steps:
             try:
                 config_patch = generate()
                 if config_patch is None:
@@ -412,10 +441,11 @@ def patch_config_files(cfg: PatcherConfig):
                 data = prepare_patch(config_patch)
             except Exception:
                 failed.add(description)
+                unwritten.add(file_id)
                 LOG.exception("failed to prepare %s", description)
                 continue
             if data is not None:
-                prepared.append((description, config_patch.file_path, data))
+                prepared.append((description, file_id, config_patch.file_path, data))
         return prepared
 
     prepared = prepare_all()
@@ -439,13 +469,23 @@ def patch_config_files(cfg: PatcherConfig):
             prepared = prepare_all()
 
     if not blocked:
-        for description, file_path, data in prepared:
+        for description, file_id, file_path, data in prepared:
             try:
                 atomic_write_bytes(file_path, data)
             except Exception:
                 failed.add(description)
+                unwritten.add(file_id)
                 LOG.exception("failed to write %s", description)
-
+        # a run that says nothing leaves no way to tell it did anything
+        written = sorted(
+            description
+            for description, file_id, _, _ in prepared
+            if file_id not in unwritten
+        )
+        if written:
+            LOG.info("wrote %s", ", ".join(written))
+        elif not prepared:
+            LOG.info("steam config already matches, nothing to write")
     if has_file_ops and game_is_running():
         LOG.info(
             "a game is running, waiting for it to exit before applying file operations"
@@ -463,14 +503,14 @@ def patch_config_files(cfg: PatcherConfig):
     except Exception:
         LOG.exception("failed to apply file operations")
 
-    if failed:
-        raise SystemExit(f"{len(failed)} config file(s) failed to patch; see log above")
 
     if blocked:
         LOG.warning(
             "Steam is running; skipped Steam config writes. "
             'Close Steam, or set onSteamRunning to "wait" or "close" to apply automatically.'
         )
+        if failed:
+            raise SystemExit(f"{len(failed)} file(s) failed to patch; see log above")
         return
 
     try:
@@ -482,9 +522,15 @@ def patch_config_files(cfg: PatcherConfig):
     for user_id, user in cfg.users.items():
         try:
             manifest = desired_manifest(cfg, user)
+            _keep_unwritten(manifest, prev_manifests[user_id], unwritten, user_id)
             manifest.grid_art = apply_grid_art(
                 cfg.steam_dir, user_id, desired_grid, prev_manifests[user_id].grid_art
             )
             save_manifest(cfg.steam_dir, user_id, manifest)
         except Exception:
             LOG.exception("failed to write manifest for user %s", user_id)
+
+    LOG.info("%d compat tool mapping(s)", len(cfg.compat_tool_mapping))
+
+    if failed:
+        raise SystemExit(f"{len(failed)} file(s) failed to patch; see log above")
