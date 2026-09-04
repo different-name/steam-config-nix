@@ -61,7 +61,6 @@
       language = null;
       updateBehavior = null;
       allowDownloadsWhileRunning = null;
-      # disabled app: finalConfig still computed but filtered out before use
       libraryIcon = true;
       launchOptions = null;
       artwork = noArtwork;
@@ -78,7 +77,7 @@
       language = "german";
       updateBehavior = "1";
       allowDownloadsWhileRunning = "1";
-      libraryIcon = true; # inherits the global default (on)
+      libraryIcon = true;
       launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
       artwork = noArtwork // {
         hero = fakeArt;

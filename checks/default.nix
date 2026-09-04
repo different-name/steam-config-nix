@@ -10,7 +10,7 @@
         echo '"compatibilitytools" { "compat_tools" { "Fake-Proton" { "install_path" "." } } }' > $out/compatibilitytool.vdf
       '';
 
-      # Chaotic proton-cachyos style: VDF lives under $out/bin, no steamcompattool output
+      # proton-cachyos ships the vdf under bin/ with no steamcompattool output
       fakeBinCompatTool = pkgs.runCommand "fake-bin-compat-tool" { } ''
         mkdir -p $out/bin
         echo '"compatibilitytools" { "compat_tools" { "Bin-Proton" { "install_path" "." } } }' > $out/bin/compatibilitytool.vdf
@@ -18,7 +18,6 @@
 
       fakeArt = pkgs.runCommand "fake-art.jpg" { } "echo art > $out";
 
-      # fixtures + input for the patcher integration check
       seedConfigVdf = pkgs.writeText "config.vdf" ''
         "InstallConfigStore"
         {
@@ -58,7 +57,6 @@
             programs.steam.config = {
               enable = true;
               defaultCompatTool = "GE-Proton";
-              # global default on; apps inherit unless they opt out
               desktopEntries.enable = true;
 
               apps = {
@@ -66,22 +64,18 @@
                   rawLaunchOptions = "MANGOHUD=1 %command% -vulkan";
                   winetricks = [ "vcrun2022" ];
                   prefixPath = "/mnt/prefixes/620";
-                  # an explicit icon always wins over the library-icon default
                   desktopEntry.icon = "custom-icon";
                 };
 
-                # rawLaunchOptions with no %command% appends as args, like steam
                 "440" = {
                   rawLaunchOptions = "-windowed -novid";
                 };
 
-                # opt out of the global desktop entry default
                 "730" = {
                   compatTool = fakeCompatTool;
                   desktopEntry.enable = false;
                 };
 
-                # a disabled app is ignored entirely, even with desktopEntries on
                 "999" = {
                   enable = false;
                 };
@@ -262,8 +256,6 @@
     in
     {
       checks = {
-        # an enabled app publishes a target and launches inside a scope, and an
-        # app with no other options must still get no wrapper
         systemd-targets =
           let
             eval = inputs.nixpkgs.lib.nixosSystem {
@@ -330,8 +322,6 @@
 
         steam-config-patcher = self.packages.${system}.steam-config-patcher;
 
-        # runs the real patcher binary against a seeded Steam tree (via HOME),
-        # exercising get_steam_dir discovery and on-disk vdf patching end to end
         patcher-integration =
           pkgs.runCommand "patcher-integration"
             { nativeBuildInputs = [ self.packages.${system}.steam-config-patcher ]; }
@@ -364,28 +354,24 @@
               test ! -e "$install/unwanted.txt"
               test -f "$steam/config/steam-config-nix-files.json"
 
-              # patch created the ini file with our key
               grep -q Fullscreen "$install/config/game.ini"
 
-              # keyvalue patch created a VDF file with our key
               grep -q hard "$install/config/game.vdf"
 
-              # registry patch created a .reg with a REG_SZ and a REG_DWORD
               pfx="$steam/steamapps/compatdata/620/pfx"
               grep -q 'dword:00000000' "$pfx/system.reg"
               grep -Fq '"MaxVersionGL"="3.2"' "$pfx/system.reg"
 
-              # unityPrefs patch: keys are Unity-hashed, values encoded per type
+              # unity hashes the pref key
               grep -Fq 'Software\\TestCo\\TestGame' "$pfx/user.reg"
               grep -q 'MirrorResolution_h' "$pfx/user.reg"
               grep -q 'dword:00000002' "$pfx/user.reg"
               grep -Fq 'hex(4):00,00,00,00,00,00,e0,3f' "$pfx/user.reg"
 
-              # sourceConvars patch: created the cfg with quoted convar values
               grep -Fq 'fps_max "400"' "$install/cfg/autoexec.cfg"
               grep -Fq 'cl_crosshair_recoil "0"' "$install/cfg/autoexec.cfg"
 
-              # idempotent second run must still succeed
+              # second run must be idempotent
               steam-config-patcher ${patcherInput}
 
               grep -q modcontent "$install/mods/test.txt"
@@ -398,8 +384,6 @@
           "touch $out"
         );
 
-        # Packages that nest compatibilitytool.vdf under bin/ (no steamcompattool
-        # output) must still resolve for the patcher and for HM symlinks.
         compat-tool-bin-layout =
           let
             eval = inputs.nixpkgs.lib.nixosSystem {
@@ -429,7 +413,6 @@
               cfg=$(python3 -c 'import shlex,sys; print(shlex.split(sys.argv[1])[1])' ${lib.escapeShellArg execStart})
               path=$(jq -r .defaultCompatTool.path "$cfg")
 
-              # resolved path should be the bin/ directory, not the package root
               test -f "$path/compatibilitytool.vdf"
               test "$path" != "${fakeBinCompatTool}"
               grep -q Bin-Proton "$path/compatibilitytool.vdf"
@@ -477,18 +460,13 @@
           grep -Fx 'declare -a args=(--launcher-skip)' ${optionsWrapper}
           grep -Fx 'echo prehook' ${optionsWrapper}
 
-          # steam apps inheriting the global default: plain app id
           grep -FxR 'Exec=steam steam://rungameid/620' ${desktopItemsDir}/share/applications
           grep -FxR 'Exec=steam steam://rungameid/1091500' ${desktopItemsDir}/share/applications
-          # library icons are the default, so the entry uses the managed icon name
           grep -FxR 'Icon=steam-config-nix-1091500' ${desktopItemsDir}/share/applications
-          # an explicit desktopEntry.icon wins over the library-icon default
           grep -FxR 'Icon=custom-icon' ${desktopItemsDir}/share/applications/steam-config-nix-620.desktop
           # non-steam app: 64 bit shortcut game id (id << 32 | 0x02000000)
           grep -FxR 'Exec=steam steam://rungameid/15174691026754338816' ${desktopItemsDir}/share/applications
-          # app 730 opted out, so no entry is generated for it
           test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-730.desktop
-          # app 999 is disabled entirely, so it is ignored despite desktopEntries being on
           test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-999.desktop
 
           touch $out
