@@ -515,9 +515,9 @@
               ];
             }
             ''
-              cp -r ${../src} src
-              chmod -R u+w src
-              cd src
+              cp -r ${../patcher} patcher
+              chmod -R u+w patcher
+              cd patcher
               mypy steam_config_patcher
               touch $out
             '';
