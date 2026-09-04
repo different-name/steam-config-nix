@@ -10,10 +10,10 @@
 }:
 buildPythonApplication {
   pname = "steam-config-patcher";
-  version = (lib.importTOML ../../src/pyproject.toml).project.version;
+  version = (lib.importTOML ../../patcher/pyproject.toml).project.version;
 
   src = builtins.path {
-    path = ../../src;
+    path = ../../patcher;
     name = "steam-config-patcher-src";
   };
 
