@@ -46,6 +46,102 @@
       seedModFile = pkgs.writeText "mod.txt" "modcontent";
       patcherInput = import ./patcher-input.nix { inherit pkgs seedModFile; };
 
+      docsSnippets =
+        let
+          pages = lib.filter (lib.hasSuffix ".md") (lib.filesystem.listFilesRecursive ../docs/content);
+          blocksIn =
+            page:
+            let
+              # a bare fence excludes the {eval=false} blocks
+              after = lib.drop 1 (lib.splitString "```nix\n" (builtins.readFile page));
+              # two pages can share a basename, so key a block on its whole path
+              relative = lib.removePrefix "${toString ../docs/content}/" (toString page);
+            in
+            lib.imap0 (index: chunk: {
+              name = "${lib.replaceStrings [ "/" ] [ "-" ] relative}-${toString index}";
+              source = "${relative}:${toString index}";
+              text = lib.head (lib.splitString "\n```" chunk);
+            }) after;
+        in
+        lib.concatMap blocksIn pages;
+
+      # a snippet reaches the store on its own, so a page relative path needs a stand in
+      withAssets =
+        text:
+        lib.concatMapStrings (part: if lib.isList part then "snippetAsset" else part) (
+          builtins.split "\\./[A-Za-z0-9_.-]+" text
+        );
+
+      evalSnippet =
+        block:
+        let
+          module = import (
+            builtins.toFile "${block.name}.nix" ''
+              { lib, pkgs, config, snippetAsset, ... }:
+              ${withAssets block.text}
+            ''
+          );
+          # a real nixos eval keeps the unknown option check on at any depth
+          eval = inputs.nixpkgs.lib.nixosSystem {
+            specialArgs.snippetAsset = pkgs.emptyFile;
+            modules = [
+              self.nixosModules.default
+              {
+                system.stateVersion = "26.05";
+                nixpkgs.hostPlatform = system;
+                # a page is free to name an unfree package
+                nixpkgs.config.allowUnfree = true;
+              }
+              # or a failing snippet reports <unknown-file> instead of its page
+              {
+                _file = block.source;
+                imports = [ module ];
+              }
+            ];
+          };
+          docCfg = eval.config.programs.steam.config;
+          # deepSeq on the config itself would recurse into derivations
+          forced = builtins.toJSON {
+            apps = lib.mapAttrs (_: app: app.finalConfig) docCfg.apps;
+            nonSteamApps = lib.mapAttrs (_: app: app.finalConfig) docCfg.nonSteamApps;
+            # without this the global options are never forced, so a bad value slips through
+            globals = {
+              inherit (docCfg)
+                enable
+                onSteamRunning
+                notifications
+                displayRatesAsBits
+                desktopEntries
+                ;
+              defaultCompatTool =
+                if docCfg.defaultCompatTool == null then null else toString docCfg.defaultCompatTool;
+            };
+          };
+          # forcing our own tree never reaches an option a snippet sets elsewhere, so walk what it defines
+          defined =
+            let
+              applied = module {
+                inherit lib pkgs;
+                inherit (eval) config;
+                snippetAsset = pkgs.emptyFile;
+              };
+            in
+            removeAttrs (applied.config or applied) [
+              "imports"
+              "options"
+              "_file"
+              "key"
+            ];
+          # an option that does not exist throws while the attribute below it is looked up
+          leaves =
+            path: value:
+            if lib.isAttrs value && !lib.isDerivation value && (value._type or null) == null then
+              lib.concatMap (name: leaves (path ++ [ name ]) value.${name}) (builtins.attrNames value)
+            else
+              [ (builtins.seq (lib.attrByPath path null eval.config) true) ];
+        in
+        builtins.seq forced (builtins.deepSeq (leaves [ ] defined) block.source);
+
       noArtwork = {
         cover = null;
         header = null;
@@ -474,6 +570,12 @@
           test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-730.desktop
           test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-999.desktop
 
+          touch $out
+        '';
+
+        docs-eval = pkgs.runCommand "check-docs-eval" { } ''
+          echo "evaluated ${toString (lib.length docsSnippets)} doc snippets:"
+          ${lib.concatMapStringsSep "\n" (b: "  echo '  ${evalSnippet b}'") docsSnippets}
           touch $out
         '';
 
