@@ -156,6 +156,157 @@ def test_ini_merge_preserves_other_sections_case_and_percent(env):
     assert "MixedCaseKey" in raw
     assert "C:\\Games\\%USER%\\save" in raw
 
+def test_ini_with_duplicate_keys_is_patched_not_rejected(env):
+    target = env.install / "cfg.ini"
+    target.write_text(
+        "[Engine.Console]\n"
+        "ConsoleKey = Tilde\n"
+        "ManualAutoCompleteList = Open\n"
+        "ManualAutoCompleteList = Exit\n"
+    )
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "cfg.ini", {"Engine.Console": {"ConsoleKey": "F9"}}, fmt="ini")],
+    )
+
+    raw = target.read_text()
+    assert "ConsoleKey = F9" in raw
+    assert raw.count("ManualAutoCompleteList") == 2
+
+
+def test_ini_patch_preserves_comments_order_and_line_endings(env):
+    target = env.install / "cfg.ini"
+    target.write_bytes(
+        b"; keep me\r\n[Display]\r\n; and me\r\nWidth = 800\r\nHeight = 600\r\n"
+    )
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Display": {"Width": 1920}}, fmt="ini")]
+    )
+
+    assert target.read_bytes() == (
+        b"; keep me\r\n[Display]\r\n; and me\r\nWidth = 1920\r\nHeight = 600\r\n"
+    )
+
+
+def test_ini_patched_key_ends_up_with_one_occurrence(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\nWidth = 1024\n")
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Display": {"Width": 1920}}, fmt="ini")]
+    )
+
+    assert target.read_text() == "[Display]\nWidth = 1920\n"
+
+
+def test_ini_new_key_and_section_are_appended(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\n")
+
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(
+                env,
+                "cfg.ini",
+                {"Display": {"Height": 600}, "Audio": {"Volume": 50}},
+                fmt="ini",
+            )
+        ],
+    )
+
+    parser = read_ini(target)
+    assert parser["Display"]["Width"] == "800"
+    assert parser["Display"]["Height"] == "600"
+    assert parser["Audio"]["Volume"] == "50"
+
+
+def test_ini_patch_keeps_utf16_encoding(env):
+    target = env.install / "cfg.ini"
+    target.write_bytes("[Display]\nWidth = 800\n".encode("utf-16"))
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Display": {"Width": 1920}}, fmt="ini")]
+    )
+
+    assert target.read_bytes().decode("utf-16") == "[Display]\nWidth = 1920\n"
+
+
+def test_ini_patch_is_idempotent(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\nWidth = 1024\n")
+    op = patch(env, "cfg.ini", {"Display": {"Width": 1920}}, fmt="ini")
+
+    apply_file_ops(env.steam_dir, [], [], [op])
+    first = target.read_text()
+    apply_file_ops(env.steam_dir, [], [], [op])
+
+    assert target.read_text() == first
+
+
+# a header with a trailing comment did not match, so the next section's keys were indexed above it
+def test_ini_section_header_with_a_comment_keeps_its_own_keys(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Audio]\nVolume=50\n[Video] ; my note\nVolume=100\n")
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Audio": {"Volume": 80}}, fmt="ini")]
+    )
+
+    assert target.read_text() == "[Audio]\nVolume=80\n[Video] ; my note\nVolume=100\n"
+
+
+def test_ini_padded_section_header_is_patched_in_place(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[ Video ]\nWidth = 800\n")
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Video": {"Width": 1920}}, fmt="ini")]
+    )
+
+    assert target.read_text() == "[ Video ]\nWidth = 1920\n"
+
+
+def test_ini_key_holding_a_colon_is_not_truncated(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[A]\nHTTP:Proxy=1\n")
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"A": {"HTTP:Proxy": 2}}, fmt="ini")]
+    )
+
+    assert target.read_text() == "[A]\nHTTP:Proxy=2\n"
+
+
+def test_ini_patch_keeps_utf16_without_a_byte_order_mark(env):
+    target = env.install / "cfg.ini"
+    target.write_bytes("[A]\nc=1\n".encode("utf-16-le"))
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"A": {"b": 2}}, fmt="ini")]
+    )
+
+    assert target.read_bytes().decode("utf-16-le") == "[A]\nc=1\nb=2\n"
+
+
+def test_ini_patch_keeps_utf32_encoding(env):
+    target = env.install / "cfg.ini"
+    target.write_bytes("[A]\nc=1\n".encode("utf-32"))
+    op = patch(env, "cfg.ini", {"A": {"b": 2}}, fmt="ini")
+
+    apply_file_ops(env.steam_dir, [], [], [op])
+    first = target.read_bytes()
+    apply_file_ops(env.steam_dir, [], [], [op])
+
+    assert first.decode("utf-32") == "[A]\nc=1\nb=2\n"
+    assert target.read_bytes() == first
+
 
 def test_skip_when_missing_writes_nothing_then_retries(env, capsys):
     op = patch(env, "settings.json", {"Fullscreen": True}, create_if_missing=False)
@@ -720,3 +871,49 @@ def test_source_convars_apply_creates_file(env):
         [patch(env, "cfg/autoexec.cfg", {"fps_max": 400}, fmt="sourceConvars", location="game")],
     )
     assert (env.install / "cfg/autoexec.cfg").read_text() == 'fps_max "400"\n'
+
+
+# the old file ops let a format error out rather than reporting it per entry, so
+# what is pinned here is that the target is left as it was
+def test_ini_key_that_cannot_be_written_leaves_the_file_alone(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[D]\nW = 8\n")
+
+    with pytest.raises(ValueError):
+        apply_file_ops(
+            env.steam_dir, [], [], [patch(env, "cfg.ini", {"D": {"a=b": "v"}}, fmt="ini")]
+        )
+
+    assert target.read_text() == "[D]\nW = 8\n"
+
+
+def test_ini_section_that_cannot_be_read_back_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\n")
+
+    with pytest.raises(ValueError):
+        apply_file_ops(
+            env.steam_dir,
+            [],
+            [],
+            [patch(env, "cfg.ini", {"Video]Extra": {"Width": 1920}}, fmt="ini")],
+        )
+
+    assert target.read_text() == "[Display]\nWidth = 800\n"
+
+
+# adding a key only checked the key, so a value that cannot read back failed forever after
+def test_ini_value_that_cannot_be_read_back_is_refused_when_appending(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\n")
+
+    # the prefix pattern eats the leading spaces, so this reads back as "x" and is appended again
+    with pytest.raises(ValueError):
+        apply_file_ops(
+            env.steam_dir,
+            [],
+            [],
+            [patch(env, "cfg.ini", {"Display": {"Motd": "  indented"}}, fmt="ini")],
+        )
+
+    assert target.read_text() == "[Display]\nWidth = 800\n"

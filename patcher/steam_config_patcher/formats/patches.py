@@ -1,9 +1,7 @@
-import configparser
-import io
 import json
 import struct
 
-from steam_config_patcher.formats import reg, sourceconvars
+from steam_config_patcher.formats import ini, reg, sourceconvars
 from steam_config_patcher.types import PatchOp
 from steam_config_patcher.vdf import text as vdf_text
 from steam_config_patcher.vdf.text import VdfNode
@@ -22,29 +20,8 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
 
 def _render_json_patch(content: dict, existing: bytes) -> bytes:
     base = json.loads(existing) if existing.strip() else {}
-    if not isinstance(base, dict):
-        base = {}
     merged = _deep_merge(base, content)
     return (json.dumps(merged, indent=2) + "\n").encode("utf-8")
-
-
-class _CaseSensitiveConfigParser(configparser.ConfigParser):
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
-
-
-def _render_ini_patch(content: dict, existing: bytes) -> bytes:
-    parser = _CaseSensitiveConfigParser(interpolation=None)
-    if existing.strip():
-        parser.read_string(existing.decode("utf-8"))
-    for section, values in content.items():
-        if not parser.has_section(section):
-            parser.add_section(section)
-        for key, value in values.items():
-            parser.set(section, key, str(value))
-    out = io.StringIO()
-    parser.write(out)
-    return out.getvalue().encode("utf-8")
 
 
 def _kv_apply(root: VdfNode, content: dict, prefix: tuple[str, ...]) -> None:
@@ -110,7 +87,7 @@ def render(patch_op: PatchOp, existing: bytes) -> bytes:
     if patch_op.format == "json":
         return _render_json_patch(patch_op.content, existing)
     if patch_op.format == "ini":
-        return _render_ini_patch(patch_op.content, existing)
+        return ini.apply(patch_op.content, existing)
     if patch_op.format == "registry":
         return _render_registry_patch(patch_op.content, existing)
     if patch_op.format == "unityPrefs":
