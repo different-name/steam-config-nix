@@ -757,6 +757,18 @@ def test_unity_prefs_float_encoding_round_trips(env):
     raw = bytes(int(b, 16) for b in encoded[len("hex(4):") :].split(","))
     assert struct.unpack("<d", raw)[0] == 0.5
 
+def test_unity_prefs_float_matches_what_unity_writes_back(env):
+    apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [unity_prefs(env, {"Software\\Co\\Prod": {"Gate": 0.002}})],
+    )
+
+    text = (env.prefix / "user.reg").read_text()
+    encoded = reg_value(text, f"Gate_h{unity_prefs_hash('Gate')}")
+    # the game narrows to a 32 bit float, so a second launch finds the value already set
+    assert encoded == "hex(4):00,00,00,e0,4d,62,60,3f"
 
 def test_unity_prefs_string_encoding(env):
     apply_file_ops(
