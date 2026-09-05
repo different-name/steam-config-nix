@@ -10,6 +10,7 @@ from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.grid import apply_grid_art, desired_grid_files
 from steam_config_patcher.icons import apply_library_icons
 from steam_config_patcher.manifest import load_manifest, save_manifest
+from steam_config_patcher.state import relocate_state
 from steam_config_patcher.steam import (
     close_steam,
     find_app_manifest,
@@ -371,6 +372,14 @@ def _keep_unwritten(
 
 
 def patch_config_files(cfg: PatcherConfig):
+    # our own records move out of steam's directory before anything reads them
+    try:
+        relocate_state(cfg.steam_dir, list(cfg.users))
+    except Exception:
+        LOG.exception("failed to move our records out of steam's directory")
+        # carrying on would read an empty manifest and take the files we placed for the originals
+        raise SystemExit("could not move our records out of steam's directory; nothing was changed")
+
     prev_manifests = {
         user_id: load_manifest(cfg.steam_dir, user_id) for user_id in cfg.users
     }

@@ -14,6 +14,7 @@ from steam_config_patcher.types import (
 def make_user_dir(tmp_path, user_id=111):
     steam_dir = tmp_path / "steam"
     (steam_dir / "userdata" / str(user_id) / "config").mkdir(parents=True)
+    manifest_path(steam_dir, user_id).parent.mkdir(parents=True, exist_ok=True)
     return steam_dir
 
 
@@ -120,15 +121,15 @@ def test_load_tolerates_malformed_entries(tmp_path):
 
     assert load_manifest(steam_dir, 111) == UserManifest()
 
-
-def test_save_skips_when_user_config_dir_missing(tmp_path):
+# the manifest is ours now, so saving makes the directory rather than skipping
+def test_save_makes_our_directory(tmp_path):
     steam_dir = tmp_path / "steam"
 
     save_manifest(
         steam_dir, 111, UserManifest(managed_keys=[compat_key(620, "GE-Proton")])
     )
 
-    assert not manifest_path(steam_dir, 111).exists()
+    assert manifest_path(steam_dir, 111).is_file()
 
 
 def test_save_leaves_no_tmp_file(tmp_path):

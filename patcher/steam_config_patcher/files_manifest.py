@@ -2,13 +2,12 @@ import logging
 from pathlib import Path
 
 from steam_config_patcher.json_manifest import load_json_manifest, save_json_manifest
+from steam_config_patcher import state
 from steam_config_patcher.types import FilesManifest, ManagedDir, ManagedFile
 
 LOG = logging.getLogger(__name__)
 
-FILES_MANIFEST_NAME = "steam-config-nix-files.json"
 FILES_MANIFEST_VERSION = 1
-BACKUP_DIR_NAME = "steam-config-nix-backups"
 
 
 # an entry written before declared paths were normalised has to still name the same file
@@ -17,13 +16,15 @@ def _normalise(target: str) -> str:
 
 
 def files_manifest_path(steam_dir: Path) -> Path:
-    return steam_dir.joinpath("config", FILES_MANIFEST_NAME)
+    return state.files_manifest_path()
+
+
+def backup_root(steam_dir: Path) -> Path:
+    return state.backup_root()
 
 
 def backup_path(steam_dir: Path, app_id: int, location: str, target: str) -> Path:
-    return steam_dir.joinpath(
-        "config", BACKUP_DIR_NAME, str(app_id), location, target
-    )
+    return backup_root(steam_dir) / str(app_id) / location / target
 
 
 def _parse(raw: dict) -> FilesManifest | None:
@@ -60,6 +61,7 @@ def load_files_manifest(steam_dir: Path) -> FilesManifest:
 
 
 def save_files_manifest(steam_dir: Path, manifest: FilesManifest) -> None:
+    files_manifest_path(steam_dir).parent.mkdir(parents=True, exist_ok=True)
     save_json_manifest(
         files_manifest_path(steam_dir),
         {
