@@ -14,17 +14,21 @@
 
   outputs =
     inputs:
-    let
-      inherit (inputs) self;
-      inherit (inputs.nixpkgs) lib;
-      mkSteamConfigNixModule =
-        format:
-        lib.modules.importApply ./modules {
-          inherit self format;
-        };
-    in
     inputs.flake-parts.lib.mkFlake { inherit inputs; } (
-      { config, ... }: {
+      {
+        config,
+        self,
+        lib,
+        ...
+      }:
+      let
+        mkSteamConfigNixModule =
+          format:
+          lib.modules.importApply ./modules {
+            inherit self format;
+          };
+      in
+      {
         systems = import inputs.systems;
 
         imports = [

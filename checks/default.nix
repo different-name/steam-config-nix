@@ -5,11 +5,10 @@
       pkgs,
       system,
       self',
+      lib,
       ...
     }:
     let
-      inherit (pkgs) lib;
-
       fakeCompatTool = pkgs.runCommand "fake-compat-tool" { } ''
         mkdir $out
         echo '"compatibilitytools" { "compat_tools" { "Fake-Proton" { "install_path" "." } } }' > $out/compatibilitytool.vdf
