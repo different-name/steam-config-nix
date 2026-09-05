@@ -2,6 +2,7 @@ import json
 
 from steam_config_patcher.files_manifest import (
     backup_path,
+    backup_root,
     files_manifest_path,
     load_files_manifest,
     save_files_manifest,
@@ -12,6 +13,7 @@ from steam_config_patcher.types import FilesManifest, ManagedDir, ManagedFile
 def make_config_dir(tmp_path):
     steam_dir = tmp_path / "steam"
     (steam_dir / "config").mkdir(parents=True)
+    files_manifest_path(steam_dir).parent.mkdir(parents=True, exist_ok=True)
     return steam_dir
 
 
@@ -65,12 +67,13 @@ def test_unreadable_manifest_is_ignored(tmp_path):
     assert load_files_manifest(steam_dir) == FilesManifest()
 
 
-def test_save_skips_when_config_dir_missing(tmp_path):
+# the manifest is ours now, so saving makes the directory rather than skipping
+def test_save_makes_our_directory(tmp_path):
     steam_dir = tmp_path / "steam"
 
     save_files_manifest(steam_dir, FilesManifest())
 
-    assert not files_manifest_path(steam_dir).exists()
+    assert files_manifest_path(steam_dir).is_file()
 
 
 def test_backup_path_nests_by_app_and_location(tmp_path):
@@ -78,15 +81,8 @@ def test_backup_path_nests_by_app_and_location(tmp_path):
 
     path = backup_path(steam_dir, 620, "game", "Mods/foo.dll")
 
-    assert path == (
-        steam_dir
-        / "config"
-        / "steam-config-nix-backups"
-        / "620"
-        / "game"
-        / "Mods"
-        / "foo.dll"
-    )
+    assert path == backup_root(steam_dir) / "620" / "game" / "Mods" / "foo.dll"
+    assert steam_dir not in path.parents
 
 
 # targets were recorded as declared before they were normalised, and both spellings are one file

@@ -15,8 +15,9 @@ dropped. That keeps a reversal from throwing away an edit you or the game made,
 at the cost of leaving our version in place, so check the log if you expected a
 file to come back.
 
-Steam can overwrite managed files when it updates or verifies a game, and they
-are re-applied on the next activation.
+The records themselves live under `$XDG_DATA_HOME/steam-config-nix`. Steam can
+overwrite managed files when it updates or verifies a game, and they are
+re-applied on the next activation.
 
 ## What it does not undo
 

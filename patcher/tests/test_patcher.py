@@ -961,3 +961,19 @@ def test_a_shortcut_we_could_not_remove_stays_in_the_manifest(fake_steam, tmp_pa
         patch_config_files(make_cfg(steam_dir))
 
     assert load_manifest(steam_dir, USER_ID).shortcuts == [555]
+
+
+# records that stay in steam's directory would be read as an empty manifest
+def test_a_relocation_that_fails_stops_the_run(fake_steam, tmp_path, monkeypatch):
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+
+    def boom(*args, **kwargs):
+        raise OSError("read only")
+
+    monkeypatch.setattr("steam_config_patcher.patcher.relocate_state", boom)
+
+    with pytest.raises(SystemExit):
+        patch_config_files(file_op_cfg(steam_dir))
+
+    assert not (install / "Mods").exists()

@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from steam_config_patcher.json_manifest import load_json_manifest, save_json_manifest
+from steam_config_patcher import state
 from steam_config_patcher.types import (
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
@@ -13,12 +14,11 @@ from steam_config_patcher.types import (
 
 LOG = logging.getLogger(__name__)
 
-MANIFEST_NAME = "steam-config-nix-manifest.json"
 MANIFEST_VERSION = 2
 
 
 def manifest_path(steam_dir: Path, user_id: int) -> Path:
-    return steam_dir.joinpath("userdata", str(user_id), "config", MANIFEST_NAME)
+    return state.user_manifest_path(user_id)
 
 
 def _parse_v1(raw: dict) -> UserManifest:
@@ -77,6 +77,7 @@ def load_manifest(steam_dir: Path, user_id: int) -> UserManifest:
 
 # absent config dir means nothing to manage, so save skips rather than making stray dirs
 def save_manifest(steam_dir: Path, user_id: int, manifest: UserManifest) -> None:
+    manifest_path(steam_dir, user_id).parent.mkdir(parents=True, exist_ok=True)
     save_json_manifest(
         manifest_path(steam_dir, user_id),
         {

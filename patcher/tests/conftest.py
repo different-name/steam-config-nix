@@ -43,3 +43,11 @@ def fake_steam(monkeypatch):
     monkeypatch.setattr("steam_config_patcher.patcher.wait_for_steam_exit", fake.wait)
     monkeypatch.setattr("steam_config_patcher.patcher.wait_for_game_exit", fake.wait_for_game)
     return fake
+
+
+# state_base reads the environment, so tests would otherwise share one directory
+@pytest.fixture(autouse=True)
+def data_home(tmp_path, monkeypatch):
+    home = tmp_path / "xdg-data"
+    monkeypatch.setenv("XDG_DATA_HOME", str(home))
+    return home
