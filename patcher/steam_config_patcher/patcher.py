@@ -441,6 +441,8 @@ def patch_config_files(cfg: PatcherConfig):
     unwritten: set[str] = set()
 
     def prepare_all() -> list[tuple[str, str, Path, bytes]]:
+        failed.clear()
+        unwritten.clear()
         prepared: list[tuple[str, str, Path, bytes]] = []
         for description, file_id, generate in patch_steps:
             try:
