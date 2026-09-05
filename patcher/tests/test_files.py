@@ -498,7 +498,8 @@ def test_revert_removes_created_dir(env):
     assert not (env.install / "new").exists()
 
 
-def test_orphan_backup_deleted_when_game_uninstalled(env, monkeypatch):
+# an unmounted library looks the same as an uninstalled game, so the original is kept either way
+def test_backup_is_kept_when_the_game_root_is_missing(env, monkeypatch):
     target = env.install / "base.pak"
     target.write_text("vanilla")
     src = source_file(env, "mod.pak", "modded")
@@ -513,8 +514,8 @@ def test_orphan_backup_deleted_when_game_uninstalled(env, monkeypatch):
     )
     apply_file_ops(env.steam_dir, [], [])
 
-    assert not stored.exists()
-    assert load_files_manifest(env.steam_dir).files == []
+    assert stored.read_text() == "vanilla"
+    assert [f.target for f in load_files_manifest(env.steam_dir).files] == ["base.pak"]
 
 
 def test_stale_backup_deleted_when_user_modified(env):

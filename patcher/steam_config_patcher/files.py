@@ -357,13 +357,8 @@ def _cleanup_created_dirs(
     return survivors
 
 
-def _revert_one(steam_dir: Path, root: Path | None, entry: ManagedFile) -> None:
+def _revert_one(steam_dir: Path, root: Path, entry: ManagedFile) -> None:
     stored = backup_path(steam_dir, entry.app_id, entry.location, entry.target)
-
-    if root is None:
-        if stored.exists():
-            stored.unlink()
-        return
 
     target_path = root / entry.target
 
@@ -397,13 +392,17 @@ def _revert_one(steam_dir: Path, root: Path | None, entry: ManagedFile) -> None:
         shutil.move(str(stored), str(target_path))
 
 
+def _describe(app_id: int, location: str, target: str) -> str:
+    return f"app {app_id}: {location}/{target}"
+
+
 def apply_file_ops(
     steam_dir: Path,
     file_ops: list[FileOp],
     remove_ops: list[RemoveOp],
     patch_ops: list[PatchOp] | None = None,
     prefix_paths: dict[int, Path] | None = None,
-) -> None:
+) -> list[str]:
     patch_ops = patch_ops or []
     prefix_paths = prefix_paths or {}
     prev_manifest = load_files_manifest(steam_dir)
@@ -414,12 +413,14 @@ def apply_file_ops(
         and not prev_manifest.files
         and not prev_manifest.dirs
     ):
-        return
+        return []
 
     prev: dict[FileKey, ManagedFile] = {
         (e.app_id, e.location, e.target): e for e in prev_manifest.files
     }
 
+    # one failing operation must not abandon the rest or the manifest that tracks them
+    failures: list[str] = []
     root_cache: dict[tuple[int, str], Path | None] = {}
 
     def compat_prefix(app_id: int) -> Path | None:
@@ -433,11 +434,17 @@ def apply_file_ops(
     def root_for(app_id: int, location: str) -> Path | None:
         cache_key = (app_id, location)
         if cache_key not in root_cache:
-            root_cache[cache_key] = (
-                find_app_install_dir(steam_dir, app_id)
-                if location == "game"
-                else compat_prefix(app_id)
-            )
+            try:
+                root_cache[cache_key] = (
+                    find_app_install_dir(steam_dir, app_id)
+                    if location == "game"
+                    else compat_prefix(app_id)
+                )
+            except Exception:
+                # steam rewrites its manifests under us, and a half written one is not a reason to stop
+                failures.append(f"app {app_id}: {location} root")
+                LOG.exception("failed to find the %s root for app %d", location, app_id)
+                root_cache[cache_key] = None
         return root_cache[cache_key]
 
     placements = _resolve_placements(file_ops)
@@ -464,7 +471,15 @@ def apply_file_ops(
             continue
         for rel in _dirs_to_create(root, placement.target):
             created_dirs.add((placement.app_id, placement.location, rel))
-        entry = _place_one(steam_dir, root, placement, prev.get(key))
+        try:
+            entry = _place_one(steam_dir, root, placement, prev.get(key))
+        except Exception:
+            description = _describe(
+                placement.app_id, placement.location, placement.target
+            )
+            failures.append(description)
+            LOG.exception("failed to place %s", description)
+            entry = prev.get(key)
         if entry is not None:
             new_files.append(entry)
 
@@ -499,7 +514,15 @@ def apply_file_ops(
         if will_create:
             for rel in _dirs_to_create(root, patch_op.target):
                 created_dirs.add((patch_op.app_id, patch_op.location, rel))
-        entry = _patch_one(steam_dir, root, patch_op, prev.get(key))
+        try:
+            entry = _patch_one(steam_dir, root, patch_op, prev.get(key))
+        except Exception:
+            description = _describe(
+                patch_op.app_id, patch_op.location, patch_op.target
+            )
+            failures.append(description)
+            LOG.exception("failed to patch %s", description)
+            entry = prev.get(key)
         if entry is not None:
             new_files.append(entry)
 
@@ -532,10 +555,16 @@ def apply_file_ops(
         for target in _remove_targets(root, remove_op, claimed):
             key = (remove_op.app_id, remove_op.location, target)
             desired.add(key)
-            entry = _remove_one(
-                steam_dir, root, remove_op.app_id, remove_op.location, target,
-                prev.get(key),
-            )
+            try:
+                entry = _remove_one(
+                    steam_dir, root, remove_op.app_id, remove_op.location, target,
+                    prev.get(key),
+                )
+            except Exception:
+                description = _describe(remove_op.app_id, remove_op.location, target)
+                failures.append(description)
+                LOG.exception("failed to remove %s", description)
+                entry = prev.get(key)
             if entry is not None:
                 new_files.append(entry)
         if base_is_dir:
@@ -544,8 +573,36 @@ def apply_file_ops(
     for key, entry in prev.items():
         if key in desired:
             continue
-        _revert_one(steam_dir, root_for(entry.app_id, entry.location), entry)
+        root = root_for(entry.app_id, entry.location)
+        if root is None:
+            # an unmounted library is not a reason to throw away the original we are holding
+            LOG.warning(
+                "app %d: %s root not found, still holding %s",
+                entry.app_id,
+                entry.location,
+                entry.target,
+            )
+            new_files.append(entry)
+            continue
+        try:
+            _revert_one(steam_dir, root, entry)
+        except Exception:
+            description = _describe(entry.app_id, entry.location, entry.target)
+            failures.append(description)
+            LOG.exception("failed to revert %s", description)
+            # a target we could not put back is still ours until we manage to
+            new_files.append(entry)
 
-    survivors = _cleanup_created_dirs(created_dirs, root_for)
+    try:
+        survivors = _cleanup_created_dirs(created_dirs, root_for)
+    except Exception:
+        failures.append("directory cleanup")
+        LOG.exception("failed to clean up the directories we created")
+        survivors = [ManagedDir(*key) for key in created_dirs]
 
-    save_files_manifest(steam_dir, FilesManifest(files=new_files, dirs=survivors))
+    try:
+        save_files_manifest(steam_dir, FilesManifest(files=new_files, dirs=survivors))
+    except Exception:
+        failures.append("files manifest")
+        LOG.exception("failed to write the files manifest")
+    return failures
