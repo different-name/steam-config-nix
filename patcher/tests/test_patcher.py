@@ -11,6 +11,7 @@ from steam_config_patcher.patcher import (
     patch_config_files,
 )
 from steam_config_patcher.types import (
+    DISPLAY_RATES_AS_BITS_PATH,
     CompatToolConfig,
     FileOp,
     GridArt,
@@ -114,10 +115,12 @@ def make_cfg(
     grid_art=None,
     file_ops=None,
     remove_ops=None,
+    display_rates_as_bits=None,
 ):
     return PatcherConfig(
         on_steam_running=on_steam_running,
         steam_dir=steam_dir,
+        display_rates_as_bits=display_rates_as_bits,
         game_betas=game_betas or {},
         game_languages=game_languages or {},
         game_update_behaviors=game_update_behaviors or {},
@@ -409,6 +412,17 @@ def test_file_ops_reverted_on_next_run(fake_steam, tmp_path):
     assert not (install / "Mods").exists()
     assert load_files_manifest(steam_dir).files == []
 
+def test_display_rates_as_bits_written_and_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+
+    patch_config_files(make_cfg(steam_dir, display_rates_as_bits=True))
+
+    assert find_values(localconfig_vdf, DISPLAY_RATES_AS_BITS_PATH) == ["1"]
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(localconfig_vdf, DISPLAY_RATES_AS_BITS_PATH) == []
 
 def test_second_run_cleans_up_removed_entries(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)
