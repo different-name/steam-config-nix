@@ -87,3 +87,33 @@ def test_backup_path_nests_by_app_and_location(tmp_path):
         / "Mods"
         / "foo.dll"
     )
+
+
+# targets were recorded as declared before they were normalised, and both spellings are one file
+def test_a_target_recorded_before_normalising_still_names_the_same_file(tmp_path):
+    steam_dir = make_config_dir(tmp_path)
+    files_manifest_path(steam_dir).write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "files": [
+                    {
+                        "app_id": 620,
+                        "location": "game",
+                        "target": "./cfg//user.ini",
+                        "op": "place",
+                        "source_hash": "abc123",
+                        "had_backup": True,
+                        "source_path": None,
+                    }
+                ],
+                "dirs": [{"app_id": 620, "location": "game", "target": "./cfg"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = load_files_manifest(steam_dir)
+
+    assert [f.target for f in manifest.files] == ["cfg/user.ini"]
+    assert [d.target for d in manifest.dirs] == ["cfg"]
