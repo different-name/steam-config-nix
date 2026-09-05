@@ -33,7 +33,7 @@
         ];
 
         partitions = {
-          docs.extraInputsFlake = ./partitions/docs;
+          docs.extraInputsFlake = ./docs;
         };
 
         perSystem =

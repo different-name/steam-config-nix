@@ -2,7 +2,7 @@
   description = "Private inputs for documentation, used by the `docs` partition";
 
   inputs = {
-    steam-config-nix.url = ../..;
+    steam-config-nix.url = ../.;
 
     # kept in this partition so it does not put a second nixpkgs and its own
     # transitive inputs into every downstream consumer of the root flake
