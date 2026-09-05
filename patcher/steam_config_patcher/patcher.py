@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import assert_never
 
 from steam_config_patcher.fileio import atomic_write_bytes
-from steam_config_patcher.files import apply_file_ops
+from steam_config_patcher.files import apply_file_ops, has_managed_files
 from steam_config_patcher.formats.binary_keyvalues import prepare_binary_keyvalues
 from steam_config_patcher.formats.keyvalues import prepare_keyvalues
 from steam_config_patcher.grid import apply_grid_art, desired_grid_files
@@ -458,7 +458,10 @@ def patch_config_files(cfg: PatcherConfig):
         return prepared
 
     prepared = prepare_all()
-    has_file_ops = bool(cfg.file_ops or cfg.remove_ops or cfg.patch_ops)
+    # a run with nothing declared still reverts what the manifest holds, and that touches the game too
+    has_file_ops = bool(cfg.file_ops or cfg.remove_ops or cfg.patch_ops) or has_managed_files(
+        cfg.steam_dir
+    )
 
     blocked = False
     if prepared and steam_is_running():

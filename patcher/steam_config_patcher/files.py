@@ -396,6 +396,11 @@ def _describe(app_id: int, location: str, target: str) -> str:
     return f"app {app_id}: {location}/{target}"
 
 
+def has_managed_files(steam_dir: Path) -> bool:
+    manifest = load_files_manifest(steam_dir)
+    return bool(manifest.files or manifest.dirs)
+
+
 def apply_file_ops(
     steam_dir: Path,
     file_ops: list[FileOp],
