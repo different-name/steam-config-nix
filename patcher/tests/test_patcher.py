@@ -992,3 +992,39 @@ def test_a_revert_only_run_waits_for_the_game(fake_steam, tmp_path):
 
     assert fake_steam.game_wait_calls == 1
     assert not (install / "Mods" / "mod.dll").exists()
+
+
+def test_a_file_that_fails_then_succeeds_on_the_retry_is_tracked(
+    fake_steam, tmp_path, monkeypatch
+):
+    fake_steam.running = True
+    steam_dir = make_steam_dir(tmp_path)
+    cfg = make_cfg(
+        steam_dir,
+        on_steam_running="close",
+        compat_tool_mapping={1091500: CompatToolConfig("GE-Proton", 250)},
+        launch_options={620: "wrapper %command%"},
+    )
+
+    import steam_config_patcher.patcher as patcher
+
+    real = patcher.generate_localconfig_vdf_patch
+    calls = []
+
+    def fail_once(*args, **kwargs):
+        calls.append(None)
+        if len(calls) == 1:
+            raise OSError("steam is still writing")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(patcher, "generate_localconfig_vdf_patch", fail_once)
+
+    patch_config_files(cfg)
+
+    localconfig_vdf = steam_dir / "userdata" / str(USER_ID) / "config" / "localconfig.vdf"
+    assert find_values(localconfig_vdf, APPS_PATH + ("620", "LaunchOptions")) == [
+        "wrapper %command%"
+    ]
+    assert APPS_PATH + ("620", "LaunchOptions") in [
+        key.key_path for key in load_manifest(steam_dir, USER_ID).managed_keys
+    ]
