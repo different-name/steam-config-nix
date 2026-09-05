@@ -10,18 +10,6 @@
     };
 
     systems.url = "github:nix-systems/x86_64-linux";
-
-    # only the docs use this, so it should not put a second nixpkgs and its own
-    # transitive inputs into every downstream consumer of this flake
-    nuschtos-search = {
-      url = "github:NuschtOS/search";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hextra = {
-      url = "github:imfing/hextra/v0.12.3";
-      flake = false;
-    };
   };
 
   outputs =
@@ -35,55 +23,69 @@
           inherit self format;
         };
     in
-    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import inputs.systems;
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } (
+      { config, ... }: {
+        systems = import inputs.systems;
 
-      imports = [ ./checks ];
+        imports = [
+          inputs.flake-parts.flakeModules.partitions
+          ./inputs.nix
+          ./checks
+        ];
 
-      perSystem =
-        {
-          self',
-          pkgs,
-          inputs',
-          ...
-        }:
-        {
-          packages = {
-            default = self'.packages.steam-config-patcher;
-            steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
-            docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) {
-              inherit (inputs'.nuschtos-search.packages) mkSearch;
+        partitions = {
+          docs.extraInputsFlake = ./docs;
+        };
+
+        perSystem =
+          {
+            self',
+            pkgs,
+            system,
+            ...
+          }:
+          let
+            inherit (config.partitions.docs.module.inputs) nuschtos-search;
+          in
+          {
+            packages = {
+              default = self'.packages.steam-config-patcher;
+              steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
+              docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) {
+                inherit (nuschtos-search.packages.${system}) mkSearch;
+                inherit (config.partitions.docs.module.inputs) hextra;
+              };
             };
-          };
 
-          formatter = pkgs.nixfmt-tree.override {
-            runtimeInputs = [
-              pkgs.prettier
-            ];
-            settings.formatter.prettier = {
-              command = "prettier";
-              options = [
-                "--write"
-                "--prose-wrap"
-                "always"
-                "--print-width"
-                "80"
+            formatter = pkgs.nixfmt-tree.override {
+              runtimeInputs = [
+                pkgs.prettier
               ];
-              includes = [ "*.md" ];
+              settings.formatter.prettier = {
+                command = "prettier";
+                options = [
+                  "--write"
+                  "--prose-wrap"
+                  "always"
+                  "--print-width"
+                  "80"
+                ];
+                includes = [ "*.md" ];
+              };
             };
           };
-        };
 
-      flake = {
-        nixosModules = {
-          default = self.nixosModules.steam-config-nix;
-          steam-config-nix = mkSteamConfigNixModule "nixos";
-        };
+        flake = {
+          nixosModules = {
+            default = self.nixosModules.steam-config-nix;
+            steam-config-nix = mkSteamConfigNixModule "nixos";
+          };
 
-        homeModules = {
-          default = self.homeModules.steam-config-nix;
-          steam-config-nix = mkSteamConfigNixModule "home-manager";
+          homeModules = {
+            default = self.homeModules.steam-config-nix;
+            steam-config-nix = mkSteamConfigNixModule "home-manager";
+          };
         };
-      };
-    };
+      }
+    );
 }
