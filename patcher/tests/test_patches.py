@@ -307,6 +307,7 @@ def test_ini_patch_keeps_utf32_encoding(env):
     assert target.read_bytes() == first
 
 
+
 def test_skip_when_missing_writes_nothing_then_retries(env, capsys):
     op = patch(env, "settings.json", {"Fullscreen": True}, create_if_missing=False)
 
@@ -879,23 +880,24 @@ def test_json_patch_refuses_to_discard_a_non_object_root(env):
     target = env.install / "list.json"
     target.write_text("[1, 2, 3]")
 
-    with pytest.raises(ValueError):
-        apply_file_ops(env.steam_dir, [], [], [patch(env, "list.json", {"a": 1})])
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "list.json", {"a": 1})]
+    )
 
+    assert failures == ["app 620: game/list.json"]
     assert target.read_text() == "[1, 2, 3]"
 
 
-# the old file ops let a format error out rather than reporting it per entry, so
-# what is pinned here is that the target is left as it was
+# a format error is reported per entry, and the target is left as it was
 def test_ini_key_that_cannot_be_written_leaves_the_file_alone(env):
     target = env.install / "cfg.ini"
     target.write_text("[D]\nW = 8\n")
 
-    with pytest.raises(ValueError):
-        apply_file_ops(
-            env.steam_dir, [], [], [patch(env, "cfg.ini", {"D": {"a=b": "v"}}, fmt="ini")]
-        )
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"D": {"a=b": "v"}}, fmt="ini")]
+    )
 
+    assert failures == ["app 620: game/cfg.ini"]
     assert target.read_text() == "[D]\nW = 8\n"
 
 
@@ -903,14 +905,14 @@ def test_ini_section_that_cannot_be_read_back_is_refused(env):
     target = env.install / "cfg.ini"
     target.write_text("[Display]\nWidth = 800\n")
 
-    with pytest.raises(ValueError):
-        apply_file_ops(
-            env.steam_dir,
-            [],
-            [],
-            [patch(env, "cfg.ini", {"Video]Extra": {"Width": 1920}}, fmt="ini")],
-        )
+    failures = apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "cfg.ini", {"Video]Extra": {"Width": 1920}}, fmt="ini")],
+    )
 
+    assert failures == ["app 620: game/cfg.ini"]
     assert target.read_text() == "[Display]\nWidth = 800\n"
 
 
@@ -920,12 +922,116 @@ def test_ini_value_that_cannot_be_read_back_is_refused_when_appending(env):
     target.write_text("[Display]\nWidth = 800\n")
 
     # the prefix pattern eats the leading spaces, so this reads back as "x" and is appended again
-    with pytest.raises(ValueError):
-        apply_file_ops(
-            env.steam_dir,
-            [],
-            [],
-            [patch(env, "cfg.ini", {"Display": {"Motd": "  indented"}}, fmt="ini")],
-        )
+    failures = apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "cfg.ini", {"Display": {"Motd": "  indented"}}, fmt="ini")],
+    )
 
+    assert failures == ["app 620: game/cfg.ini"]
     assert target.read_text() == "[Display]\nWidth = 800\n"
+
+
+def test_a_failing_patch_leaves_the_rest_of_the_run_intact(env):
+    (env.install / "list.json").write_text("[1, 2, 3]")
+
+    failures = apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [
+            patch(env, "list.json", {"a": 1}),
+            patch(env, "settings.json", {"Fullscreen": True}),
+        ],
+    )
+
+    assert failures == ["app 620: game/list.json"]
+    assert json.loads((env.install / "settings.json").read_text()) == {
+        "Fullscreen": True
+    }
+    files = load_files_manifest(env.steam_dir).files
+    assert [f.target for f in files] == ["settings.json"]
+
+
+def test_a_failing_patch_keeps_its_manifest_entry(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\n")
+
+    apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Display": {"Width": 1920}}, fmt="ini")]
+    )
+
+    failures = apply_file_ops(
+        env.steam_dir,
+        [],
+        [],
+        [patch(env, "cfg.ini", {"Display": {"Motd": "  indented"}}, fmt="ini")],
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    files = load_files_manifest(env.steam_dir).files
+    assert [(f.target, f.had_backup) for f in files] == [("cfg.ini", True)]
+    assert backup_path(env.steam_dir, 620, "game", "cfg.ini").read_text() == (
+        "[Display]\nWidth = 800\n"
+    )
+
+
+def test_ini_value_holding_a_carriage_return_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[A]\nx=1\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"A": {"y": "a\rb"}}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert target.read_text() == "[A]\nx=1\n"
+
+
+def test_ini_patch_of_something_that_is_not_ini_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_bytes(b"\x01garbage\nnot ini\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"A": {"b": 2}}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert target.read_bytes() == b"\x01garbage\nnot ini\n"
+
+
+def test_ini_continuation_line_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[A]\nkey = first\n    second=third\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"A": {"second": 9}}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert target.read_text() == "[A]\nkey = first\n    second=third\n"
+
+
+def test_ini_value_that_is_not_a_scalar_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[A]\nx=1\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"A": {"y": {"nested": 1}}}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert target.read_text() == "[A]\nx=1\n"
+
+
+def test_ini_section_that_is_not_a_table_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[A]\nx=1\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"b": 1}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert target.read_text() == "[A]\nx=1\n"
