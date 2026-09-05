@@ -14,10 +14,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@v22
-      - uses: DeterminateSystems/update-flake-lock@v28
         with:
           token: ${{ secrets.FLAKE_LOCK_PAT }}
-          pr-title: "chore: update flake inputs"
-          commit-msg: "chore: update flake inputs"
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: update root inputs
+        run: nix flake update 2>> lock-changes.txt
+
+      - name: update docs partition inputs
+        run: nix flake update --flake partitions/docs 2>> lock-changes.txt
+
+      - name: open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.FLAKE_LOCK_PAT }}
+          add-paths: |
+            flake.lock
+            partitions/docs/flake.lock
+          title: "chore: update flake inputs"
+          commit-message: "chore: update flake inputs"
           branch: update-flake-lock
+          body-path: lock-changes.txt
