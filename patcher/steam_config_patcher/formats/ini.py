@@ -77,12 +77,14 @@ def _scan(lines: list[tuple[str, str]]) -> tuple[dict[tuple[str, str], list[int]
     current = ""
     previous_indent: str | None = None
     structured = False
+    content = False
 
     for index, (body, _) in enumerate(lines):
         if not body.strip():
             continue
         if _COMMENT.match(body):
             continue
+        content = True
         header = _SECTION.match(body)
         if header is not None:
             current = header.group("name").strip()
@@ -106,7 +108,7 @@ def _scan(lines: list[tuple[str, str]]) -> tuple[dict[tuple[str, str], list[int]
         structured = True
         entries.setdefault((current, entry.group("key")), []).append(index)
 
-    if not structured and any(body.strip() for body, _ in lines):
+    if not structured and content:
         raise ValueError("the file has no ini sections or keys to merge into")
     return entries, section_end
 

@@ -1061,3 +1061,16 @@ def test_ini_section_name_with_padding_is_refused(env):
     assert failures == ["app 620: game/cfg.ini"]
     assert target.read_text() == "[Display]\nWidth = 800\n"
 
+
+def test_ini_template_of_only_comments_is_patched(env):
+    target = env.install / "cfg.ini"
+    target.write_text("; set Width to your monitor\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"Display": {"Width": 1920}}, fmt="ini")]
+    )
+
+    assert failures == []
+    assert read_ini(target)["Display"]["Width"] == "1920"
+    assert target.read_text().startswith("; set Width to your monitor\n")
+
