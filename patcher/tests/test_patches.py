@@ -1048,3 +1048,16 @@ def test_ini_list_value_writes_one_line_per_item(env):
 
     assert first == "[A]\n+K=C\n+K=D\n+K=E\n"
     assert target.read_text() == first
+
+
+def test_ini_section_name_with_padding_is_refused(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {" Video ": {"Width": 1920}}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert target.read_text() == "[Display]\nWidth = 800\n"
+
