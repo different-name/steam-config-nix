@@ -29,12 +29,11 @@
 
         imports = [
           inputs.flake-parts.flakeModules.partitions
-          ./inputs.nix
           ./checks
         ];
 
         partitions = {
-          docs.extraInputsFlake = ./docs;
+          docs.extraInputsFlake = ./partitions/docs;
         };
 
         perSystem =
@@ -45,7 +44,7 @@
             ...
           }:
           let
-            inherit (config.partitions.docs.module.inputs) nuschtos-search;
+            inherit (config.partitions.docs.extraInputs) nuschtos-search;
           in
           {
             packages = {
@@ -53,7 +52,7 @@
               steam-config-patcher = pkgs.python3Packages.callPackage ./pkgs/steam-config-patcher/package.nix { };
               docs = pkgs.callPackage (import ./pkgs/docs/package.nix self) {
                 inherit (nuschtos-search.packages.${system}) mkSearch;
-                inherit (config.partitions.docs.module.inputs) hextra;
+                inherit (config.partitions.docs.extraInputs) hextra;
               };
             };
 
