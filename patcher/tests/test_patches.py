@@ -1035,3 +1035,16 @@ def test_ini_section_that_is_not_a_table_is_refused(env):
 
     assert failures == ["app 620: game/cfg.ini"]
     assert target.read_text() == "[A]\nx=1\n"
+
+
+def test_ini_list_value_writes_one_line_per_item(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[A]\n+K=A\n+K=B\n")
+    op = patch(env, "cfg.ini", {"A": {"+K": ["C", "D", "E"]}}, fmt="ini")
+
+    apply_file_ops(env.steam_dir, [], [], [op])
+    first = target.read_text()
+    apply_file_ops(env.steam_dir, [], [], [op])
+
+    assert first == "[A]\n+K=C\n+K=D\n+K=E\n"
+    assert target.read_text() == first
