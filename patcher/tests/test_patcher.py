@@ -977,3 +977,18 @@ def test_a_relocation_that_fails_stops_the_run(fake_steam, tmp_path, monkeypatch
         patch_config_files(file_op_cfg(steam_dir))
 
     assert not (install / "Mods").exists()
+
+
+
+# a revert is driven by the manifest alone, so an empty config still touches the game's files
+def test_a_revert_only_run_waits_for_the_game(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    install = install_dir_for(steam_dir)
+    patch_config_files(file_op_cfg(steam_dir))
+    assert (install / "Mods" / "mod.dll").exists()
+
+    fake_steam.game_running = True
+    patch_config_files(make_cfg(steam_dir))
+
+    assert fake_steam.game_wait_calls == 1
+    assert not (install / "Mods" / "mod.dll").exists()
