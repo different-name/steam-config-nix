@@ -120,7 +120,7 @@ let
           description = ''
             Format of the target file, so the patcher can read, merge, and write it back.
 
-            - `"ini"`: `content` is an attrset of section names to attrsets of key/value pairs.
+            - `"ini"`: `content` is an attrset of section names to attrsets of key/value pairs. A list writes the key once per element, which is how engines such as Unreal store a multi-valued setting.
             - `"json"`: `content` is a nested attrset deep-merged into the file.
             - `"registry"`: a Wine registry file (`system.reg`/`user.reg`). `content` maps a key path to an attrset of value names, where a string becomes a `REG_SZ` and an integer a `REG_DWORD`. The path separator may be `/` or `\\`.
             - `"keyvalue"`: a Valve KeyValues (VDF) file. `content` is a nested attrset deep-merged into the file.

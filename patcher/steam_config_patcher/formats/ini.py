@@ -58,14 +58,16 @@ def _check(line: str, section: object, key: object, rendered: str) -> None:
         raise ValueError(f"{section}.{key} cannot be written as an ini value")
 
 
-def _rendering(section: object, key: object, value: object) -> str:
-    if value is None or isinstance(value, (dict, list, tuple)):
+def _renderings(section: object, key: object, value: object) -> list[str]:
+    if isinstance(value, (list, tuple)):
+        return [rendering for item in value for rendering in _renderings(section, key, item)]
+    if value is None or isinstance(value, dict):
         raise ValueError(f"{section}.{key} is not a value an ini file can hold")
     rendered = str(value)
     # a line ending in a value splits the line, and the halves grow the file on every run
     if _ENDING.search(rendered):
         raise ValueError(f"{section}.{key} cannot be written as an ini value")
-    return rendered
+    return [rendered]
 
 
 def _scan(lines: list[tuple[str, str]]) -> tuple[dict[tuple[str, str], list[int]], dict[str, int]]:
@@ -123,30 +125,33 @@ def apply(content: dict, existing: bytes) -> bytes:
         if not isinstance(values, dict):
             raise ValueError(f"{section} is not a table of ini keys")
         for key, value in values.items():
-            rendered = _rendering(section, key, value)
-            found = entries.get((str(section), str(key)))
-            if found:
-                body, ending = lines[found[0]]
-                previous = _ENTRY.match(body)
-                assert previous is not None
-                # a value that does not read back splits the line and forges a section on every run
-                updated = previous.group("prefix") + rendered
-                _check(updated, section, key, rendered)
-                lines[found[0]] = (updated, ending)
-                # a patched key ends up with exactly one occurrence holding the value
-                dropped.update(found[1:])
-                continue
-            line = f"{key}={rendered}"
-            # a key we cannot read back would be appended again on every run
-            _check(line, section, key, rendered)
-            if str(section) in section_end:
-                inserted.setdefault(section_end[str(section)], []).append(line)
-            else:
-                # a header we cannot read back never matches, so the section would be appended again every run
-                header = _SECTION.match(f"[{section}]")
-                if header is None or header.group("name") != str(section):
-                    raise ValueError(f"{section} cannot be written as an ini section")
-                new_sections.setdefault(str(section), []).append(line)
+            renderings = _renderings(section, key, value)
+            found = entries.get((str(section), str(key))) or []
+            for position, rendered in enumerate(renderings):
+                if position < len(found):
+                    body, ending = lines[found[position]]
+                    previous = _ENTRY.match(body)
+                    assert previous is not None
+                    # a value that does not read back splits the line and forges a section on every run
+                    updated = previous.group("prefix") + rendered
+                    _check(updated, section, key, rendered)
+                    lines[found[position]] = (updated, ending)
+                    continue
+                line = f"{key}={rendered}"
+                # a key we cannot read back would be appended again on every run
+                _check(line, section, key, rendered)
+                if found:
+                    inserted.setdefault(found[-1], []).append(line)
+                elif str(section) in section_end:
+                    inserted.setdefault(section_end[str(section)], []).append(line)
+                else:
+                    # a header we cannot read back never matches, so the section would be appended again every run
+                    header = _SECTION.match(f"[{section}]")
+                    if header is None or header.group("name") != str(section):
+                        raise ValueError(f"{section} cannot be written as an ini section")
+                    new_sections.setdefault(str(section), []).append(line)
+            # a patched key ends up with exactly as many occurrences as it has values
+            dropped.update(found[len(renderings) :])
 
     out: list[str] = []
 

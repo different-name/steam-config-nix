@@ -104,6 +104,10 @@ A patch is always re-applied, and the original is backed up and restored when
 you remove it. A file cannot be both placed and patched, and two patches cannot
 target the same file.
 
+In an `ini` file a key you patch ends up with a single value. Give it a list to
+write the key once per element instead, which is how engines such as Unreal
+store a multi-valued setting.
+
 ## Files in the Proton prefix
 
 Use `files.prefix.place`, `files.prefix.remove` and `files.prefix.patch` to
