@@ -147,7 +147,7 @@ def apply(content: dict, existing: bytes) -> bytes:
                 else:
                     # a header we cannot read back never matches, so the section would be appended again every run
                     header = _SECTION.match(f"[{section}]")
-                    if header is None or header.group("name") != str(section):
+                    if header is None or header.group("name").strip() != str(section):
                         raise ValueError(f"{section} cannot be written as an ini section")
                     new_sections.setdefault(str(section), []).append(line)
             # a patched key ends up with exactly as many occurrences as it has values
