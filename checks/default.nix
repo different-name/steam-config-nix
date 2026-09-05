@@ -338,6 +338,29 @@
             content.A.b = 1;
           };
         })) "placing and patching the same file should fail"
+        && lib.assertMsg (hasFailure "same target" (failingAssertions {
+          files.game.place."cfg/x.ini".source = fakeArt;
+          files.game.place."./cfg//x.ini".text = "hi";
+        })) "two spellings of one target should still collide"
+        && lib.assertMsg (hasFailure "both places and patches" (failingAssertions {
+          files.game.place."cfg/x.ini".source = fakeArt;
+          files.game.patch."./cfg//x.ini" = {
+            format = "ini";
+            content.A.b = 1;
+          };
+        })) "two spellings should collide across place and patch"
+        && lib.assertMsg (hasFailure "same target" (failingAssertions {
+          files.game.patch."a" = {
+            target = "config/user.ini";
+            format = "ini";
+            content.A.b = 1;
+          };
+          files.game.patch."b" = {
+            target = "./config//user.ini";
+            format = "json";
+            content.A.b = 1;
+          };
+        })) "two patches of one file should collide"
         && lib.assertMsg (hasFailure "invalid systemd.target.name" (failingAssertions {
           systemd = {
             enable = true;
@@ -449,11 +472,13 @@
               grep -q german "$acf"
               grep -q AutoUpdateBehavior "$acf"
               grep -q AllowOtherDownloadsWhileRunning "$acf"
-              test -f "$steam/userdata/111/config/steam-config-nix-manifest.json"
+              test -f "$HOME/.local/share/steam-config-nix/users/111/manifest.json"
 
               grep -q modcontent "$install/mods/test.txt"
               test ! -e "$install/unwanted.txt"
-              test -f "$steam/config/steam-config-nix-files.json"
+              test -f "$HOME/.local/share/steam-config-nix/files.json"
+              test ! -e "$steam/config/steam-config-nix-files.json"
+              test ! -e "$steam/userdata/111/config/steam-config-nix-manifest.json"
 
               grep -q Fullscreen "$install/config/game.ini"
 

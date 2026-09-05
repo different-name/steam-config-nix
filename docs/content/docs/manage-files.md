@@ -101,7 +101,8 @@ exist. It is off by default, so a patch against a missing file waits until the
 game generates it, retrying on the next activation.
 
 A patch is always re-applied, and the original is backed up and restored when
-you remove it. A file cannot be both placed and patched.
+you remove it. A file cannot be both placed and patched, and two patches cannot
+target the same file.
 
 ## Files in the Proton prefix
 

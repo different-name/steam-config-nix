@@ -85,39 +85,47 @@ let
 
   unsafePath = p: p == "" || lib.hasPrefix "/" p || lib.elem ".." (lib.splitString "/" p);
 
-  duplicateTargets = lib.filter (group: lib.length group > 1) (
+  # "cfg//x.ini" and "./cfg/x.ini" are one file, so they have to compare equal
+  normalise =
+    p: lib.concatStringsSep "/" (lib.filter (part: part != "" && part != ".") (lib.splitString "/" p));
+
+  # every entry that resolves to a file, so two of anything on one file can be caught together
+  targetedEntries =
+    map (e: {
+      inherit (e) appName location;
+      target = normalise e.entry.target;
+      declared = e.entry.target;
+      op = "place";
+    }) enabledFileEntries
+    ++ map (e: {
+      inherit (e) appName location;
+      target = normalise e.entry.target;
+      declared = e.entry.target;
+      op = "patch";
+    }) enabledPatchEntries;
+
+  collisions = lib.filter (group: lib.length group > 1) (
     builtins.attrValues (
-      builtins.groupBy (e: "${e.appName}\n${e.location}\n${e.entry.target}") enabledFileEntries
+      builtins.groupBy (e: "${e.appName}\n${e.location}\n${e.target}") targetedEntries
     )
   );
+
+  # place and patch on the same resolved file are mutually exclusive
+  placePatchCollisions = lib.filter (
+    group: (lib.any (e: e.op == "place") group) && (lib.any (e: e.op == "patch") group)
+  ) collisions;
+
+  duplicateTargets = lib.filter (
+    group: lib.all (e: e.op == (builtins.head group).op) group
+  ) collisions;
 
   duplicateTargetMessages = map (
     group:
     let
       e = builtins.head group;
     in
-    ''apps.${e.appName}.files.${e.location}.place has multiple entries targeting "${e.entry.target}"''
+    ''apps.${e.appName}.files.${e.location}.${e.op} has multiple entries targeting "${e.declared}"''
   ) duplicateTargets;
-
-  # place and patch on the same resolved file are mutually exclusive
-  placePatchCollisions =
-    lib.filter (group: (lib.any (e: e.op == "place") group) && (lib.any (e: e.op == "patch") group))
-      (
-        builtins.attrValues (
-          builtins.groupBy (e: "${e.appName}\n${e.location}\n${e.target}") (
-            map (e: {
-              inherit (e) appName location;
-              target = e.entry.target;
-              op = "place";
-            }) enabledFileEntries
-            ++ map (e: {
-              inherit (e) appName location;
-              target = e.entry.target;
-              op = "patch";
-            }) enabledPatchEntries
-          )
-        )
-      );
 
   placePatchMessages = map (
     group:

@@ -11,6 +11,11 @@ FILES_MANIFEST_VERSION = 1
 BACKUP_DIR_NAME = "steam-config-nix-backups"
 
 
+# an entry written before declared paths were normalised has to still name the same file
+def _normalise(target: str) -> str:
+    return "/".join(part for part in target.split("/") if part not in ("", "."))
+
+
 def files_manifest_path(steam_dir: Path) -> Path:
     return steam_dir.joinpath("config", FILES_MANIFEST_NAME)
 
@@ -31,7 +36,7 @@ def _parse(raw: dict) -> FilesManifest | None:
             ManagedFile(
                 app_id=int(entry["app_id"]),
                 location=entry["location"],
-                target=entry["target"],
+                target=_normalise(entry["target"]),
                 op=entry["op"],
                 source_hash=entry.get("source_hash"),
                 had_backup=bool(entry.get("had_backup", False)),
@@ -43,7 +48,7 @@ def _parse(raw: dict) -> FilesManifest | None:
             ManagedDir(
                 app_id=int(entry["app_id"]),
                 location=entry["location"],
-                target=entry["target"],
+                target=_normalise(entry["target"]),
             )
             for entry in (raw.get("dirs") or [])
         ],

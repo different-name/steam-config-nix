@@ -155,22 +155,31 @@ let
     entry:
     if entry.source != null then entry.source else pkgs.writeText "steam-config-nix-file" entry.text;
 
+  normalise =
+    p: lib.concatStringsSep "/" (lib.filter (part: part != "" && part != ".") (lib.splitString "/" p));
+
   mkFileOps =
     location: attrs:
     lib.mapAttrsToList (_: entry: {
       inherit location;
-      inherit (entry) target mode executable;
+      inherit (entry) mode executable;
+      target = normalise entry.target;
       source = "${resolveSource entry}";
     }) (lib.filterAttrs (_: entry: entry.enable) attrs);
 
-  mkRemoveOps = location: paths: map (target: { inherit location target; }) paths;
+  mkRemoveOps =
+    location: paths:
+    map (target: {
+      inherit location;
+      target = normalise target;
+    }) paths;
 
   mkPatchOps =
     location: attrs:
     lib.mapAttrsToList (_: entry: {
       inherit location;
+      target = normalise entry.target;
       inherit (entry)
-        target
         format
         content
         createIfMissing
