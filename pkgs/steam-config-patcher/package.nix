@@ -6,7 +6,6 @@
   pydantic,
   pillow,
   pytestCheckHook,
-  ...
 }:
 buildPythonApplication {
   pname = "steam-config-patcher";

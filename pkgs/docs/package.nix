@@ -8,7 +8,6 @@ self:
   mkSearch,
   nixosOptionsDoc,
   fetchurl,
-  ...
 }:
 let
   siteUrl = "https://different-name.github.io/steam-config-nix/";
