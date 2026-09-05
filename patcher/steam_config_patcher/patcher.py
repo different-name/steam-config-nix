@@ -546,7 +546,5 @@ def patch_config_files(cfg: PatcherConfig):
         except Exception:
             LOG.exception("failed to write manifest for user %s", user_id)
 
-    LOG.info("%d compat tool mapping(s)", len(cfg.compat_tool_mapping))
-
     if failed:
         raise SystemExit(f"{len(failed)} file(s) failed to patch; see log above")
