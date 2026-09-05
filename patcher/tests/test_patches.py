@@ -151,7 +151,6 @@ def test_ini_merge_preserves_other_sections_case_and_percent(env):
     assert parser["Audio"]["Volume"] == "50"
     assert parser["Display"]["MixedCaseKey"] == "800"
     assert parser["Display"]["Fullscreen"] == "1"
-    # key case preserved (not lowercased) and % kept literal
     raw = target.read_text()
     assert "MixedCaseKey" in raw
     assert "C:\\Games\\%USER%\\save" in raw
@@ -318,7 +317,6 @@ def test_skip_when_missing_writes_nothing_then_retries(env, capsys):
     assert load_files_manifest(env.steam_dir).files == []
     assert "waiting for settings.json" in capsys.readouterr().out
 
-    # once the game creates the file, the next activation patches it
     target.write_text(json.dumps({"Width": 1920}))
     apply_file_ops(env.steam_dir, [], [], [op])
 
@@ -536,12 +534,9 @@ def test_registry_merges_and_preserves(env):
     assert ";; All keys relative to \\\\User\\\\S-1-5-21" in text
     assert '"csmt"=dword:00000001' in text
     assert '"renderer"="vulkan"' in text
-    # untouched value in the same section preserved
     assert '"MaxVersionGL"="3.2"' in text
-    # untouched section preserved
     assert "[Software\\\\Wine\\\\X11 Driver]" in text
     assert '"Decorated"="N"' in text
-    # csmt replaced, not duplicated
     assert text.count('"csmt"=') == 1
 
 
@@ -567,7 +562,6 @@ def test_registry_creates_new_section(env):
     text = target.read_text()
     assert "[Software\\\\Wine\\\\NewKey]" in text
     assert '"foo"="bar"' in text
-    # blank line separates the appended section from prior content
     assert "\n\n[Software\\\\Wine\\\\NewKey]\n" in text
 
 
@@ -662,7 +656,6 @@ def test_registry_string_escaping_round_trips(env):
     text = target.read_text()
     assert reg_value(text, "path") == raw_value
 
-    # re-enforcing does not double-escape or duplicate the value
     apply_file_ops(env.steam_dir, [], [], [op])
     assert target.read_text() == text
     assert reg_value(target.read_text(), "path") == raw_value
@@ -695,12 +688,10 @@ def test_registry_preserves_wrapped_value_and_sets_sibling(env):
     )
 
     text = target.read_text()
-    # wrapped binary value survives intact, including its continuation line
     assert (
         '"Blob_h1518735675"=hex:49,61,49,5a,75,54,79,77,77,\\\n'
         "  4a,2f,76,71,79,30,49,37,32,53,58,70,67,3d,3d,00"
     ) in text
-    # no orphaned continuation line duplicated
     assert text.count("4a,2f,76,71,79,30") == 1
     assert '"Keep_h123"=dword:00000005' in text
     assert '"Extra"=dword:00000007' in text
