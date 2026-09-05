@@ -7,7 +7,7 @@ ROOT = "programs.steam.config"
 
 SEGMENT = re.compile(r'\.(?:"([^"\n]*)"|([A-Za-z0-9_-]+))')
 # concrete attr names in the docs stand in for the <name> placeholder
-PLACEHOLDER = re.compile(r'^(?:"[^"]*"|[0-9]+)$')
+PLACEHOLDER = re.compile(r'^(?:"[^"]*"|[A-Za-z0-9_-]+)$')
 
 
 def parse_paths(text):
