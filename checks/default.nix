@@ -230,6 +230,7 @@
       strWrapper = lib.getExe cfg.apps."620".wrapper.package;
       rawArgsWrapper = lib.getExe cfg.apps."440".wrapper.package;
       optionsWrapper = lib.getExe cfg.apps."1091500".wrapper.package;
+      optionsExec = cfg.apps."1091500".wrapper.exec;
 
       desktopItems = lib.filter (
         pkg: lib.hasPrefix "steam-config-nix-" (pkg.name or "")
@@ -585,6 +586,16 @@
           grep -Fx 'declare -a wrappers=(gamemoderun)' ${optionsWrapper}
           grep -Fx 'declare -a args=(--launcher-skip)' ${optionsWrapper}
           grep -Fx 'echo prehook' ${optionsWrapper}
+
+          # the launch options string launches the game with the wrapper gone
+          opts=${lib.escapeShellArg optionsExec}
+          eval "set -- $opts"
+          test "$1" = /bin/sh
+          test "$2" = -c
+          printf '#!/bin/sh\necho wrapped "$@"\n' > wrapper
+          chmod +x wrapper
+          test "$(/bin/sh -c "$3" "$PWD/wrapper" echo game)" = "wrapped echo game"
+          test "$(/bin/sh -c "$3" "$PWD/missing" echo game)" = game
 
           grep -FxR 'Exec=steam steam://rungameid/620' ${desktopItemsDir}/share/applications
           grep -FxR 'Exec=steam steam://rungameid/1091500' ${desktopItemsDir}/share/applications

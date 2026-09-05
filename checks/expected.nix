@@ -14,7 +14,7 @@
       updateBehavior = null;
       allowDownloadsWhileRunning = null;
       libraryIcon = false;
-      launchOptions = "/var/lib/steam-config-nix/apps/620/wrapper %command%";
+      launchOptions = "/bin/sh -c 'if [ -x \"$0\" ]; then exec \"$0\" \"$@\"; else exec \"$@\"; fi' /var/lib/steam-config-nix/apps/620/wrapper %command%";
       artwork = noArtwork;
       files = [ ];
       removeFiles = [ ];
@@ -30,7 +30,7 @@
       updateBehavior = null;
       allowDownloadsWhileRunning = null;
       libraryIcon = true;
-      launchOptions = "/var/lib/steam-config-nix/apps/440/wrapper %command%";
+      launchOptions = "/bin/sh -c 'if [ -x \"$0\" ]; then exec \"$0\" \"$@\"; else exec \"$@\"; fi' /var/lib/steam-config-nix/apps/440/wrapper %command%";
       artwork = noArtwork;
       files = [ ];
       removeFiles = [ ];
@@ -78,7 +78,7 @@
       updateBehavior = "1";
       allowDownloadsWhileRunning = "1";
       libraryIcon = true;
-      launchOptions = "/var/lib/steam-config-nix/apps/1091500/wrapper %command%";
+      launchOptions = "/bin/sh -c 'if [ -x \"$0\" ]; then exec \"$0\" \"$@\"; else exec \"$@\"; fi' /var/lib/steam-config-nix/apps/1091500/wrapper %command%";
       artwork = noArtwork // {
         hero = fakeArt;
       };

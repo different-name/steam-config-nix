@@ -189,7 +189,8 @@ in
       let
         package = mkAppWrapperPackage config;
         path = if package == null then null else "${dataDir}/apps/${toString config.id}/wrapper";
-        exec = if package == null then null else "${path} %command%";
+        fallback = "'if [ -x \"$0\" ]; then exec \"$0\" \"$@\"; else exec \"$@\"; fi'";
+        exec = if package == null then null else "/bin/sh -c ${fallback} ${path} %command%";
       in
       {
         inherit

@@ -15,9 +15,9 @@ written while Steam is not running. So the module writes them when Steam is
 closed, and by default waits for that to happen.
 
 Most of what the module does never reaches those files. Options that need the
-wrapper compile into a script, and the launch options field holds nothing but
-the path to it, so only the first of those changes waits. See [How launch
-options work]({{< relref "/docs/launch-options" >}}).
+wrapper compile into a script, and the launch options field holds nothing but a
+pointer to it, so only the first of those changes waits. See [How launch options
+work]({{< relref "/docs/launch-options" >}}).
 
 ## Choosing what happens
 
