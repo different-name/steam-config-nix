@@ -248,17 +248,19 @@ def _patch_one(
     else:
         existing = target_path.read_bytes()
         had_backup = prev.had_backup if prev is not None else False
-        if prev is None:
-            _backup_once(
-                steam_dir,
-                patch_op.app_id,
-                patch_op.location,
-                patch_op.target,
-                target_path,
-            )
-            had_backup = True
 
     merged = patches.render(patch_op, existing)
+
+    if exists and prev is None:
+        _backup_once(
+            steam_dir,
+            patch_op.app_id,
+            patch_op.location,
+            patch_op.target,
+            target_path,
+        )
+        had_backup = True
+
     source_hash = hashlib.sha256(merged).hexdigest()
 
     entry = ManagedFile(

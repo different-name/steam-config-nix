@@ -1074,3 +1074,14 @@ def test_ini_template_of_only_comments_is_patched(env):
     assert read_ini(target)["Display"]["Width"] == "1920"
     assert target.read_text().startswith("; set Width to your monitor\n")
 
+
+def test_a_first_patch_that_fails_stores_no_backup(env):
+    target = env.install / "cfg.ini"
+    target.write_text("[Display]\nWidth = 800\n")
+
+    failures = apply_file_ops(
+        env.steam_dir, [], [], [patch(env, "cfg.ini", {"D": {"a=b": "v"}}, fmt="ini")]
+    )
+
+    assert failures == ["app 620: game/cfg.ini"]
+    assert not backup_path(env.steam_dir, 620, "game", "cfg.ini").exists()
