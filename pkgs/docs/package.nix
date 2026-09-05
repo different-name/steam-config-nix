@@ -4,6 +4,7 @@ self:
   pkgs,
   stdenv,
   hugo,
+  hextra,
   mkSearch,
   nixosOptionsDoc,
   fetchurl,
@@ -57,7 +58,7 @@ stdenv.mkDerivation {
     runHook preBuild
 
     mkdir -p themes
-    ln -s ${self.inputs.hextra} themes/hextra
+    ln -s ${hextra} themes/hextra
     install -Dm644 ${flexsearch} assets/js/flexsearch.bundle.min.js
 
     # hextra does not resolve @import in custom.css
