@@ -50,7 +50,15 @@ let
 in
 stdenv.mkDerivation {
   name = "steam-config-nix-docs";
-  src = ../../docs;
+  src = lib.fileset.toSource {
+    root = ../../docs;
+    fileset = lib.fileset.difference ../../docs (
+      lib.fileset.unions [
+        ../../docs/flake.nix
+        ../../docs/flake.lock
+      ]
+    );
+  };
 
   nativeBuildInputs = [ hugo ];
 
