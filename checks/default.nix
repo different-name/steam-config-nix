@@ -609,6 +609,25 @@
           touch $out
         '';
 
+        # the two locks are updated by two commands, so nixpkgs can silently drift apart
+        docs-lock =
+          let
+            nixpkgsRev =
+              lock:
+              let
+                nodes = (builtins.fromJSON (builtins.readFile lock)).nodes;
+                root = nodes.${nodes.root.inputs.steam-config-nix or "root"};
+              in
+              nodes.${root.inputs.nixpkgs}.locked.rev;
+            rootRev = nixpkgsRev ../flake.lock;
+            docsRev = nixpkgsRev ../docs/flake.lock;
+          in
+          pkgs.runCommand "check-docs-lock" { } (
+            assert lib.assertMsg (rootRev == docsRev)
+              "docs/flake.lock pins nixpkgs ${docsRev} but the root pins ${rootRev}, run nix flake update --flake ./docs";
+            "touch $out"
+          );
+
         docs-eval = pkgs.runCommand "check-docs-eval" { } ''
           echo "evaluated ${toString (lib.length docsSnippets)} doc snippets:"
           ${lib.concatMapStringsSep "\n" (b: "  echo '  ${evalSnippet b}'") docsSnippets}
