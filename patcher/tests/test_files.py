@@ -530,3 +530,26 @@ def test_stale_backup_deleted_when_user_modified(env):
 
     assert target.read_text() == "user-edited"
     assert not backup_path(env.steam_dir, 620, "game", "base.pak").exists()
+
+
+def test_remove_stays_removed_across_runs(env):
+    (env.install / "broken.dll").write_text("bad")
+    ops = [RemoveOp(620, "game", "broken.dll")]
+
+    apply_file_ops(env.steam_dir, [], ops)
+    apply_file_ops(env.steam_dir, [], ops)
+
+    assert not (env.install / "broken.dll").exists()
+    assert [f.target for f in load_files_manifest(env.steam_dir).files] == ["broken.dll"]
+
+
+def test_remove_directory_stays_removed_across_runs(env):
+    junk = env.install / "junk"
+    junk.mkdir()
+    (junk / "a").write_text("a")
+    ops = [RemoveOp(620, "game", "junk")]
+
+    apply_file_ops(env.steam_dir, [], ops)
+    apply_file_ops(env.steam_dir, [], ops)
+
+    assert not (junk / "a").exists()

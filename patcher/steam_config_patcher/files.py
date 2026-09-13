@@ -542,40 +542,45 @@ def apply_file_ops(
                 remove_op.target,
             )
             continue
+        # earlier removals are gone from disk, so without this the revert pass restores them
+        covered = {
+            key
+            for key, entry in prev.items()
+            if entry.op == "remove"
+            and key[0] == remove_op.app_id
+            and key[1] == remove_op.location
+            and (
+                entry.target == remove_op.target
+                or entry.target.startswith(remove_op.target + "/")
+            )
+            and key not in claimed
+        }
         root = root_for(remove_op.app_id, remove_op.location)
-        if root is None:
-            for key, entry in prev.items():
-                if (
-                    entry.op == "remove"
-                    and key[0] == remove_op.app_id
-                    and key[1] == remove_op.location
-                    and (
-                        entry.target == remove_op.target
-                        or entry.target.startswith(remove_op.target + "/")
+        if root is not None:
+            base = root / remove_op.target
+            base_is_dir = base.is_dir() and not base.is_symlink()
+            for target in _remove_targets(root, remove_op, claimed):
+                key = (remove_op.app_id, remove_op.location, target)
+                desired.add(key)
+                try:
+                    entry = _remove_one(
+                        steam_dir, root, remove_op.app_id, remove_op.location, target,
+                        prev.get(key),
                     )
-                ):
-                    desired.add(key)
+                except Exception:
+                    description = _describe(
+                        remove_op.app_id, remove_op.location, target
+                    )
+                    failures.append(description)
+                    LOG.exception("failed to remove %s", description)
+                    entry = prev.get(key)
+                if entry is not None:
                     new_files.append(entry)
-            continue
-        base = root / remove_op.target
-        base_is_dir = base.is_dir() and not base.is_symlink()
-        for target in _remove_targets(root, remove_op, claimed):
-            key = (remove_op.app_id, remove_op.location, target)
+            if base_is_dir:
+                _cleanup_removed_dir(root, remove_op.target)
+        for key in covered - desired:
             desired.add(key)
-            try:
-                entry = _remove_one(
-                    steam_dir, root, remove_op.app_id, remove_op.location, target,
-                    prev.get(key),
-                )
-            except Exception:
-                description = _describe(remove_op.app_id, remove_op.location, target)
-                failures.append(description)
-                LOG.exception("failed to remove %s", description)
-                entry = prev.get(key)
-            if entry is not None:
-                new_files.append(entry)
-        if base_is_dir:
-            _cleanup_removed_dir(root, remove_op.target)
+            new_files.append(prev[key])
 
     for key, entry in prev.items():
         if key in desired:
