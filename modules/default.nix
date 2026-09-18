@@ -276,7 +276,7 @@ in
 
         config = {
           Type = "exec";
-          RemainAfterExit = true; # allows service to be restarted by restartTriggers
+          # left inactive so every activation starts it again
 
           ExecStart = lib.escapeShellArgs [
             (lib.getExe cfg.package)
