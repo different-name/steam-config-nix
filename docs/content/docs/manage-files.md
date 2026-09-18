@@ -6,8 +6,7 @@ aliases:
   - /docs/place-files/
 ---
 
-Dropping a mod into a game, swapping an asset, or hiding a file the game ships
-are all the same option, keyed by path relative to the game's install directory:
+Game files are declared by path relative to the game's install directory:
 
 ```nix {eval=false}
 {
@@ -45,16 +44,12 @@ file or a directory, and a directory is copied recursively and merged with
 whatever is already at the target, so unpacking a mod loader over the game root
 leaves the game's own files in place.
 
-Every placed and removed file is tracked, so removing an entry from your
-configuration reverts it: a file that was newly created is deleted, and one that
-replaced or removed something the game shipped is restored from the backup taken
-before the first write.
+Removing an entry from your configuration will revert it: a newly created file
+will be deleted, and one that replaced or removed something the game shipped
+will be restored from the backup taken before the first write.
 
-The exception is a file that changed since we wrote it. If its contents no
-longer match what was written, it is left exactly where it is and its backup is
-dropped, on the grounds that the newer version is yours or the game's rather
-than ours to undo. The same applies to a removed file the game has since put
-back.
+The exception is a file that changed since it was written, or a removed file the
+game has since put back: it will be left as it is and the backup is dropped.
 
 ## Letting the game keep its changes
 
@@ -63,8 +58,7 @@ Each `place` entry has a `mode`:
 - `"enforce"` (the default): re-apply the declared contents on every activation.
 - `"seed"`: write it once and then leave it alone, which is what you want for
   files the game or you edit in place. Delete the file to push a new version.
-- `"lock"`: like `"enforce"`, but the file is made read-only so nothing else can
-  change it.
+- `"lock"`: like `"enforce"`, but the file will be made read-only.
 
 ```nix {eval=false}
 {
@@ -80,9 +74,8 @@ Each `place` entry has a `mode`:
 
 ## Setting keys in a file the game owns
 
-When a game generates its own config and you only want to change a few keys,
-patch it instead of replacing the whole file. The patcher reads the file, merges
-your keys in, and writes it back, leaving keys you did not mention untouched:
+To change a few keys in a config the game generates, patch it instead of
+replacing it. Keys you do not set will be left untouched:
 
 ```nix {eval=false}
 {
@@ -100,9 +93,9 @@ your keys in, and writes it back, leaving keys you did not mention untouched:
 exist. It is off by default, so a patch against a missing file waits until the
 game generates it, retrying on the next activation.
 
-A patch is always re-applied, and the original is backed up and restored when
-you remove it. A file cannot be both placed and patched, and two patches cannot
-target the same file.
+A patch will be re-applied on every activation. Removing it will restore the
+original, unless the file has changed since it was last patched. A file cannot
+be both placed and patched, and two patches cannot target the same file.
 
 In an `ini` file a key you patch ends up with a single value. Give it a list to
 write the key once per element instead, which is how engines such as Unreal
@@ -124,5 +117,5 @@ target the Proton prefix instead, for files under
 }
 ```
 
-The game must be installed, and for prefix files launched once so the prefix
-exists, otherwise the file operations are skipped with a warning until it is.
+Prefix files will be skipped until the prefix exists, so launch the game once
+before they can be applied.

@@ -3,9 +3,6 @@ title: VRChat
 weight: 41
 ---
 
-VRChat is a Unity game with a few well-known Linux quirks and an unusually large
-ecosystem of companion tools.
-
 ## Unset TZ
 
 ```nix
@@ -22,8 +19,7 @@ setting it to an empty string.
 
 ## Companion tools that follow the game
 
-OSC bridges, tracking daemons and overlays should run while VRChat runs and stop
-when it stops:
+To run a companion tool only while VRChat runs:
 
 ```nix
 {
@@ -32,7 +28,7 @@ when it stops:
     systemd.enable = true;
   };
 
-  systemd.user.services.osc-bridge = {
+  systemd.user.services.opentrack = {
     partOf = [ "steam-app-vrchat.target" ];
     serviceConfig.ExecStart = lib.getExe pkgs.opentrack;
     wantedBy = [ "steam-app-vrchat.target" ];
@@ -51,8 +47,7 @@ VRChat keeps its own settings as Unity PlayerPrefs in the prefix registry. See
 
 ## Video playback
 
-Video players in worlds rely on a `yt-dlp` helper, which is a common source of
-breakage on Linux.
+Video players in worlds rely on a `yt-dlp` helper.
 [vrchat-video-resolver](https://github.com/different-name/vrchat-video-resolver)
-repairs it, and is a separate module that builds on this one. See [Third party
+replaces it, and is a separate module that builds on this one. See [Third party
 modules]({{< relref "/docs/third-party-modules" >}}).

@@ -3,8 +3,8 @@ title: Move a Proton prefix to another disk
 weight: 35
 ---
 
-Proton keeps a prefix beside the game, in `steamapps/compatdata/<id>`. Prefixes
-grow, and there is no reason they have to live on the same drive as the library.
+Proton keeps a prefix beside the game, in `steamapps/compatdata/<id>`.
+`prefixPath` moves it:
 
 ```nix
 {
@@ -15,13 +15,9 @@ grow, and there is no reason they have to live on the same drive as the library.
 }
 ```
 
-The directory is created at launch if missing. Its _parent_ is never created, so
-if you point this at a drive that is not mounted, the launch fails with an error
-rather than writing into the empty mount point and hiding the drive behind it.
-
-Prefix-aware options follow the move: `winetricks` verbs and `files.prefix`
-entries are applied to the new location, not the leftover directory in the
-library.
+The directory will be created at launch, but its parent will not, so the launch
+will fail if the parent is missing (an unmounted drive, for example).
+`winetricks` verbs and `files.prefix` entries will follow the move.
 
 ## Setting the variable instead
 
@@ -37,20 +33,18 @@ defaults to whatever `env` sets it to, so these are equivalent:
 }
 ```
 
-Setting it through `rawLaunchOptions` is **not** equivalent. It is applied too
-late for anything to read, so the prefix moves but `winetricks` and
-`files.prefix` keep using the old path.
+Setting it through `rawLaunchOptions` is **not** equivalent. It only reaches the
+game command, so the prefix will move but `winetricks` and `files.prefix` will
+keep using the old path.
 
 ## What still points at the old location
 
 Steam creates an empty `steamapps/compatdata/<id>` regardless, and any tool that
-looks a prefix up by app ID finds that one. Running `protontricks` by hand will
-experience this issue, so point it at the real path explicitly.
+looks a prefix up by app ID, `protontricks` included, will find that one.
 
 The prefix also has to be reachable from inside the Steam runtime container.
 Paths under your home directory work. `/tmp` does not, because the container has
 its own.
 
-Applying winetricks verbs to a relocated prefix runs protontricks inside a bind
-mount, which needs unprivileged user namespaces. Where those are unavailable the
-verbs are not applied and the game still launches.
+Winetricks verbs for a relocated prefix need unprivileged user namespaces.
+Without them the verbs will not be applied, and the game will still launch.

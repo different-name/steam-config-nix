@@ -7,7 +7,7 @@ DXVK and VKD3D translate Direct3D to Vulkan. Modern Proton comes with them so
 most games don't need this set up. However, when you do need a specific version,
 there are two routes with the same result and different reproducibility.
 
-## The easy, impure route
+## With Winetricks
 
 ```nix
 {
@@ -18,12 +18,11 @@ there are two routes with the same result and different reproducibility.
 }
 ```
 
-Winetricks downloads the runtime at launch. Simple, and not reproducible.
+Winetricks will install whatever DXVK release is latest at launch.
 
-## The pure route
+## With DLLs from nixpkgs
 
-DXVK is a set of DLLs plus an instruction to Wine to prefer them over its
-built-in implementations. Both halves can be declared:
+Place the DLLs in the prefix and tell Wine to load them over its built-in ones:
 
 ```nix
 {
@@ -51,4 +50,4 @@ anything.
 
 Setting `WINEDLLOVERRIDES` in `env` as well as `dllOverrides` is rejected, so
 declare the load order here rather than by hand. See [Why dllOverrides
-exists]({{< relref "/docs/launch-options#why-dlloverrides-exists" >}}).
+exists]({{< relref "/docs/launch-options#dll-overrides" >}}).

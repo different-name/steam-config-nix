@@ -27,14 +27,13 @@ The `unityPrefs` format handles both, so you write the plain key name:
 `content` maps a registry path to plain PlayerPrefs keys and values. Integers,
 floats, booleans and strings are each encoded the way Unity expects.
 
-The key path may use `/` or `\\` as the separator, so `"Software/VRChat/VRChat"`
-and `"Software\\VRChat\\VRChat"` are equivalent.
+The key path may use `/` or `\\` as the separator.
 
 ## Finding the company and product
 
-They come from the game's own build settings, not from its Steam name. The
-reliable way to find them is to launch the game once, then look at what appeared
-under `Software\` in the prefix's `user.reg`.
+They come from the game's build settings and can differ from its Steam name.
+Launch the game once, then look at what appeared under `Software\` in the
+prefix's `user.reg`.
 
 ## Raw registry access
 
@@ -54,8 +53,9 @@ instead. It maps a key path to value names directly, where a string becomes a
 }
 ```
 
-## How the keys reach the game
+## Applying and removing
 
-`patch` merges your keys into the game's own file on activation. Only the keys
-you name are touched, and the original is backed up before the first write, so
-removing the entry restores it.
+`patch` merges your keys into the game's own file on every activation, and only
+the keys you name are touched. Removing the entry will put the original back
+only if the file has not changed since it was last patched, and otherwise leave
+it as it is, your keys included.

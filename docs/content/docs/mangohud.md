@@ -6,8 +6,7 @@ weight: 12
 [MangoHud](https://github.com/flightlessmango/MangoHud) draws an FPS and system
 metrics overlay on Vulkan and OpenGL games.
 
-The simplest form is an environment variable, which works when MangoHud is
-installed system-wide:
+`MANGOHUD=1` enables it for Vulkan games when MangoHud is installed system-wide:
 
 ```nix
 {
@@ -18,8 +17,7 @@ installed system-wide:
 }
 ```
 
-If you would rather not install it globally, run it as a wrapper instead and the
-package comes from nixpkgs:
+Without a system-wide install, or for OpenGL games, use it as a wrapper:
 
 ```nix
 {
@@ -32,10 +30,8 @@ package comes from nixpkgs:
 
 ## Configuring it
 
-MangoHud reads a config file rather than taking options through Steam. Point it
-at one with `MANGOHUD_CONFIG` for inline settings, or manage a config file
-declaratively with `home.file`. It lives under your home directory, not in the
-game, so it is not something this module places.
+Set inline settings with `env.MANGOHUD_CONFIG`, or point
+`env.MANGOHUD_CONFIGFILE` at a config file.
 
 ## Turning it on for every game
 

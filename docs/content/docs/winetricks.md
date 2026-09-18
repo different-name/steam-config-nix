@@ -5,7 +5,7 @@ weight: 15
 
 [Winetricks](https://github.com/Winetricks/winetricks) installs Windows
 redistributables and runtimes into a Wine prefix (Visual C++ runtimes, .NET,
-fonts, media codecs) which some games and most mod loaders need.
+fonts, media codecs) which some games and mod loaders need.
 
 ```nix
 {
@@ -18,26 +18,23 @@ fonts, media codecs) which some games and most mod loaders need.
 
 ## How and when they are applied
 
-Verbs are installed at launch, not during a rebuild, because the prefix and the
-Proton build come from the environment Steam provides. So:
+Verbs are installed at launch, not during a rebuild, so:
 
 - The app must use a compatibility tool.
 - It must have been launched at least once, so the prefix exists.
-- A prefix moved with `prefixPath` is followed.
 
-They are re-applied whenever the verb list changes. The first launch after a
-change is slower, since the game waits while the verbs install, and if
-`notifications` is enabled, a desktop notification will let you know. A failure
-never blocks the game from launching.
+They will be re-applied whenever the verb list changes, so the first launch
+after a change will be slower, with a desktop notification while they install if
+`notifications` is enabled. A failed install will not block the launch, and will
+be retried at the next one.
 
-## What this costs you
+## Reproducibility
 
-Winetricks downloads runtimes from the internet at launch, so this is the least
-reproducible thing the module does.
+Winetricks downloads from upstream at launch, so a verb can change or break when
+upstream does.
 
 For DLL-style components you can avoid it. Place the DLLs yourself and declare
 the load order instead, see [Use DXVK without
 Winetricks]({{< relref "/docs/dxvk" >}}).
 
-Some unusual custom Proton builds are not compatible with protontricks and will
-fail, harmlessly, to apply verbs.
+Verbs can fail on custom Proton builds that protontricks does not support.

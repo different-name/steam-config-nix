@@ -3,9 +3,6 @@ title: Third party modules
 weight: 51
 ---
 
-steam-config-nix manages Steam's configuration and your game files. Per-game
-behaviour and fixes live in separate modules that build on top of it.
-
 ## Modules
 
 - [vrchat-video-resolver](https://github.com/different-name/vrchat-video-resolver):
@@ -21,10 +18,10 @@ A module that builds on steam-config-nix is an ordinary NixOS or Home Manager
 module that sets options under `programs.steam.config`, most often `env`,
 `wrappers`, `files` or `systemd.enable` for a specific app.
 
-Because everything composes through the module system, several such modules can
-configure the same app without conflicting. `env` and `dllOverrides` in
-particular merge rather than clobber, which is [why dllOverrides
-exists]({{< relref "/docs/launch-options#why-dlloverrides-exists" >}}).
+Several modules can configure the same app. `env`, `dllOverrides` and `files`
+merge by key, lists such as `wrappers` are concatenated and `preHook` is joined,
+but a single value such as one `env` variable, given two different values, will
+fail to evaluate.
 
 Use `lib.mkDefault` for anything a user might reasonably want to override.
 

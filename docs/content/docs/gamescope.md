@@ -4,12 +4,10 @@ weight: 11
 ---
 
 [Gamescope](https://github.com/ValveSoftware/gamescope) is a nested Wayland
-compositor. It gives a game its own display server, which is how the Steam Deck
-handles resolution, scaling, framerate limiting and HDR without the game
-knowing.
+compositor. It gives a game its own display server, which handles resolution,
+scaling, frame limiting and HDR.
 
-There is no gamescope option. You set it up as an ordinary wrapper, listed
-first, with its own flags terminated by `--`:
+Add it as a wrapper, listed first, with its own flags ended by `--`:
 
 ```nix
 {
@@ -19,7 +17,7 @@ first, with its own flags terminated by `--`:
       (lib.getExe pkgs.gamescope)
       "-W" "2560"   # output width
       "-H" "1440"   # output height
-      "-r" "144"    # refresh rate
+      "-r" "144"    # game frame rate
       "-f"          # fullscreen
       "--"
     ];
@@ -27,13 +25,12 @@ first, with its own flags terminated by `--`:
 }
 ```
 
-Set the resolution and refresh rate to your own display.
+Set the resolution and frame rate to match your display.
 
-## The `--` matters
+## The `--` separator
 
 Everything before `--` is gamescope's, everything after runs inside its session.
-Forgetting it means gamescope tries to interpret the game's command as its own
-flags.
+Without it, gamescope will try to read the game's command as its own flags.
 
 ## Combining with other wrappers
 
@@ -54,5 +51,4 @@ should run inside the session after the `--`:
 }
 ```
 
-That runs GameMode inside gamescope. Reversing them runs gamescope inside
-GameMode, which is usually not what you want.
+That runs GameMode inside gamescope.

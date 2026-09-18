@@ -5,11 +5,9 @@ weight: 21
 
 Unreal Engine games keep their settings in `.ini` files, usually under
 `Engine/Config/` in the install directory or under the Windows user profile in
-the prefix. Many of the tweaks people share for UE games (disabling motion blur,
-unlocking framerates, changing scalability) are edits to those files.
+the prefix.
 
-Patch them rather than replacing them, so the keys you did not mention survive a
-game update:
+Patch them to change only the keys you name:
 
 ```nix
 {
@@ -24,10 +22,9 @@ game update:
 ```
 
 `content` is sections of key to value, matching the file's own shape. Each key
-you name is set in place, and the rest of the file, including comments, ordering
-and settings you did not mention, is left as it was. Unreal writes some list
-valued settings as a repeated key, and patching one of those collapses it to a
-single line holding your value.
+you name is set in place, and the rest of the file is left as it was. Unreal
+writes some list valued settings as a repeated key: give a list to write one
+line per element, since a single value will collapse them to one line.
 
 ## Files in the prefix
 
@@ -45,18 +42,17 @@ Per-user settings live in the prefix rather than the install directory:
 }
 ```
 
-The exact path varies by game and engine version. Launch the game once, then go
-looking, the prefix does not exist until then, and a patch against a file that
-is not there yet waits rather than failing.
+The exact path varies by game and engine version, so launch the game once and
+look. A patch against a file that is not there yet will wait for it.
 
-## Related
+## Creating the file
 
-The `createIfMissing` option gives the game a file containing just your keys
-when the target does not exist. It is off by default, which is usually right for
-engine configs, you want the game to generate its own first.
+`createIfMissing = true` will create the file with just your keys when it is
+missing. Leave it off for engine configs, so the game generates its own.
 
-## How the keys reach the game
+## Applying and removing
 
-`patch` merges your keys into the game's own file on activation. Only the keys
-you name are touched, and the original is backed up before the first write, so
-removing the entry restores it.
+`patch` merges your keys into the game's own file on every activation, and only
+the keys you name are touched. Removing the entry will put the original back
+only if the file has not changed since it was last patched, and otherwise leave
+it as it is, your keys included.

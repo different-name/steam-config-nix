@@ -3,9 +3,9 @@ title: Limit a game's resources with systemd
 weight: 32
 ---
 
-A managed app runs inside a transient systemd scope, which puts the game and
-everything it spawns in one cgroup. `systemd.scope.properties` sets properties
-on that scope, passed through to `systemd-run --property`:
+With `systemd.enable`, an app runs inside a transient systemd scope, which puts
+the game and everything it spawns in one cgroup. `systemd.scope.properties` sets
+properties on that scope, passed through to `systemd-run --property`:
 
 ```nix
 {
@@ -20,20 +20,14 @@ on that scope, passed through to `systemd-run --property`:
 }
 ```
 
-`systemd.enable` is what creates the scope, so it has to be on for any of this
-to apply.
+See `systemd.resource-control(5)` for the properties and their values.
 
-Any property a scope accepts works, so `CPUWeight`, `MemoryMax`, `MemoryHigh`
-and `AllowedCPUs` are all available. See `systemd.resource-control(5)` for the
-full set and what the values mean.
-
-## Why a slice
+## Slices
 
 Without `Slice` the scope lands under `app.slice` rather than inheriting the
 cgroup Steam was launched in.
 
-Naming a slice gives you one place to set limits for every game, instead of
-repeating them per app:
+A slice sets limits once for every game in it:
 
 ```nix
 {
@@ -45,8 +39,8 @@ repeating them per app:
 ```
 
 Then point each app at it with `Slice = "games.slice"`. Limits on the slice
-apply to everything in it together, so two games running at once share the
-budget rather than getting one each.
+apply to everything in it together, so two games running at once will share
+them.
 
 ## Limits
 
@@ -55,8 +49,9 @@ budget rather than getting one each.
   `app-steam-<id>-*` instead.
 - Output is not captured by the journal. The scope inherits Steam's stdout and
   stderr.
-- Put dependencies on the target, not in `systemd.scope.properties`. The scope
-  accepts them, but its name is not stable. See [Run a tool alongside a game
-  with systemd]({{< relref "/docs/run-alongside-game" >}}).
+- Setting `Wants` in `systemd.scope.properties` will stop the target from
+  starting, and setting `After` will stop the launch from waiting for it. Put
+  dependencies on the target instead, see [Run a tool alongside a game with
+  systemd]({{< relref "/docs/run-alongside-game" >}}).
 - With no systemd user manager the app still launches, without a scope, so no
   limits are applied.

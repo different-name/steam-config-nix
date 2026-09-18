@@ -26,8 +26,7 @@ people get replacements.
 }
 ```
 
-Any of them may be a local path or a fetched file. Fetching keeps the images out
-of your repository at the cost of pinning a hash.
+Any of them may be a local path or a fetched file.
 
 ## Which image is which
 
@@ -37,4 +36,4 @@ of your repository at the cost of pinning a hash.
 - `logo`: the transparent title overlaid on the hero
 
 `cover`, `header`, `hero` and `logo` work for both Steam and non-Steam apps.
-`icon` is non-Steam only, because Steam manages the icons of its own apps.
+`icon` is non-Steam only.

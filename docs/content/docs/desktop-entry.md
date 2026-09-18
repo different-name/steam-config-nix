@@ -15,10 +15,9 @@ else that reads `.desktop` files, and launching it goes through Steam as normal.
 }
 ```
 
-Name, comment, icon and categories all have defaults, so that is usually the
-whole configuration. The name comes from the app's own `name`, which for a Steam
-app defaults to its ID, so set `name` if you want a readable entry. It works for
-non-Steam apps too, where the name and icon come from `name` and `artwork.icon`.
+The name comes from the app's own `name`, which for a Steam app defaults to its
+ID, so set `name` if you want a readable entry. It works for non-Steam apps too,
+where the name and icon come from `name` and `artwork.icon`.
 
 ## For every app at once
 

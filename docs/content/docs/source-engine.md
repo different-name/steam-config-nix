@@ -27,12 +27,12 @@ conventional place for your own, and it is read at startup.
 place if it is already there, or appended if it is not, and binds, aliases and
 comments in the file are left untouched.
 
-`createIfMissing = true` is usually right here, unlike most patch targets:
-`autoexec.cfg` often does not exist until you make it, and there is nothing to
-wait for the game to generate.
+`createIfMissing = true` is usually right here, because `autoexec.cfg` often
+does not exist until you make it.
 
-## How the keys reach the game
+## Applying and removing
 
-`patch` merges your keys into the game's own file on activation. Only the keys
-you name are touched, and the original is backed up before the first write, so
-removing the entry restores it.
+`patch` merges your keys into the game's own file on every activation, and only
+the keys you name are touched. Removing the entry will put the original back
+only if the file has not changed since it was last patched, and otherwise leave
+it as it is, your keys included.

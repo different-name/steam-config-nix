@@ -3,9 +3,8 @@ title: Set environment variables for every game
 weight: 37
 ---
 
-This module configures Steam per app, so it has no global `env`. To set
-variables for every Steam game at once, put them in Steam's own environment by
-overriding the package:
+There is no global `env`. To set variables for every Steam game at once, put
+them in Steam's own environment by overriding the package:
 
 ```nix
 {

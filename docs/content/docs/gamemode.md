@@ -18,11 +18,10 @@ It is a wrapper:
 }
 ```
 
-`"gamemoderun"` is given as a bare name here because the GameMode daemon has to
-be enabled system-wide anyway (`programs.gamemode.enable` on NixOS), which puts
-it on `PATH`. A package works too if you would rather be explicit.
+The GameMode daemon has to be enabled system-wide (`programs.gamemode.enable` on
+NixOS), which puts `gamemoderun` on `PATH`. `pkgs.gamemode` works too.
 
-## Ordering with gamescope
+## With gamescope
 
-If you also use gamescope, GameMode should run inside it. See [Run a game with
+For ordering with gamescope, see [Run a game with
 Gamescope]({{< relref "/docs/gamescope" >}}).

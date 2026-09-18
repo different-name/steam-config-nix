@@ -10,7 +10,6 @@ compatibility tools, overlay, controller handling and artwork.
 {
   programs.steam.config.nonSteamApps."Vintage Story" = {
     target = pkgs.vintagestory;   # a package or an absolute path
-    compatTool = "proton_experimental";
     env.MANGOHUD = "1";
     artwork.icon = ./vintagestory.png;
   };
@@ -24,19 +23,17 @@ own:
   absolute path
 - `startIn`: working directory, defaulting to `target`'s directory
 - `isHidden`, `allowOverlay`, `inVrLibrary`: the usual shortcut toggles
-- `artwork.icon`: available here, unlike Steam apps, because Steam does not
-  manage shortcut icons
+- `artwork.icon`: the shortcut's icon
 
-`files` and the Steam-manifest settings (`betaBranch`, `language`,
-`updateBehavior`) do not apply, since there is no Steam-installed game to own
-them.
+Options that act on a Steam-installed game, such as `files` and `betaBranch`,
+are Steam apps only.
 
 ## Renaming without losing the prefix
 
 Steam identifies a shortcut by a number. The module derives one from a `seed`
 that defaults to the attribute name, so it stays stable across rebuilds, but
-that means **changing the attribute name gives the app a new prefix.** Setting
-`name` is safe, it does not feed the seed.
+**changing the attribute name will give the app a new ID, and with it a new
+prefix and no play time.** Changing `name` is safe.
 
 If you want to rename one and keep its prefix, pin the seed to the old attribute
 name first:

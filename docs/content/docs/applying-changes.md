@@ -29,29 +29,19 @@ Steam is in the way:
 - `"force-close"`: close Steam and apply immediately, even mid-game
 - `"skip"`: skip writing, the changes apply on the next activation
 
-## Game files wait for the game, not for Steam
+## Game files are applied every activation
 
-Everything under `files` is written into the game's install directory or its
-Proton prefix during an activation. Steam does not own those files, so
-`onSteamRunning` does not govern them: they are applied whether or not Steam is
-running. A running game does hold them up, because replacing a file underneath a
-game that has it open is how you get a crash, so the activation waits for that
-game to exit first.
+Everything under `files` is applied to the game's install directory or its
+Proton prefix on every activation. Steam does not own those files, so
+`onSteamRunning` does not govern them.
 
-Removing an entry reverts it on the next activation. What that does and does not
-put back is covered in [what managing game files can and cannot
-undo]({{< relref "/docs/game-files" >}}).
+Removing an entry will revert it on the next activation. If any game is running,
+the activation will wait for it to exit first. See [what managing game files can
+and cannot undo]({{< relref "/docs/game-files" >}}).
 
-## When nothing happens at all
-
-Some work is deferred rather than blocked:
+## What waits for the game
 
 - A game that has never been launched has no Proton prefix, so its prefix files
-  are left for the next launch, and winetricks verbs wait for the launch after
-  the prefix exists.
-- A patch waits for the game to generate its target file, unless you set
+  and winetricks verbs wait until it has been launched once.
+- A patch will wait for the game to generate its target file, unless you set
   `createIfMissing`.
-
-Each location is handled separately, so a game whose install directory is
-reachable but whose prefix is not gets only the first applied, and says which
-one it could not do.

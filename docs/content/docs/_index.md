@@ -39,10 +39,10 @@ Pick a game you have installed and find its App ID: open its store page and read
 the number out of the URL. `store.steampowered.com/app/438100/` is App ID
 `438100`.
 
-{{< callout type="warning" >}} Steam launch options are managed by this module,
-so anything set manually in Steam's launch options field is overwritten once you
-set `env`, `args` or another launch option for that app. Move launch strings you
-want to keep into `rawLaunchOptions` before your first rebuild. {{< /callout >}}
+{{< callout type="warning" >}} Most options make use of a wrapper script, so in
+most cases anything set manually in Steam's launch options field will be
+overwritten. Move launch strings you want to keep into `rawLaunchOptions` before
+your first rebuild. {{< /callout >}}
 
 `args` appends arguments to the game's command, and `env` sets environment
 variables for it. Cap the framerate, and turn on an overlay so you can see the
@@ -65,13 +65,12 @@ cap working:
 `name` is optional and never has to match Steam's own name. It is used for the
 desktop entry, the systemd target name, and the wrapper's own messages.
 
-The overlay needs MangoHud installed system-wide, because `MANGOHUD=1` enables a
-Vulkan layer that the game's own loader has to be able to find. Add
-`pkgs.mangohud` to your packages if it is not there already.
+The overlay needs MangoHud installed system-wide: add `pkgs.mangohud` to your
+packages if it is not there already.
 
 Rebuild to apply the new configuration.
 
-## Watch it not apply yet
+## Close Steam to apply it
 
 If Steam was running during the rebuild, nothing has changed yet.
 
@@ -79,8 +78,8 @@ Steam keeps its configuration in files it holds open and rewrites when it exits.
 Anything written underneath it is discarded. So by default the module waits: it
 writes your changes the next time Steam is closed.
 
-Close Steam, the changes will be applied automatically, open Steam again and
-launch the game. The overlay should show the framerate pinned at 60.
+Close Steam, open it again and launch the game. The overlay should show the
+framerate pinned at 60.
 
 If waiting is not what you want, then:
 
@@ -90,11 +89,11 @@ If waiting is not what you want, then:
 }
 ```
 
-That closes Steam for you during a rebuild, waiting for any running game to exit
-first. [How changes are applied]({{< relref "/docs/applying-changes" >}}) covers
-the other choices.
+That will close Steam during a rebuild, after any running game exits. [How
+changes are applied]({{< relref "/docs/applying-changes" >}}) covers the other
+choices.
 
-## Change it again, and watch it apply immediately
+## Change it again
 
 Now edit the same option, and leave Steam running this time:
 
@@ -111,9 +110,8 @@ Now edit the same option, and leave Steam running this time:
 Rebuild without closing Steam, and launch the game. The overlay will show 30
 fps.
 
-Both edits were the same kind of change. The difference is that this was the
-second one, and Steam only has to be told where the wrapper is once. See [How
-launch options work]({{< relref "/docs/launch-options" >}}).
+Steam only has to be told where the wrapper is once, so this change did not
+wait. See [How launch options work]({{< relref "/docs/launch-options" >}}).
 
 ## Where to go next
 

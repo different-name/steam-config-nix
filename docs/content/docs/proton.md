@@ -23,8 +23,7 @@ or a package:
 }
 ```
 
-`defaultCompatTool` sets Steam's global default. It does not change the module
-defaults for individual apps.
+`defaultCompatTool` sets Steam's global default.
 
 ## Builds that are not in nixpkgs
 
@@ -48,10 +47,6 @@ first build.
 
 ## Caveats
 
-Some unusual custom builds are not compatible with protontricks, so
-[Winetricks]({{< relref "/docs/winetricks" >}}) verbs will fail to apply on
-them. The failure is harmless and the game still launches.
-
-Switching an app's Proton build does not reset its prefix. If a game breaks
-after a switch, deleting the prefix and letting it regenerate is usually the
-fix.
+Switching an app's Proton build will not reset its prefix. If a game breaks
+after a switch, delete the prefix to let it regenerate (saves kept in the prefix
+will go with it).
