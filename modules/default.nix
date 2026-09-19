@@ -115,6 +115,17 @@ in
       '';
     };
 
+    desktopUiScale = lib.mkOption {
+      type = with types; nullOr (numbers.between 0.5 2.0);
+      default = null;
+      example = 1.25;
+      description = ''
+        Scale of the Steam desktop interface, where `1.0` is the unscaled size.
+
+        `null` leaves the existing Steam setting untouched.
+      '';
+    };
+
     apps = lib.mkOption {
       type = mkAppType steamAppModule;
       default = { };
@@ -264,7 +275,7 @@ in
       );
 
       patcherConfig = builtins.toJSON {
-        inherit (cfg) onSteamRunning displayRatesAsBits;
+        inherit (cfg) onSteamRunning displayRatesAsBits desktopUiScale;
         defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
         apps = mapFinalConfigs enabledApps;
         nonSteamApps = mapFinalConfigs enabledNonSteamApps;

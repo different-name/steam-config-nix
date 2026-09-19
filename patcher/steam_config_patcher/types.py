@@ -9,6 +9,11 @@ DISPLAY_RATES_AS_BITS_PATH = (
     "system",
     "displayratesasbits",
 )
+DESKTOP_UI_SCALE_PATH = (
+    "InstallConfigStore",
+    "Accessibility",
+    "DesktopUIScale",
+)
 APPMANIFEST_FILE_PREFIX = "appmanifest_"
 
 APPMANIFEST_PATH = ("AppState",)
@@ -76,6 +81,7 @@ class PatcherConfig:
     compat_tool_mapping: dict[int, CompatToolConfig]
     users: dict[int, UserConfig]
     display_rates_as_bits: bool | None = None
+    desktop_ui_scale: float | None = None
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
     game_update_behaviors: dict[int, str] = field(default_factory=dict)

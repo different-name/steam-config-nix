@@ -110,6 +110,7 @@
                 onSteamRunning
                 notifications
                 displayRatesAsBits
+                desktopUiScale
                 desktopEntries
                 ;
               defaultCompatTool =
@@ -467,6 +468,7 @@
               grep -q GE-Proton "$steam/config/config.vdf"
               grep -q test-launch-wrapper "$lc"
               grep -q '"displayratesasbits"[[:space:]]*"1"' "$lc"
+              grep -q '"DesktopUIScale"[[:space:]]*"1.14999997615814209"' "$steam/config/config.vdf"
               grep -q '"BetaKey"' "$acf"
               grep -q beta "$acf"
               grep -q german "$acf"

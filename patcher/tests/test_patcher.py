@@ -11,6 +11,7 @@ from steam_config_patcher.patcher import (
     patch_config_files,
 )
 from steam_config_patcher.types import (
+    DESKTOP_UI_SCALE_PATH,
     DISPLAY_RATES_AS_BITS_PATH,
     CompatToolConfig,
     FileOp,
@@ -116,11 +117,13 @@ def make_cfg(
     file_ops=None,
     remove_ops=None,
     display_rates_as_bits=None,
+    desktop_ui_scale=None,
 ):
     return PatcherConfig(
         on_steam_running=on_steam_running,
         steam_dir=steam_dir,
         display_rates_as_bits=display_rates_as_bits,
+        desktop_ui_scale=desktop_ui_scale,
         game_betas=game_betas or {},
         game_languages=game_languages or {},
         game_update_behaviors=game_update_behaviors or {},
@@ -423,6 +426,21 @@ def test_display_rates_as_bits_written_and_cleaned_up(fake_steam, tmp_path):
     patch_config_files(make_cfg(steam_dir))
 
     assert find_values(localconfig_vdf, DISPLAY_RATES_AS_BITS_PATH) == []
+
+
+def test_desktop_ui_scale_written_and_cleaned_up(fake_steam, tmp_path):
+    steam_dir = make_steam_dir(tmp_path)
+    config_vdf = steam_dir / "config" / "config.vdf"
+
+    patch_config_files(make_cfg(steam_dir, desktop_ui_scale=1.15))
+
+    # the value steam itself writes for this slider position
+    assert find_values(config_vdf, DESKTOP_UI_SCALE_PATH) == ["1.14999997615814209"]
+
+    patch_config_files(make_cfg(steam_dir))
+
+    assert find_values(config_vdf, DESKTOP_UI_SCALE_PATH) == []
+
 
 def test_second_run_cleans_up_removed_entries(fake_steam, tmp_path):
     steam_dir = make_steam_dir(tmp_path)

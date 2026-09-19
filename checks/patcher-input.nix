@@ -4,6 +4,7 @@ pkgs.writeText "patcher-input.json" (
     onSteamRunning = "wait";
     defaultCompatTool = null;
     displayRatesAsBits = true;
+    desktopUiScale = 1.15;
     apps."620" = {
       id = 620;
       compatTool = "GE-Proton";

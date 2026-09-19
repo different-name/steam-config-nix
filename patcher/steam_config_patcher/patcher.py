@@ -1,4 +1,5 @@
 import logging
+import struct
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import assert_never
@@ -28,6 +29,7 @@ from steam_config_patcher.types import (
     APPMANIFEST_PATH,
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
+    DESKTOP_UI_SCALE_PATH,
     DISPLAY_RATES_AS_BITS_PATH,
     LOCALCONFIG_APPS_PATH,
     LOCALCONFIG_FILE,
@@ -58,6 +60,11 @@ def nest_leaves(leaves: KeyValuesLeaves) -> KeyValuesType:
     return tree
 
 
+# match how steam itself writes the scale, or every run rewrites the file
+def format_ui_scale(scale: float) -> str:
+    return "%.18g" % struct.unpack("f", struct.pack("f", scale))[0]
+
+
 def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedKey]]:
     leaves: KeyValuesLeaves = {}
     managed_keys: list[ManagedKey] = []
@@ -73,6 +80,17 @@ def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedK
                 key_path=block_path,
                 guard_path=("name",),
                 expected=compat_tool.name,
+            )
+        )
+
+    if cfg.desktop_ui_scale is not None:
+        scale = format_ui_scale(cfg.desktop_ui_scale)
+        leaves[DESKTOP_UI_SCALE_PATH] = scale
+        managed_keys.append(
+            ManagedKey(
+                file=CONFIG_FILE,
+                key_path=DESKTOP_UI_SCALE_PATH,
+                expected=scale,
             )
         )
 
