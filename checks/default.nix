@@ -1,697 +1,655 @@
-{ inputs, self, ... }:
 {
-  perSystem =
-    {
-      pkgs,
-      system,
-      self',
-      lib,
-      ...
-    }:
-    let
-      fakeCompatTool = pkgs.runCommand "fake-compat-tool" { } ''
-        mkdir $out
-        echo '"compatibilitytools" { "compat_tools" { "Fake-Proton" { "install_path" "." } } }' > $out/compatibilitytool.vdf
-      '';
+  self,
+  nixpkgs,
+  home-manager,
+  pkgs,
+  system,
+}:
+let
+  inherit (nixpkgs) lib;
 
-      # proton-cachyos ships the vdf under bin/ with no steamcompattool output
-      fakeBinCompatTool = pkgs.runCommand "fake-bin-compat-tool" { } ''
-        mkdir -p $out/bin
-        echo '"compatibilitytools" { "compat_tools" { "Bin-Proton" { "install_path" "." } } }' > $out/bin/compatibilitytool.vdf
-      '';
+  art = pkgs.writeText "cover.png" "art";
 
-      fakeArt = pkgs.runCommand "fake-art.jpg" { } "echo art > $out";
-
-      seedConfigVdf = pkgs.writeText "config.vdf" ''
-        "InstallConfigStore"
-        {
-        	"Software" { "Valve" { "Steam" { "CompatToolMapping" { } } } }
-        }
-      '';
-      seedLocalconfigVdf = pkgs.writeText "localconfig.vdf" ''
-        "UserLocalConfigStore"
-        {
-        	"Software" { "Valve" { "Steam" { "Apps" { } } } }
-        }
-      '';
-      seedAppmanifest = pkgs.writeText "appmanifest_620.acf" ''
-        "AppState"
-        {
-        	"appid"		"620"
-        	"installdir"		"Test Game"
-        	"UserConfig" { "language" "english" }
-        }
-      '';
-      seedModFile = pkgs.writeText "mod.txt" "modcontent";
-      patcherInput = import ./patcher-input.nix { inherit pkgs seedModFile; };
-
-      docsSnippets =
-        let
-          pages = lib.filter (lib.hasSuffix ".md") (lib.filesystem.listFilesRecursive ../docs/content);
-          blocksIn =
-            page:
-            let
-              # a bare fence excludes the {eval=false} blocks
-              after = lib.drop 1 (lib.splitString "```nix\n" (builtins.readFile page));
-              # two pages can share a basename, so key a block on its whole path
-              relative = lib.removePrefix "${toString ../docs/content}/" (toString page);
-            in
-            lib.imap0 (index: chunk: {
-              name = "${lib.replaceStrings [ "/" ] [ "-" ] relative}-${toString index}";
-              source = "${relative}:${toString index}";
-              text = lib.head (lib.splitString "\n```" chunk);
-            }) after;
-        in
-        lib.concatMap blocksIn pages;
-
-      # a snippet reaches the store on its own, so a page relative path needs a stand in
-      withAssets =
-        text:
-        lib.concatMapStrings (part: if lib.isList part then "snippetAsset" else part) (
-          builtins.split "\\./[A-Za-z0-9_.-]+" text
-        );
-
-      evalSnippet =
-        block:
-        let
-          module = import (
-            builtins.toFile "${block.name}.nix" ''
-              { lib, pkgs, config, snippetAsset, ... }:
-              ${withAssets block.text}
-            ''
-          );
-          # a real nixos eval keeps the unknown option check on at any depth
-          eval = inputs.nixpkgs.lib.nixosSystem {
-            specialArgs.snippetAsset = pkgs.emptyFile;
-            modules = [
-              self.nixosModules.default
-              {
-                system.stateVersion = "26.05";
-                nixpkgs.hostPlatform = system;
-                # a page is free to name an unfree package
-                nixpkgs.config.allowUnfree = true;
-              }
-              # or a failing snippet reports <unknown-file> instead of its page
-              {
-                _file = block.source;
-                imports = [ module ];
-              }
-            ];
+  sample = {
+    programs.steam-config = {
+      enable = true;
+      env.PROTON_ENABLE_WAYLAND = 1;
+      defaultCompatTool = "GE-Proton";
+      desktopUiScale = 1.25;
+      desktopEntries.enable = true;
+      libraryFolders = [ "/mnt/games" ];
+      apps."105600" = {
+        overlay = false;
+        steamInput = "enable";
+        env.SCN = "x";
+        args = [
+          "-a"
+          "two words"
+        ];
+        systemd.enable = true;
+        artwork.cover = art;
+        files.game = {
+          overlay."mods/x.txt".text = "hi";
+          overlay."bin/tool" = {
+            source = art;
+            executable = true;
+            readOnly = true;
           };
-          docCfg = eval.config.programs.steam.config;
-          # deepSeq on the config itself would recurse into derivations
-          forced = builtins.toJSON {
-            apps = lib.mapAttrs (_: app: app.finalConfig) docCfg.apps;
-            nonSteamApps = lib.mapAttrs (_: app: app.finalConfig) docCfg.nonSteamApps;
-            # without this the global options are never forced, so a bad value slips through
-            globals = {
-              inherit (docCfg)
-                enable
-                onSteamRunning
-                notifications
-                displayRatesAsBits
-                desktopUiScale
-                desktopEntries
-                ;
-              defaultCompatTool =
-                if docCfg.defaultCompatTool == null then null else toString docCfg.defaultCompatTool;
-            };
+          hide = [ "movies/intro.bik" ];
+          passthrough = [ "Saves" ];
+          writeDefault."cfg/a.cfg".text = "a";
+          writeKeys."Engine.ini" = {
+            format = "ini";
+            content."Engine.Console".ConsoleKey = "F9";
           };
-          # forcing our own tree never reaches an option a snippet sets elsewhere, so walk what it defines
-          defined =
-            let
-              applied = module {
-                inherit lib pkgs;
-                inherit (eval) config;
-                snippetAsset = pkgs.emptyFile;
-              };
-            in
-            removeAttrs (applied.config or applied) [
-              "imports"
-              "options"
-              "_file"
-              "key"
-            ];
-          # an option that does not exist throws while the attribute below it is looked up
-          leaves =
-            path: value:
-            if lib.isAttrs value && !lib.isDerivation value && (value._type or null) == null then
-              lib.concatMap (name: leaves (path ++ [ name ]) value.${name}) (builtins.attrNames value)
-            else
-              [ (builtins.seq (lib.attrByPath path null eval.config) true) ];
-        in
-        builtins.seq forced (builtins.deepSeq (leaves [ ] defined) block.source);
-
-      noArtwork = {
-        cover = null;
-        header = null;
-        hero = null;
-        logo = null;
+        };
+        files.prefix.writeKeys."user.reg" = {
+          format = "unityPrefs";
+          content."Software/VRChat/VRChat".VRC_MIRROR_RESOLUTION = 3;
+        };
       };
+      apps.jellycar = {
+        id = 1740930;
+        compatTool = "proton_9";
+        updateBehavior = "onLaunch";
+        allowDownloadsWhileRunning = "never";
+        rawLaunchOptions = "MANGOHUD=1 %command% -x";
+      };
+      nonSteamApps.probe = {
+        target = "/opt/probe/run";
+        inVrLibrary = true;
+        overlay = false;
+        env.SCN_APP = "probe";
+      };
+      nonSteamApps."Vintage Story".target = "/opt/vs/run";
+    };
+  };
 
-      nixosEval = inputs.nixpkgs.lib.nixosSystem {
-        modules = [
-          self.nixosModules.default
+  nixos =
+    modules:
+    (lib.nixosSystem {
+      inherit system;
+      modules = [
+        self.nixosModules.default
+        {
+          nixpkgs.config.allowUnfree = true;
+          system.stateVersion = "26.05";
+          fileSystems."/" = {
+            device = "none";
+            fsType = "tmpfs";
+          };
+          boot.loader.grub.enable = false;
+          programs.steam.enable = true;
+          users.users.alice = {
+            isNormalUser = true;
+            uid = 1001;
+          };
+        }
+      ]
+      ++ modules;
+    }).config;
+  eval = nixos [ sample ];
+  quoted = nixos [
+    {
+      programs.steam-config = {
+        enable = true;
+        apps."620" = {
+          name = "Portal \"2\" $HOME `id`";
+          systemd.enable = true;
+          winetricks = [ "corefonts" ];
+          preHook = "export Q=1";
+        };
+      };
+    }
+  ];
+  mergedKeys = nixos [
+    {
+      programs.steam-config = {
+        enable = true;
+        apps."620".files.game.writeKeys."a.ini" = {
+          format = "ini";
+          content.S.a = 1;
+        };
+      };
+    }
+    { programs.steam-config.apps."620".files.game.writeKeys."a.ini".content.S.b = 2; }
+  ];
+  keepPath = import ../lib/keep-path.nix { inherit lib; };
+  vintageEntry = lib.findFirst (
+    p: lib.hasInfix "steam-config-nix-vintage-story" (p.name or "")
+  ) (throw "no vintage story entry") eval.environment.systemPackages;
+
+  cfg = eval.programs.steam-config;
+  stateRule = lib.findFirst (
+    r: lib.hasInfix "state.json" r
+  ) (throw "no state rule") eval.systemd.tmpfiles.rules;
+  stateFile = lib.last (lib.splitString " " stateRule);
+  ruleTarget =
+    prefix: rules:
+    lib.last (
+      lib.splitString " " (lib.findFirst (lib.hasPrefix prefix) (throw "no rule ${prefix}") rules)
+    );
+  launchTree = ruleTarget "L+ /var/lib/steam-config-nix/launch " eval.systemd.tmpfiles.rules;
+  quotedLaunchTree = ruleTarget "L+ /var/lib/steam-config-nix/launch " quoted.systemd.tmpfiles.rules;
+  launchShellTarget = ruleTarget "L+ /var/lib/steam-config-nix/launch-shell " eval.systemd.tmpfiles.rules;
+  spec105600 = "${launchTree}/105600.json";
+  specJellycar = "${launchTree}/1740930.json";
+  specQuoted = "${quotedLaunchTree}/620.json";
+  launch = self.packages.${system}.steam-config-launch;
+  jq = lib.getExe pkgs.jq;
+  bash = lib.getExe pkgs.bash;
+  envRow =
+    name: source:
+    "  ${name}${lib.concatStrings (lib.genList (_: " ") (51 - lib.stringLength name))}${source}";
+  filesSpec105600 = cfg.apps."105600".filesSpec;
+  showApp = pkgs.writeText "show-105600" (
+    lib.concatLines [
+      "105600, app 105600"
+      "  spec      @PWD@/xdg/steam-config-nix/launch/105600.json"
+      "  global    @PWD@/xdg/steam-config-nix/launch/global.json"
+      ""
+      "environment, in the order applied"
+      (envRow "PROTON_ENABLE_WAYLAND=1" "global")
+      (envRow "SCN=x" "env")
+      ""
+      "scope"
+      "  no user manager, launches without a scope"
+      ""
+      "files"
+      "  ${filesSpec105600}"
+      "  game      2 overlay, 1 hide, 1 passthrough, 1 writeDefault, 1 writeKeys"
+      "  prefix    1 writeKeys"
+      ""
+      "command line"
+      "  %command% -a 'two words'"
+      ""
+      "exec chain"
+      "  ${lib.getExe launch} launch ${filesSpec105600} --"
+      "  /bin/sh -c '%command% -a '\\''two words'\\'''"
+    ]
+  );
+
+  expectedState = {
+    onSteamRunning = "wait";
+    steam = lib.getExe cfg.launcher;
+    notifySend = lib.getExe' pkgs.libnotify "notify-send";
+    globalCompatTool = "GE-Proton";
+    libraryFolders = [ "/mnt/games" ];
+    desktopUiScale = 1.25;
+    apps = {
+      "105600" = {
+        overlay = false;
+        steamInput = 2;
+        libraryIcon = true;
+        artwork.cover = "${art}";
+      };
+      "1740930" = {
+        compatTool = "proton_9";
+        updateBehavior = 1;
+        backgroundDownloads = 2;
+        libraryIcon = true;
+      };
+    };
+    shortcuts."4132570534" = {
+      name = "probe";
+      exe = "/opt/probe/run";
+      dir = "/opt/probe";
+      vr = true;
+      overlay = false;
+    };
+    shortcuts."3402148748" = {
+      name = "Vintage Story";
+      exe = "/opt/vs/run";
+      dir = "/opt/vs";
+    };
+  };
+  expectedJson = pkgs.writeText "expected-state.json" (lib.toJSON expectedState);
+
+  layer = cfg.apps."105600".files.game.spec.layer;
+  expectedSpec = {
+    key = "105600";
+    name = "105600";
+    appId = 105600;
+    bwrap = lib.getExe' pkgs.bubblewrap "bwrap";
+    notifySend = lib.getExe' pkgs.libnotify "notify-send";
+    locations = {
+      game = {
+        layer = "${layer}";
+        overlay = [
           {
-            system.stateVersion = "26.05";
-            nixpkgs.hostPlatform = system;
-            programs.steam.config = {
-              enable = true;
-              defaultCompatTool = "GE-Proton";
-              desktopEntries.enable = true;
-
-              apps = {
-                "620" = {
-                  rawLaunchOptions = "MANGOHUD=1 %command% -vulkan";
-                  winetricks = [ "vcrun2022" ];
-                  prefixPath = "/mnt/prefixes/620";
-                  desktopEntry.icon = "custom-icon";
-                };
-
-                "440" = {
-                  rawLaunchOptions = "-windowed -novid";
-                };
-
-                "730" = {
-                  compatTool = fakeCompatTool;
-                  desktopEntry.enable = false;
-                };
-
-                "999" = {
-                  enable = false;
-                };
-
-                "1091500" = {
-                  name = "cyberpunk";
-                  compatTool = "proton_experimental";
-                  betaBranch = "prerelease";
-                  language = "german";
-                  updateBehavior = "onLaunch";
-                  allowDownloadsWhileRunning = "always";
-                  artwork.hero = fakeArt;
-                  files.game.place."mods/test.pak".source = fakeArt;
-                  files.game.remove = [ "movies/intro.bik" ];
-                  files.game.patch."config/user.ini" = {
-                    format = "ini";
-                    content.Video.Fullscreen = 1;
-                  };
-                  env.TZ = null;
-                  dllOverrides = {
-                    winmm = "n,b";
-                    version = "n,b";
-                  };
-                  args = [ "--launcher-skip" ];
-                  wrappers = [ "gamemoderun" ];
-                  preHook = "echo prehook";
-                };
-              };
-
-              nonSteamApps = {
-                vintage-story.target = "/games/vintagestory/start";
-              };
-            };
+            target = "bin/tool";
+            readOnly = true;
+          }
+          {
+            target = "mods/x.txt";
+            readOnly = false;
+          }
+        ];
+        hide = [ "movies/intro.bik" ];
+        passthrough = [ "Saves" ];
+        writeDefault = [
+          {
+            target = "cfg/a.cfg";
+            source = "${pkgs.writeText "steam-config-nix-file" "a"}";
+            executable = null;
+          }
+        ];
+        writeKeys = [
+          {
+            target = "Engine.ini";
+            format = "ini";
+            content."Engine.Console".ConsoleKey = "F9";
+            createIfMissing = false;
           }
         ];
       };
-
-      cfg = nixosEval.config.programs.steam.config;
-
-      actual = {
-        apps = lib.mapAttrs (_: app: app.finalConfig) cfg.apps;
-        nonSteamApps = lib.mapAttrs (_: app: app.finalConfig) cfg.nonSteamApps;
-        extraCompatPackages = nixosEval.config.programs.steam.extraCompatPackages;
-      };
-
-      expected = import ./expected.nix { inherit fakeCompatTool fakeArt noArtwork; };
-
-      expectedJson = pkgs.writeText "expected.json" (builtins.toJSON expected);
-      actualJson = pkgs.writeText "actual.json" (builtins.toJSON actual);
-
-      strWrapper = lib.getExe cfg.apps."620".wrapper.package;
-      rawArgsWrapper = lib.getExe cfg.apps."440".wrapper.package;
-      optionsWrapper = lib.getExe cfg.apps."1091500".wrapper.package;
-      optionsExec = cfg.apps."1091500".wrapper.exec;
-
-      desktopItems = lib.filter (
-        pkg: lib.hasPrefix "steam-config-nix-" (pkg.name or "")
-      ) nixosEval.config.environment.systemPackages;
-      desktopItemsDir = pkgs.symlinkJoin {
-        name = "desktop-items";
-        paths = desktopItems;
-      };
-
-      evalApp =
-        appConfig:
-        lib.evalModules {
-          specialArgs = { inherit pkgs; };
-          modules = [
-            { config._module.check = false; }
-            {
-              options.assertions = lib.mkOption {
-                type = lib.types.listOf lib.types.unspecified;
-                default = [ ];
-              };
-              options.warnings = lib.mkOption {
-                type = lib.types.listOf lib.types.str;
-                default = [ ];
-              };
-            }
-            self.homeModules.default
-            {
-              programs.steam.config = {
-                enable = true;
-                apps."111" = {
-                  name = "bad";
-                }
-                // appConfig;
-              };
-            }
-          ];
-        };
-
-      failingAssertions =
-        appConfig:
-        let
-          eval = evalApp appConfig;
-        in
-        map (a: a.message) (lib.filter (a: !a.assertion) eval.config.assertions);
-
-      appWarnings = appConfig: (evalApp appConfig).config.warnings;
-
-      resolvedPrefixPath =
-        appConfig: (evalApp appConfig).config.programs.steam.config.apps."111".prefixPath;
-
-      hasFailure = substr: assertions: lib.any (lib.hasInfix substr) assertions;
-
-      assertionsOk =
-        lib.assertMsg (
-          resolvedPrefixPath { env.STEAM_COMPAT_DATA_PATH = "/mnt/games/pfx"; } == "/mnt/games/pfx"
-        ) "prefixPath should default to env.STEAM_COMPAT_DATA_PATH"
-        && lib.assertMsg (
-          resolvedPrefixPath {
-            env.STEAM_COMPAT_DATA_PATH = "/from/env";
-            prefixPath = "/explicit";
-          } == "/explicit"
-        ) "an explicit prefixPath should win over env.STEAM_COMPAT_DATA_PATH"
-        && lib.assertMsg (
-          resolvedPrefixPath { env.STEAM_COMPAT_DATA_PATH = null; } == null
-        ) "a non path env.STEAM_COMPAT_DATA_PATH should leave prefixPath unset"
-        && lib.assertMsg (hasFailure "STEAM_COMPAT_DATA_PATH in rawLaunchOptions" (appWarnings {
-          rawLaunchOptions = "STEAM_COMPAT_DATA_PATH=/blah %command%";
-        })) "STEAM_COMPAT_DATA_PATH in rawLaunchOptions should warn"
-        && lib.assertMsg (hasFailure "WINEDLLOVERRIDES in rawLaunchOptions" (appWarnings {
-          rawLaunchOptions = "WINEDLLOVERRIDES=d3d11=n %command%";
-        })) "WINEDLLOVERRIDES in rawLaunchOptions should warn"
-        && lib.assertMsg (
-          appWarnings { rawLaunchOptions = "gamemoderun %command%"; } == [ ]
-        ) "an ordinary rawLaunchOptions string should not warn"
-        && lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
-          files.game.place."x" = {
-            source = fakeArt;
-            text = "hi";
-          };
-        })) "setting both source and text should fail"
-        && lib.assertMsg (hasFailure "exactly one of" (failingAssertions {
-          files.game.place."x" = { };
-        })) "setting neither source nor text should fail"
-        && lib.assertMsg (hasFailure "unsafe target" (failingAssertions {
-          files.game.place."../escape".source = fakeArt;
-        })) "an unsafe file target should fail"
-        && lib.assertMsg (hasFailure "unsafe path" (failingAssertions {
-          files.game.remove = [ "../escape" ];
-        })) "an unsafe removeFiles path should fail"
-        && lib.assertMsg (hasFailure "same target" (failingAssertions {
-          files.game.place = {
-            "a".target = "shared.dll";
-            "b".target = "shared.dll";
-          };
-          files.game.place."a".source = fakeArt;
-          files.game.place."b".source = fakeArt;
-        })) "duplicate resolved targets should fail"
-        && lib.assertMsg (hasFailure "dllOverrides and env.WINEDLLOVERRIDES" (failingAssertions {
-          dllOverrides.winhttp = "n,b";
-          env.WINEDLLOVERRIDES = "d3d11=n";
-        })) "setting both dllOverrides and a different env.WINEDLLOVERRIDES should fail"
-        && lib.assertMsg (hasFailure "both places and patches" (failingAssertions {
-          files.game.place."config/x.ini".source = fakeArt;
-          files.game.patch."config/x.ini" = {
-            format = "ini";
-            content.A.b = 1;
-          };
-        })) "placing and patching the same file should fail"
-        && lib.assertMsg (hasFailure "same target" (failingAssertions {
-          files.game.place."cfg/x.ini".source = fakeArt;
-          files.game.place."./cfg//x.ini".text = "hi";
-        })) "two spellings of one target should still collide"
-        && lib.assertMsg (hasFailure "both places and patches" (failingAssertions {
-          files.game.place."cfg/x.ini".source = fakeArt;
-          files.game.patch."./cfg//x.ini" = {
-            format = "ini";
-            content.A.b = 1;
-          };
-        })) "two spellings should collide across place and patch"
-        && lib.assertMsg (hasFailure "same target" (failingAssertions {
-          files.game.patch."a" = {
-            target = "config/user.ini";
-            format = "ini";
-            content.A.b = 1;
-          };
-          files.game.patch."b" = {
-            target = "./config//user.ini";
-            format = "json";
-            content.A.b = 1;
-          };
-        })) "two patches of one file should collide"
-        && lib.assertMsg (hasFailure "invalid systemd.target.name" (failingAssertions {
-          systemd = {
-            enable = true;
-            target.name = "not valid";
-          };
-        })) "an invalid systemd.target.name should fail"
-        && lib.assertMsg (
-          failingAssertions {
-            files.game.place."mods/ok.pak".source = fakeArt;
-            files.game.remove = [ "movies/intro.bik" ];
-            files.game.patch."config/ok.ini" = {
-              format = "ini";
-              content.A.b = 1;
-            };
-          } == [ ]
-        ) "a valid file config should not fail";
-    in
-    {
-      checks = {
-        systemd-targets =
-          let
-            eval = inputs.nixpkgs.lib.nixosSystem {
-              modules = [
-                self.nixosModules.default
-                {
-                  system.stateVersion = "26.05";
-                  nixpkgs.hostPlatform = system;
-                  programs.steam.config = {
-                    enable = true;
-                    apps = {
-                      "438100" = {
-                        name = "VRChat";
-                        systemd = {
-                          enable = true;
-                          scope.properties.Slice = "games.slice";
-                        };
-                      };
-                      "1002" = {
-                        name = ''Sven "Co-op"'';
-                        systemd = {
-                          enable = true;
-                          target.name = "sven-co-op";
-                        };
-                      };
-                      "220" = { };
-                    };
-                  };
-                }
-              ];
-            };
-
-            steamConfig = eval.config.programs.steam.config;
-            units = eval.config.systemd.user.units;
-            appTarget = pkgs.writeText "app-target" units."steam-app-vrchat.target".text;
-            sharedTarget = pkgs.writeText "shared-target" units."steam-app.target".text;
-            wrapper = steamConfig.apps."438100".wrapper.package;
-            quotedNameWrapper = steamConfig.apps."1002".wrapper.package;
-          in
-          pkgs.runCommand "systemd-targets" { } (
-            assert lib.assertMsg (
-              steamConfig.apps."220".wrapper.package == null
-            ) "an app with no options must not get a wrapper";
-            ''
-              grep -q 'Description=VRChat' ${appTarget}
-              grep -q 'StopWhenUnneeded=yes' ${appTarget}
-              grep -q 'RefuseManualStart=yes' ${appTarget}
-              grep -q 'Wants=steam-app.target' ${appTarget}
-              grep -q 'After=steam-app.target' ${appTarget}
-              grep -q 'StopWhenUnneeded=yes' ${sharedTarget}
-
-              wrapper=${wrapper}/bin/steam-app-wrapper-438100
-              grep -q 'systemd-run --user --scope' "$wrapper"
-              grep -q 'property=Wants=steam-app-vrchat.target' "$wrapper"
-              grep -q 'property=Slice=games.slice' "$wrapper"
-
-              quoted=${quotedNameWrapper}/bin/steam-app-wrapper-1002
-              grep -q "scn_app_name='Sven" "$quoted"
-              grep -q 'launching ''$scn_app_name without a scope' "$quoted"
-
-              touch $out
-            ''
-          );
-
-        steam-config-patcher = self.packages.${system}.steam-config-patcher;
-
-        patcher-integration =
-          pkgs.runCommand "patcher-integration"
-            { nativeBuildInputs = [ self.packages.${system}.steam-config-patcher ]; }
-            ''
-              export HOME="$PWD/home"
-              steam="$HOME/.local/share/Steam"
-              install="$steam/steamapps/common/Test Game"
-              mkdir -p "$steam/config" "$steam/userdata/111/config" "$steam/steamapps" "$install" "$steam/steamapps/compatdata/620/pfx"
-              cp ${seedConfigVdf} "$steam/config/config.vdf"
-              cp ${seedLocalconfigVdf} "$steam/userdata/111/config/localconfig.vdf"
-              cp ${seedAppmanifest} "$steam/steamapps/appmanifest_620.acf"
-              echo unwanted > "$install/unwanted.txt"
-
-              steam-config-patcher ${patcherInput}
-
-              acf="$steam/steamapps/appmanifest_620.acf"
-              lc="$steam/userdata/111/config/localconfig.vdf"
-
-              grep -q GE-Proton "$steam/config/config.vdf"
-              grep -q test-launch-wrapper "$lc"
-              grep -q '"displayratesasbits"[[:space:]]*"1"' "$lc"
-              grep -q '"DesktopUIScale"[[:space:]]*"1.14999997615814209"' "$steam/config/config.vdf"
-              grep -q '"BetaKey"' "$acf"
-              grep -q beta "$acf"
-              grep -q german "$acf"
-              grep -q AutoUpdateBehavior "$acf"
-              grep -q AllowOtherDownloadsWhileRunning "$acf"
-              test -f "$HOME/.local/share/steam-config-nix/users/111/manifest.json"
-
-              grep -q modcontent "$install/mods/test.txt"
-              test ! -e "$install/unwanted.txt"
-              test -f "$HOME/.local/share/steam-config-nix/files.json"
-              test ! -e "$steam/config/steam-config-nix-files.json"
-              test ! -e "$steam/userdata/111/config/steam-config-nix-manifest.json"
-
-              grep -q Fullscreen "$install/config/game.ini"
-
-              grep -q hard "$install/config/game.vdf"
-
-              pfx="$steam/steamapps/compatdata/620/pfx"
-              grep -q 'dword:00000000' "$pfx/system.reg"
-              grep -Fq '"MaxVersionGL"="3.2"' "$pfx/system.reg"
-
-              # unity hashes the pref key
-              grep -Fq 'Software\\TestCo\\TestGame' "$pfx/user.reg"
-              grep -q 'MirrorResolution_h' "$pfx/user.reg"
-              grep -q 'dword:00000002' "$pfx/user.reg"
-              grep -Fq 'hex(4):00,00,00,00,00,00,e0,3f' "$pfx/user.reg"
-
-              grep -Fq 'fps_max "400"' "$install/cfg/autoexec.cfg"
-              grep -Fq 'cl_crosshair_recoil "0"' "$install/cfg/autoexec.cfg"
-
-              # second run must be idempotent
-              steam-config-patcher ${patcherInput}
-
-              grep -q modcontent "$install/mods/test.txt"
-
-              touch $out
-            '';
-
-        module-assertions = pkgs.runCommand "module-assertions-check" { } (
-          assert assertionsOk;
-          "touch $out"
-        );
-
-        compat-tool-bin-layout =
-          let
-            eval = inputs.nixpkgs.lib.nixosSystem {
-              modules = [
-                self.nixosModules.default
-                {
-                  system.stateVersion = "26.05";
-                  nixpkgs.hostPlatform = system;
-                  programs.steam.config = {
-                    enable = true;
-                    defaultCompatTool = fakeBinCompatTool;
-                  };
-                }
-              ];
-            };
-            execStart = eval.config.systemd.services."steam-config-patcher@".serviceConfig.ExecStart;
-          in
-          pkgs.runCommand "compat-tool-bin-layout"
-            {
-              nativeBuildInputs = [
-                self.packages.${system}.steam-config-patcher
-                pkgs.jq
-                pkgs.python3
-              ];
-            }
-            ''
-              cfg=$(python3 -c 'import shlex,sys; print(shlex.split(sys.argv[1])[1])' ${lib.escapeShellArg execStart})
-              path=$(jq -r .defaultCompatTool.path "$cfg")
-
-              test -f "$path/compatibilitytool.vdf"
-              test "$path" != "${fakeBinCompatTool}"
-              grep -q Bin-Proton "$path/compatibilitytool.vdf"
-
-              export HOME="$PWD/home"
-              steam="$HOME/.local/share/Steam"
-              mkdir -p "$steam/config" "$steam/userdata/1/config"
-              echo '"InstallConfigStore" { "Software" { "Valve" { "Steam" { "CompatToolMapping" { } } } } }' > "$steam/config/config.vdf"
-              echo '"UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "Apps" { } } } } }' > "$steam/userdata/1/config/localconfig.vdf"
-              steam-config-patcher "$cfg"
-              grep -q Bin-Proton "$steam/config/config.vdf"
-
-              touch $out
-            '';
-
-        nixos-module = pkgs.runCommand "nixos-module-check" { } ''
-          diff ${expectedJson} ${actualJson}
-
-          # steps with working variables are functions, so match those lines indented
-          stepLine() {
-            sed 's/^[[:space:]]*//' "$2" | grep -Fx "$1"
+      prefix = {
+        layer = null;
+        overlay = [ ];
+        hide = [ ];
+        passthrough = [ ];
+        writeDefault = [ ];
+        writeKeys = [
+          {
+            target = "user.reg";
+            format = "unityPrefs";
+            content."Software/VRChat/VRChat".VRC_MIRROR_RESOLUTION = 3;
+            createIfMissing = false;
           }
-
-          grep -Fx 'exec env MANGOHUD=1 "$@" -vulkan' ${strWrapper}
-
-          # rawLaunchOptions with no %command% is appended as args to the game
-          grep -Fx 'exec env "$@" -windowed -novid' ${rawArgsWrapper}
-
-          # winetricks step runs before the launch, guarded by the prefix + a marker
-          grep -F 'STEAM_COMPAT_DATA_PATH/pfx' ${strWrapper}
-          grep -F 'protontricks' ${strWrapper}
-          grep -F 'vcrun2022' ${strWrapper}
-
-          # a relocated prefix is bound over the path steam picked, for protontricks
-          grep -F -- '--bind "$STEAM_COMPAT_DATA_PATH" "$scn_compat_orig"' ${strWrapper}
-          stepLine 'export STEAM_COMPAT_DATA_PATH="$dir"' ${strWrapper}
-
-          # step working variables are function local, so preHook cannot see them
-          stepLine 'local dir parent' ${strWrapper}
-          stepLine 'local marker want' ${strWrapper}
-
-          grep -Fx 'export WINEDLLOVERRIDES="version=n,b;winmm=n,b"' ${optionsWrapper}
-          grep -Fx 'unset TZ' ${optionsWrapper}
-          grep -Fx 'declare -a wrappers=(gamemoderun)' ${optionsWrapper}
-          grep -Fx 'declare -a args=(--launcher-skip)' ${optionsWrapper}
-          grep -Fx 'echo prehook' ${optionsWrapper}
-
-          # the launch options string launches the game with the wrapper gone
-          opts=${lib.escapeShellArg optionsExec}
-          eval "set -- $opts"
-          test "$1" = /bin/sh
-          test "$2" = -c
-          printf '#!/bin/sh\necho wrapped "$@"\n' > wrapper
-          chmod +x wrapper
-          test "$(/bin/sh -c "$3" "$PWD/wrapper" echo game)" = "wrapped echo game"
-          test "$(/bin/sh -c "$3" "$PWD/missing" echo game)" = game
-
-          grep -FxR 'Exec=steam steam://rungameid/620' ${desktopItemsDir}/share/applications
-          grep -FxR 'Exec=steam steam://rungameid/1091500' ${desktopItemsDir}/share/applications
-          grep -FxR 'Icon=steam-config-nix-1091500' ${desktopItemsDir}/share/applications
-          grep -FxR 'Icon=custom-icon' ${desktopItemsDir}/share/applications/steam-config-nix-620.desktop
-          # non-steam app: 64 bit shortcut game id (id << 32 | 0x02000000)
-          grep -FxR 'Exec=steam steam://rungameid/15174691026754338816' ${desktopItemsDir}/share/applications
-          test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-730.desktop
-          test ! -e ${desktopItemsDir}/share/applications/steam-config-nix-999.desktop
-
-          touch $out
-        '';
-
-        # the two locks are updated by two commands, so nixpkgs can silently drift apart
-        docs-lock =
-          let
-            nixpkgsRev =
-              lock:
-              let
-                nodes = (builtins.fromJSON (builtins.readFile lock)).nodes;
-                root = nodes.${nodes.root.inputs.steam-config-nix or "root"};
-              in
-              nodes.${root.inputs.nixpkgs}.locked.rev;
-            rootRev = nixpkgsRev ../flake.lock;
-            docsRev = nixpkgsRev ../docs/flake.lock;
-          in
-          pkgs.runCommand "check-docs-lock" { } (
-            assert lib.assertMsg (rootRev == docsRev)
-              "docs/flake.lock pins nixpkgs ${docsRev} but the root pins ${rootRev}, run nix flake update --flake ./docs";
-            "touch $out"
-          );
-
-        docs-eval = pkgs.runCommand "check-docs-eval" { } ''
-          echo "evaluated ${toString (lib.length docsSnippets)} doc snippets:"
-          ${lib.concatMapStringsSep "\n" (b: "  echo '  ${evalSnippet b}'") docsSnippets}
-          touch $out
-        '';
-
-        docs-links =
-          pkgs.runCommand "check-docs-links"
-            {
-              nativeBuildInputs = [ pkgs.lychee ];
-              # lychee builds its http client even when offline
-              SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-            }
-            ''
-              # links resolve from the domain root, so mirror the path prefix
-              mkdir -p root
-              ln -s ${self'.packages.docs} "root${self'.packages.docs.basePath}"
-
-              lychee \
-                --offline \
-                --include-fragments \
-                --index-files index.html \
-                --root-dir "$PWD/root" \
-                --exclude-path ${self'.packages.docs}/search \
-                '${self'.packages.docs}/**/*.html'
-
-              touch $out
-            '';
-
-        docs-options = pkgs.runCommand "check-docs-options" { nativeBuildInputs = [ pkgs.python3 ]; } ''
-          python3 ${./docs-options.py} ${self'.packages.docs.optionsJson} ${../docs/content}
-          touch $out
-        '';
-
-        formatting = pkgs.runCommand "check-formatting" { nativeBuildInputs = [ self'.formatter ]; } ''
-          cp -r ${self} src
-          chmod -R u+w src
-          treefmt --tree-root src --no-cache --fail-on-change --walk filesystem
-          touch $out
-        '';
-
-        mypy =
-          pkgs.runCommand "mypy-check"
-            {
-              nativeBuildInputs = [
-                (pkgs.python3.withPackages (
-                  ps: with ps; [
-                    mypy
-                    pydantic
-                    psutil
-                    pillow
-                    types-psutil
-                  ]
-                ))
-              ];
-            }
-            ''
-              cp -r ${../patcher} patcher
-              chmod -R u+w patcher
-              cd patcher
-              mypy steam_config_patcher
-              touch $out
-            '';
+        ];
       };
     };
+  };
+  expectedSpecJson = pkgs.writeText "expected-spec.json" (lib.toJSON expectedSpec);
+
+  badFiles = {
+    programs.steam.config.enable = true;
+    programs.steam-config = {
+      enable = true;
+      package = pkgs.hello;
+      nonSteamApps.probe = {
+        target = "/opt/probe/run";
+        allowOverlay = false;
+        isHidden = true;
+      };
+      nonSteamApps."620".target = "/opt/b";
+      nonSteamApps."!!!".target = "/opt/c";
+      apps."620".env = {
+        STEAM_LAUNCH_WRAPPER_SCOPE = "0";
+        WINEDLLOVERRIDES = "winhttp=n,b";
+      };
+      apps."620".dllOverrides.winhttp = "n,b";
+      apps."620".files.game = {
+        overlay."Saves/x.txt".text = "x";
+        overlay."a.cfg".text = "a";
+        overlay."ro".source = art;
+        overlay."ro".readOnly = true;
+        overlay."nosource" = { };
+        hide = [
+          "../escape"
+          "Saves/y"
+        ];
+        passthrough = [ "Saves" ];
+        writeDefault."a.cfg".text = "b";
+        writeKeys."ro/k.ini" = {
+          format = "ini";
+          content = { };
+        };
+        place."z".text = "z";
+      };
+    };
+  };
+  hmSteam = pkgs.writeShellScriptBin "steam" "";
+  hmUser = {
+    home.username = "alice";
+    home.homeDirectory = "/home/alice";
+    home.stateVersion = "26.05";
+    programs.steam-config.steamPackage = hmSteam;
+  };
+  hm = (import "${home-manager}/lib" { inherit lib; }).homeManagerConfiguration {
+    inherit pkgs;
+    modules = [
+      self.homeModules.default
+      sample
+      hmUser
+      { home.packages = [ hmSteam ]; }
+    ];
+  };
+  hmLayered = (import "${home-manager}/lib" { inherit lib; }).homeManagerConfiguration {
+    inherit pkgs;
+    modules = [
+      self.homeModules.default
+      hmUser
+      {
+        programs.steam-config = {
+          enable = true;
+          env.FROM_HM = 1;
+          apps."105600".env.HM = "y";
+          apps."440".overlay = true;
+        };
+      }
+    ];
+    extraSpecialArgs.osConfig = eval;
+  };
+  layeredHome = "${hmLayered.activationPackage}/home-files/.local/share/steam-config-nix";
+  layeredCompatTool =
+    value:
+    ((import "${home-manager}/lib" { inherit lib; }).homeManagerConfiguration {
+      inherit pkgs;
+      modules = [
+        self.homeModules.default
+        hmUser
+        {
+          programs.steam-config = {
+            enable = true;
+            apps.jellycar.compatTool = value;
+          };
+        }
+      ];
+      extraSpecialArgs.osConfig = eval;
+    }).config.programs.steam-config.apps.jellycar.compatTool;
+  hmCfg = hm.config.programs.steam-config;
+  hmStateFile = hm.config.home.file.".local/share/steam-config-nix/state.json".source;
+  hmExpectedJson = pkgs.writeText "expected-hm-state.json" (
+    lib.toJSON (lib.recursiveUpdate expectedState { steam = lib.getExe hmCfg.launcher; })
+  );
+
+  # homeManagerConfiguration throws on a failed assertion, so the bad config goes through the module set directly
+  hmLib = import "${home-manager}/modules/lib/stdlib-extended.nix" lib;
+  badMessages = map (a: a.message) (
+    lib.filter (a: !a.assertion)
+      (hmLib.evalModules {
+        modules = [
+          self.homeModules.default
+          badFiles
+          hmUser
+        ]
+        ++ import "${home-manager}/modules/modules.nix" {
+          inherit pkgs;
+          lib = hmLib;
+        };
+        class = "homeManager";
+        specialArgs.modulesPath = "${home-manager}/modules";
+      }).config.assertions
+  );
+  expectMessage =
+    needle:
+    lib.assertMsg (lib.any (m: lib.hasInfix needle m) badMessages) "missing assertion: ${needle}";
+  patcherUnit = eval.systemd.user.services.steam-config-patcher;
+  userActivation = pkgs.writeText "user-activation" eval.system.userActivationScripts.script;
+in
+{
+  module-eval = pkgs.runCommand "module-eval" { } (
+    assert lib.assertMsg (
+      cfg.nonSteamApps.probe.id == 4132570534
+      && cfg.nonSteamApps.probe.steamRunId == "17749255291976810496"
+    ) "the shortcut id and run id follow the seed";
+    assert lib.assertMsg (
+      patcherUnit.serviceConfig.Type == "exec"
+    ) "the patcher unit exits after a run so the next start runs it again";
+    assert lib.assertMsg (
+      cfg.nonSteamApps."Vintage Story".id == 3402148748
+    ) "the seed is the attribute name";
+    assert lib.assertMsg (
+      eval.systemd.user.targets ? "steam-app-105600"
+    ) "an app with systemd.enable gets a target";
+    assert lib.assertMsg (
+      mergedKeys.programs.steam-config.apps."620".files.game.writeKeys."a.ini".content == {
+        S = {
+          a = 1;
+          b = 2;
+        };
+      }
+    ) "writeKeys content merges across definitions";
+    assert lib.assertMsg (
+      let
+        kept = keepPath ./default.nix;
+      in
+      lib.hasContext kept && lib.hasSuffix "-default.nix" kept
+    ) "a path inside the store keeps a reference";
+    assert lib.assertMsg (keepPath "/mnt/games" == "/mnt/games") "a string path is left alone";
+    assert lib.assertMsg (
+      !(eval.systemd.user.targets ? "steam-app-jellycar")
+    ) "an app without systemd.enable gets no target";
+    assert lib.assertMsg (
+      quoted.programs.steam-config.apps."620".launchSpec.name == "Portal \"2\" $HOME `id` (620)"
+    ) "the display name reaches the launch spec verbatim";
+    assert lib.assertMsg (
+      launchShellTarget == lib.getExe launch
+    ) "the launch shell links the launch package";
+    assert lib.assertMsg (lib.all (r: lib.elem r eval.systemd.tmpfiles.rules) [
+      "r /var/lib/steam-config-nix/apps"
+      "r /var/lib/steam-config-nix/launch-env.sh"
+    ]) "the old dispatch link and launch env are cleaned up";
+    assert lib.assertMsg (
+      !(eval.system.activationScripts ? steam-config-nix-launch-shell)
+    ) "the launch shell is a link, nothing is installed on activation";
+    ''
+      ${lib.getExe pkgs.jq} -S . ${stateFile} > actual.json
+      ${lib.getExe pkgs.jq} -S . ${expectedJson} > expected.json
+      diff expected.json actual.json
+      ${lib.getExe pkgs.jq} -S . ${cfg.apps."105600".filesSpec} > actual-spec.json
+      ${lib.getExe pkgs.jq} -S . ${expectedSpecJson} > expected-spec.json
+      diff expected-spec.json actual-spec.json
+      test "$(cat ${layer}/mods/x.txt)" = hi
+      test -x ${layer}/bin/tool
+      test ! -e ${layer}/movies
+      test ! -e ${layer}/cfg
+      grep -q 'steam://rungameid/14612117608820899840' ${vintageEntry}/share/applications/*.desktop
+      ${jq} -e '.name == "Portal \"2\" $HOME `id` (620)"' ${specQuoted}
+      grep -q 'STEAM_GAME_LAUNCH_SHELL=/var/lib/steam-config-nix/launch-shell' ${cfg.launcher}/bin/steam
+      ${jq} -e '.env.SCN_APP == "probe" and .kind == "nonSteam"' ${launchTree}/4132570534.json
+      ${jq} -e '.env.PROTON_ENABLE_WAYLAND == "1"' ${launchTree}/global.json
+      test ! -e ${launchTree}/3402148748.json
+      grep -q '/var/lib/steam-config-nix/state.json' ${patcherUnit.serviceConfig.ExecStart}
+      grep -q 'local/share}/steam-config-nix"/state.json /var/lib' ${patcherUnit.serviceConfig.ExecStart}
+      grep -q steam-config-patcher.service ${userActivation}
+      touch $out
+    ''
+  );
+
+  launch-shell = pkgs.runCommand "launch-shell" { } ''
+    export HOME=$PWD
+    data=$PWD/xdg/steam-config-nix
+    mkdir -p $data
+    touch $data/state.json
+    ln -s ${launchShellTarget} $data/launch-shell
+    ln -s ${launchTree} $data/launch
+    export XDG_DATA_HOME=$PWD/xdg
+    shell=$data/launch-shell
+    expect() {
+      test "$1" = "$2" || { echo "expected: $2, got: $1"; exit 1; }
+    }
+
+    export SteamAppId=105600
+    expect "$($shell "printf '[%s]' x" 2>err)" "[x][-a][two words]"
+    grep -q 'game: not found, its files are skipped' err
+    grep -q 'No systemd user manager' err
+    expect "$($shell -c "printf '[%s]' x" 2>/dev/null)" "[x][-a][two words]"
+
+    export SteamAppId=1740930
+    expect "$($shell "printf '[%s]' x")" "[x][-x]"
+    expect "$($shell "sh -c 'printf %s \"\$MANGOHUD\"'")" 1
+
+    export SteamAppId=440
+    expect "$($shell 'echo "$PROTON_ENABLE_WAYLAND"')" 1
+    expect "$($shell 'echo game' extra)" game
+
+    export SteamAppId=4132570534
+    expect "$($shell 'echo "$SCN_APP"')" probe
+
+    alt=$PWD/alt/steam-config-nix
+    mkdir -p $alt/launch $PWD/prefixes
+    touch $alt/state.json
+    ln -s ${launchShellTarget} $alt/launch-shell
+    export XDG_DATA_HOME=$PWD/alt
+    shell=$alt/launch-shell
+    spec() {
+      ${jq} -n --argjson id "$1" "{version: 1, key: \"t\", appId: \$id, kind: \"steam\", name: \"t\", notifySend: null, env: {}, dllOverrides: {}, args: [], wrappers: []} + $2" > $alt/launch/$1.json
+    }
+
+    export SteamAppId=440
+    echo garbage > $alt/launch/global.json
+    expect "$($shell 'echo game' 2>err)" game
+    grep -q global.json err
+    rm $alt/launch/global.json
+    expect "$($shell 'echo game')" game
+
+    export SteamAppId=7
+    echo '{"version": 2}' > $alt/launch/7.json
+    expect "$($shell 'echo game' 2>err)" game
+    grep -q 7.json err
+
+    spec 7 '{prefixPath: "'$PWD'/missing/7"}'
+    if $shell 'touch ran' 2>err; then exit 1; else expect $? 1; fi
+    test ! -e ran
+    grep -q 'refusing to create it' err
+    spec 7 '{prefixPath: "'$PWD'/prefixes/7"}'
+    expect "$($shell 'echo "$STEAM_COMPAT_DATA_PATH"')" $PWD/prefixes/7
+    test -d prefixes/7
+
+
+    spec 7 '{wrappers: ["A=1", "sh", "-c", "exec \"$@\"", "w"], envProgram: "${lib.getExe' pkgs.coreutils "env"}"}'
+    expect "$($shell 'echo "$A"')" 1
+
+    spec 7 '{preHook: "export HOOK=1\ncmdline=\"printf %s- edited $HOOK\"\nargs+=(\"two words\")", shell: "${bash}", args: ["-a"]}'
+    expect "$($shell 'printf x')" "edited-1--a-two words-"
+
+    spec 7 '{env: {DROP: null, KEEP: "k"}, dllOverrides: {d3d9: "disabled", winhttp: "n,b"}}'
+    expect "$(DROP=1 WINEDLLOVERRIDES=old $shell 'echo "''${DROP-unset} $KEEP $WINEDLLOVERRIDES"')" "unset k d3d9=;winhttp=n,b"
+
+    spec 7 '{steamScope: false}'
+    expect "$($shell 'echo "$STEAM_LAUNCH_WRAPPER_SCOPE"')" 0
+    spec 7 '{scope: {systemdRun: "/nonexistent", systemctl: "${lib.getExe' pkgs.coreutils "false"}", properties: {}}}'
+    expect "$(STEAM_LAUNCH_WRAPPER_SCOPE=1 $shell 'echo "$STEAM_LAUNCH_WRAPPER_SCOPE"' 2>err)" 1
+    grep -q 'No systemd user manager, launching t without a scope' err
+
+    printf '#!%s\necho "$*" >> %s/pt.log\nexit "''${PT_EXIT:-0}"\n' ${bash} "$PWD" > pt
+    chmod +x pt
+    spec 7 '{winetricks: {verbs: ["a", "b"], protontricks: "'$PWD'/pt", bwrap: null}}'
+    export STEAM_COMPAT_DATA_PATH=$PWD/compat STEAM_COMPAT_APP_ID=7
+    expect "$($shell 'echo game')" game
+    test ! -e pt.log
+    mkdir -p compat/pfx
+    PT_EXIT=1 $shell 'echo game' > out 2>err
+    expect "$(tail -n1 out)" game
+    grep -qx 'steam-config-nix: applying winetricks verbs: a b' out
+    grep -q 'winetricks failed (exit status: 1), continuing to launch' err
+    test ! -e compat/steam-config-nix-winetricks
+    $shell 'echo game' > out
+    expect "$(tail -n1 out)" game
+    expect "$(cat compat/steam-config-nix-winetricks)" "a b"
+    expect "$($shell 'echo game')" game
+    expect "$(wc -l < pt.log)" 2
+    grep -qx '7 -q a b' pt.log
+    unset STEAM_COMPAT_DATA_PATH STEAM_COMPAT_APP_ID
+
+    if $shell 2>/dev/null; then exit 1; else expect $? 2; fi
+
+    export XDG_DATA_HOME=$PWD/xdg
+    show() { ${lib.getExe launch} show "$@" | sed "s|$PWD|@PWD@|g"; }
+    show 105600 | diff ${showApp} -
+    if ${lib.getExe launch} show nosuch 2>/dev/null; then exit 1; else expect $? 1; fi
+
+    touch $out
+  '';
+
+  launch-spec = pkgs.runCommand "launch-spec" { } ''
+    ${jq} -e '.env.SCN == "x" and .args == ["-a", "two words"]' ${spec105600}
+    ${jq} -e '.shell == null and .envProgram == null and .steamScope == null' ${spec105600}
+    ${jq} -e '.scope.properties | .Description == "105600" and .Wants == "steam-app-105600.target" and .After == "steam-app-105600.target"' ${spec105600}
+    ${jq} -e '.files == "${cfg.apps."105600".filesSpec}"' ${spec105600}
+    ${jq} -e '.rawLaunchOptions == "MANGOHUD=1 %command% -x" and .files == null and .scope == null' ${specJellycar}
+    ${jq} -e '.winetricks.verbs == ["corefonts"] and .winetricks.bwrap == null' ${specQuoted}
+    ${jq} -e '.notifySend | startswith("/nix/store/")' ${specQuoted}
+    ${jq} -e '.wrappers == [] and .envProgram == "${lib.getExe' pkgs.coreutils "env"}"' ${specQuoted}
+    touch $out
+  '';
+
+  home-manager = pkgs.runCommand "home-manager" { } (
+    assert lib.assertMsg (
+      hm.config.systemd.user.targets ? "steam-app-105600"
+    ) "an app with systemd.enable gets a target";
+    assert lib.assertMsg (
+      hm.config.xdg.desktopEntries ? "steam-config-nix-105600"
+    ) "a configured app gets a desktop entry";
+    assert lib.assertMsg (
+      hm.config.home.activation ? steam-config-nix-patcher
+    ) "the activation starts the patcher";
+    ''
+      grep -q '/home/alice/.local/share/steam-config-nix/state.json' ${toString hm.config.systemd.user.services.steam-config-patcher.Service.ExecStart}
+      ${lib.getExe pkgs.jq} -S . ${hmStateFile} > actual.json
+      ${lib.getExe pkgs.jq} -S . ${hmExpectedJson} > expected.json
+      diff expected.json actual.json
+      home=${hm.activationPackage}/home-files
+      test -f $home/.local/share/steam-config-nix/state.json
+      for id in 105600 1740930 4132570534 global; do
+        test -f $home/.local/share/steam-config-nix/launch/$id.json
+      done
+      test ! -e $home/.local/share/steam-config-nix/apps
+      test "$(readlink -f $home/.local/share/steam-config-nix/launch-shell)" = ${lib.getExe launch}
+      grep -q 'STEAM_GAME_LAUNCH_SHELL=/home/alice/.local/share/steam-config-nix/launch-shell' ${hm.activationPackage}/home-path/bin/steam
+      grep -q 'Icon=steam-config-nix-105600' ${hm.activationPackage}/home-path/share/applications/steam-config-nix-105600.desktop
+      touch $out
+    ''
+  );
+
+  layered = pkgs.runCommand "layered" { } (
+    assert lib.assertMsg (
+      !(hmLayered.config.home.file ? ".local/share/steam-config-nix/launch-shell")
+    ) "the NixOS launch shell serves a layered Home Manager user";
+    assert lib.assertMsg (
+      !(lib.tryEval (layeredCompatTool "proton_experimental")).success
+    ) "a value set differently on both sides is a conflict";
+    assert lib.assertMsg (
+      layeredCompatTool (lib.mkForce "proton_experimental") == "proton_experimental"
+    ) "mkForce on the Home Manager side settles a conflict";
+    assert lib.assertMsg (
+      !(hmLayered.config.systemd.user.services ? steam-config-patcher)
+    ) "the NixOS patcher unit serves a layered Home Manager user";
+    assert lib.assertMsg (
+      hmLayered.config.home.activation ? steam-config-nix-patcher
+    ) "a layered Home Manager user still starts the patcher on activation";
+    ''
+      ${lib.getExe pkgs.jq} -e '.apps | has("105600") and has("1740930") and has("440")' ${layeredHome}/state.json
+      ${lib.getExe pkgs.jq} -e '.shortcuts | has("4132570534")' ${layeredHome}/state.json
+      ${lib.getExe pkgs.jq} -e '.shortcuts."4132570534".exe == "/opt/probe/run" and .globalCompatTool == "GE-Proton"' ${layeredHome}/state.json
+      ${jq} -e '.env.SCN == "x" and .env.HM == "y"' ${layeredHome}/launch/105600.json
+      ${jq} -e '.env.PROTON_ENABLE_WAYLAND == "1" and .env.FROM_HM == "1"' ${layeredHome}/launch/global.json
+      grep -q 'STEAM_GAME_LAUNCH_SHELL=/var/lib/steam-config-nix/launch-shell' ${hmLayered.config.programs.steam-config.launcher}/bin/steam
+      touch $out
+    ''
+  );
+
+  inherit launch;
+  patcher = self.packages.${system}.steam-config-patcher;
+  files-vm = import ./files-vm.nix { inherit self pkgs system; };
+  patcher-vm = import ./patcher-vm.nix { inherit self pkgs system; };
+
+  files-assertions = pkgs.runCommand "files-assertions" { } (
+    assert expectMessage "`Saves/x.txt` is served by `overlay` but `Saves` is in `passthrough`";
+    assert expectMessage "`Saves/y` is in `hide` but `Saves` is in `passthrough`";
+    assert expectMessage "`a.cfg` is declared under both `overlay` and `writeDefault`";
+    assert expectMessage "`../escape` must be a relative path inside the game";
+    assert expectMessage "`ro/k.ini` is written under `ro`, which is `readOnly`";
+    assert expectMessage "`overlay.nosource` needs exactly one of `source` or `text`";
+    assert expectMessage "`place` was renamed";
+    assert expectMessage "`allowOverlay` was renamed to `overlay`";
+    assert expectMessage "`isHidden` was renamed to `hidden`";
+    assert expectMessage "programs.steam.config was renamed to programs.steam-config";
+    assert expectMessage "`env.STEAM_LAUNCH_WRAPPER_SCOPE` conflicts with `systemd.steamScope`";
+    assert expectMessage "`env.WINEDLLOVERRIDES` is replaced by `dllOverrides`";
+    assert expectMessage "more than one app has the key 620.";
+    assert expectMessage "needs at least one letter or digit in a-z0-9: !!!";
+    assert expectMessage "`package` was split into `packages.patcher` and `packages.launch`";
+    "touch $out"
+  );
+
+  formatting = pkgs.runCommand "formatting" { nativeBuildInputs = [ self.formatter.${system} ]; } ''
+    cp -r ${self} src
+    chmod -R u+w src
+    cd src
+    treefmt --ci --no-cache --tree-root "$PWD"
+    touch $out
+  '';
 }
