@@ -1,0 +1,28 @@
+{
+  "nodes": {
+    "home-manager": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792438572,
+        "narHash": "sha256-5mQQOcggBRBXB7NlzUxO0dbvQN4euJOISjNybrtfxPk=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "24f8f8e786f87d6a818e1746cb2389bf922afdab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "ref": "release-26.05",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "home-manager": "home-manager"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

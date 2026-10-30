@@ -21,6 +21,9 @@ jobs:
       - name: update root inputs
         run: nix flake update 2>> lock-changes.txt
 
+      - name: update the checks inputs
+        run: nix flake update --flake ./checks 2>> lock-changes.txt
+
       - name: update docs partition inputs
         run: nix flake update --flake ./docs 2>> lock-changes.txt
 
@@ -30,6 +33,7 @@ jobs:
           token: ${{ secrets.FLAKE_LOCK_PAT }}
           add-paths: |
             flake.lock
+            checks/flake.lock
             docs/flake.lock
           title: "chore: update flake inputs"
           commit-message: "chore: update flake inputs"
