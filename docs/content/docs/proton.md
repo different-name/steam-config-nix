@@ -12,7 +12,7 @@ or a package:
 
 ```nix
 {
-  programs.steam.config = {
+  programs.steam-config = {
     defaultCompatTool = "proton_experimental";
 
     apps."1091500" = {
@@ -32,7 +32,7 @@ Anything containing a `compatibilitytool.vdf`, either at its root or under
 
 ```nix
 {
-  programs.steam.config.apps."1091500" = {
+  programs.steam-config.apps."1091500" = {
     name = "Cyberpunk 2077";
     compatTool = pkgs.fetchzip {
       url = "https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton10-10/GE-Proton10-10.tar.gz";

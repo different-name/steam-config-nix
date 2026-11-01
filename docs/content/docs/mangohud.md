@@ -10,7 +10,7 @@ metrics overlay on Vulkan and OpenGL games.
 
 ```nix
 {
-  programs.steam.config.apps."1091500" = {
+  programs.steam-config.apps."1091500" = {
     name = "Cyberpunk 2077";
     env.MANGOHUD = "1";
   };
@@ -21,7 +21,7 @@ Without a system-wide install, or for OpenGL games, use it as a wrapper:
 
 ```nix
 {
-  programs.steam.config.apps."1091500" = {
+  programs.steam-config.apps."1091500" = {
     name = "Cyberpunk 2077";
     wrappers = [ pkgs.mangohud ];
   };
@@ -35,5 +35,13 @@ Set inline settings with `env.MANGOHUD_CONFIG`, or point
 
 ## Turning it on for every game
 
-Set the variable once in Steam's own environment rather than per app. See [Set
-environment variables for every game]({{< relref "/docs/all-games-env" >}}).
+Set the variable once for every game rather than per app:
+
+```nix
+{
+  programs.steam-config.env.MANGOHUD = "1";
+}
+```
+
+See [Set environment variables for every
+game]({{< relref "/docs/all-games-env" >}}).

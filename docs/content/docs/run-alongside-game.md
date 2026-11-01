@@ -7,7 +7,7 @@ An app can publish a systemd user target that is active while it runs:
 
 ```nix
 {
-  programs.steam.config.apps."438100" = {
+  programs.steam-config.apps."438100" = {
     name = "VRChat";
     systemd.enable = true;
   };
@@ -38,10 +38,10 @@ To avoid hardcoding the target name, read it from the config:
 
 ```nix
 {
-  programs.steam.config.apps."438100".systemd.enable = true;
+  programs.steam-config.apps."438100".systemd.enable = true;
 
   systemd.user.services.opentrack.wantedBy = [
-    config.programs.steam.config.apps."438100".systemd.target.unitName
+    config.programs.steam-config.apps."438100".systemd.target.unitName
   ];
 }
 ```
@@ -53,11 +53,11 @@ order it before the target:
 
 ```nix
 {
-  programs.steam.config.apps."438100".systemd.enable = true;
+  programs.steam-config.apps."438100".systemd.enable = true;
 
   systemd.user.services.opentrack =
     let
-      target = config.programs.steam.config.apps."438100".systemd.target.unitName;
+      target = config.programs.steam-config.apps."438100".systemd.target.unitName;
     in
     {
       wantedBy = [ target ];
@@ -73,7 +73,7 @@ default `Type=simple` is as soon as it has been forked.
 
 ```nix
 {
-  programs.steam.config.apps."438100".systemd = {
+  programs.steam-config.apps."438100".systemd = {
     enable = true;
     scope.properties.OnSuccess = "sync-saves.service";
   };
@@ -90,8 +90,8 @@ Steam. `OnFailure` will never trigger.
 - Only user units can be tied to these targets, a NixOS system service cannot.
 - Changing `systemd.target.name` will silently stop units that hook the old name
   from starting.
-- With no systemd user manager the app still launches, without a scope, and the
-  targets are not activated.
+- With no systemd user manager the app still launches, without the module's
+  scope, and the targets are not activated.
 
 ## Resource control
 
