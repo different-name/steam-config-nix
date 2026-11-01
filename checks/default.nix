@@ -333,22 +333,6 @@ let
     extraSpecialArgs.osConfig = eval;
   };
   layeredHome = "${hmLayered.activationPackage}/home-files/.local/share/steam-config-nix";
-  layeredCompatTool =
-    value:
-    ((import "${home-manager}/lib" { inherit lib; }).homeManagerConfiguration {
-      inherit pkgs;
-      modules = [
-        self.homeModules.default
-        hmUser
-        {
-          programs.steam-config = {
-            enable = true;
-            apps.jellycar.compatTool = value;
-          };
-        }
-      ];
-      extraSpecialArgs.osConfig = eval;
-    }).config.programs.steam-config.apps.jellycar.compatTool;
   hmCfg = hm.config.programs.steam-config;
   hmStateFile = hm.config.home.file.".local/share/steam-config-nix/state.json".source;
   hmExpectedJson = pkgs.writeText "expected-hm-state.json" (
@@ -597,12 +581,8 @@ in
     assert lib.assertMsg (
       !(hmLayered.config.home.file ? ".local/share/steam-config-nix/launch-shell")
     ) "the NixOS launch shell serves a layered Home Manager user";
-    assert lib.assertMsg (
-      !(lib.tryEval (layeredCompatTool "proton_experimental")).success
-    ) "a value set differently on both sides is a conflict";
-    assert lib.assertMsg (
-      layeredCompatTool (lib.mkForce "proton_experimental") == "proton_experimental"
-    ) "mkForce on the Home Manager side settles a conflict";
+    assert lib.assertMsg (lib.any (lib.hasInfix "Vintage Story") hmLayered.config.warnings)
+      "a layered Home Manager user is warned about NixOS apps that no longer apply";
     assert lib.assertMsg (
       !(hmLayered.config.systemd.user.services ? steam-config-patcher)
     ) "the NixOS patcher unit serves a layered Home Manager user";
@@ -610,11 +590,10 @@ in
       hmLayered.config.home.activation ? steam-config-nix-patcher
     ) "a layered Home Manager user still starts the patcher on activation";
     ''
-      ${lib.getExe pkgs.jq} -e '.apps | has("105600") and has("1740930") and has("440")' ${layeredHome}/state.json
-      ${lib.getExe pkgs.jq} -e '.shortcuts | has("4132570534")' ${layeredHome}/state.json
-      ${lib.getExe pkgs.jq} -e '.shortcuts."4132570534".exe == "/opt/probe/run" and .globalCompatTool == "GE-Proton"' ${layeredHome}/state.json
-      ${jq} -e '.env.SCN == "x" and .env.HM == "y"' ${layeredHome}/launch/105600.json
-      ${jq} -e '.env.PROTON_ENABLE_WAYLAND == "1" and .env.FROM_HM == "1"' ${layeredHome}/launch/global.json
+      ${jq} -e '.apps | has("105600") and has("440") and (has("1740930") | not)' ${layeredHome}/state.json
+      ${jq} -e '.shortcuts // {} | has("4132570534") | not' ${layeredHome}/state.json
+      ${jq} -e '.env.HM == "y" and (.env | has("SCN") | not)' ${layeredHome}/launch/105600.json
+      ${jq} -e '.env.FROM_HM == "1" and (.env | has("PROTON_ENABLE_WAYLAND") | not)' ${layeredHome}/launch/global.json
       grep -q 'STEAM_GAME_LAUNCH_SHELL=/var/lib/steam-config-nix/launch-shell' ${hmLayered.config.programs.steam-config.launcher}/bin/steam
       touch $out
     ''

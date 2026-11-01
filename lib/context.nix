@@ -10,7 +10,7 @@ rec {
 
   osSteamConfig =
     if isNixos || osConfig == null then null else osConfig.programs.steam-config or null;
-  # under an enabled nixos module, home manager adds to its definitions and leaves the plumbing to it
+  # under an enabled nixos module, home manager leaves the plumbing to it
   layered = osSteamConfig != null && osSteamConfig.enable;
 
   dataDir =
