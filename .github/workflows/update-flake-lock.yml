@@ -24,7 +24,7 @@ jobs:
       - name: update the checks inputs
         run: nix flake update --flake ./checks 2>> lock-changes.txt
 
-      - name: update docs partition inputs
+      - name: update the docs inputs
         run: nix flake update --flake ./docs 2>> lock-changes.txt
 
       - name: open pull request
