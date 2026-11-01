@@ -2,7 +2,6 @@
 {
   lib,
   config,
-  options,
   pkgs,
   osConfig ? null,
   ...
@@ -19,7 +18,6 @@ let
         ;
     })
     cfg
-    isNixos
     osSteamConfig
     layered
     launchShellPath
@@ -28,23 +26,12 @@ let
     allApps
     ;
 
-  explicitDefinitions =
-    opts:
-    lib.concatMapAttrs (
-      name: opt:
-      if lib.isOption opt then
-        lib.optionalAttrs (
-          (opt.visible or true) != false
-          && !(opt.internal or false)
-          && !(opt.readOnly or false)
-          && opt.highestPrio < 1500
-        ) { ${name} = lib.mkMerge (map (lib.mkOverride opt.highestPrio) opt.definitions); }
-      else
-        let
-          sub = explicitDefinitions opt;
-        in
-        lib.optionalAttrs (sub != { }) { ${name} = sub; }
-    ) opts;
+  enabledNames = apps: lib.attrNames (lib.filterAttrs (_: app: app.enable) apps);
+  unappliedOsApps = lib.optionals layered (
+    lib.subtractLists (lib.attrNames cfg.apps ++ lib.attrNames cfg.nonSteamApps) (
+      enabledNames osSteamConfig.apps ++ enabledNames osSteamConfig.nonSteamApps
+    )
+  );
 
   removedOption = lib.mkOption {
     type = types.unspecified;
@@ -231,14 +218,6 @@ in
       internal = true;
       visible = false;
     };
-
-    definitions = lib.mkOption {
-      type = types.raw;
-      default = removeAttrs (explicitDefinitions options.programs.steam-config) [ "enable" ];
-      readOnly = true;
-      internal = true;
-      visible = false;
-    };
   };
 
   config = lib.mkMerge [
@@ -249,15 +228,15 @@ in
       }) renamed;
     }
 
-    (lib.optionalAttrs (!isNixos) {
-      programs.steam-config = if layered then osSteamConfig.definitions else { };
-    })
-
     (lib.mkIf cfg.enable {
       assertions =
         import ../lib/assertions.nix { inherit lib enabledApps enabledNonSteamApps; }
         ++ lib.concatMap (app: app.assertions) allApps;
-      warnings = lib.concatMap (app: app.warnings) allApps;
+      warnings =
+        lib.concatMap (app: app.warnings) allApps
+        ++
+          lib.optional (unappliedOsApps != [ ])
+            "programs.steam-config in Home Manager replaces the NixOS one for this user, so these apps from the NixOS configuration do not apply: ${lib.concatStringsSep ", " unappliedOsApps}.";
     })
   ];
 }
