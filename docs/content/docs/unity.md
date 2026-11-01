@@ -12,9 +12,9 @@ The `unityPrefs` format handles both, so you write the plain key name:
 
 ```nix
 {
-  programs.steam.config.apps."438100" = {
+  programs.steam-config.apps."438100" = {
     name = "VRChat";
-    files.prefix.patch."user.reg" = {
+    files.prefix.writeKeys."user.reg" = {
       format = "unityPrefs";
       content."Software/VRChat/VRChat" = {
         VRC_MAX_PARTICLE_SYSTEMS = 100;
@@ -43,9 +43,9 @@ instead. It maps a key path to value names directly, where a string becomes a
 
 ```nix
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.prefix.patch."user.reg" = {
+    files.prefix.writeKeys."user.reg" = {
       format = "registry";
       content."Software/Wine/DllOverrides".mfplat = "native";
     };
@@ -55,7 +55,8 @@ instead. It maps a key path to value names directly, where a string becomes a
 
 ## Applying and removing
 
-`patch` merges your keys into the game's own file on every activation, and only
-the keys you name are touched. Removing the entry will put the original back
-only if the file has not changed since it was last patched, and otherwise leave
-it as it is, your keys included.
+`writeKeys` merges your keys into the game's own file before every launch, and
+only the keys you name are touched. A copy of the file as it was before the
+first write is kept under
+`$XDG_DATA_HOME/steam-config-nix/apps/<app>/originals/`. Removing the entry
+leaves your keys in place.

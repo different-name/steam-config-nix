@@ -3,15 +3,14 @@ title: Use DXVK without Winetricks
 weight: 16
 ---
 
-DXVK and VKD3D translate Direct3D to Vulkan. Modern Proton comes with them so
-most games don't need this set up. However, when you do need a specific version,
-there are two routes with the same result and different reproducibility.
+DXVK and VKD3D translate Direct3D to Vulkan. Proton ships both, so most games
+need neither. To use a specific version:
 
 ## With Winetricks
 
 ```nix
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
     winetricks = [ "dxvk" ];
   };
@@ -22,14 +21,14 @@ Winetricks will install whatever DXVK release is latest at launch.
 
 ## With DLLs from nixpkgs
 
-Place the DLLs in the prefix and tell Wine to load them over its built-in ones:
+Serve the DLLs in the prefix and tell Wine to load them over its built-in ones:
 
 ```nix
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
 
-    files.prefix.place = {
+    files.prefix.overlay = {
       "drive_c/windows/system32/d3d11.dll".source = "${pkgs.dxvk.bin}/x64/d3d11.dll";
       "drive_c/windows/system32/dxgi.dll".source = "${pkgs.dxvk.bin}/x64/dxgi.dll";
     };
@@ -49,5 +48,5 @@ version, so check what your Proton build already provides before adding
 anything.
 
 Setting `WINEDLLOVERRIDES` in `env` as well as `dllOverrides` is rejected, so
-declare the load order here rather than by hand. See [Why dllOverrides
-exists]({{< relref "/docs/launch-options#dll-overrides" >}}).
+declare the load order here rather than by hand. See [DLL
+overrides]({{< relref "/docs/launch-options#dll-overrides" >}}).

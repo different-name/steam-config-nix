@@ -9,7 +9,7 @@ properties on that scope, passed through to `systemd-run --property`:
 
 ```nix
 {
-  programs.steam.config.apps."438100" = {
+  programs.steam-config.apps."438100" = {
     name = "VRChat";
     systemd.enable = true;
     systemd.scope.properties = {
@@ -42,10 +42,18 @@ Then point each app at it with `Slice = "games.slice"`. Limits on the slice
 apply to everything in it together, so two games running at once will share
 them.
 
+## Steam's own scope
+
+Steam also moves each game into a scope of its own, controlled by
+`STEAM_LAUNCH_WRAPPER_SCOPE`. With `systemd.enable` the module turns that off,
+so the game sits only in the module's scope. Without it, set the variable in
+`env` to change it: `"0"` turns Steam's scope off.
+
 ## Limits
 
-- The scope is named `app-steam-<id>-<random>.scope`, where `<id>` is
-  `steamRunId`, so there is no fixed name to stop an app by. Match
+- The scope is named `app-steam-<id>-<pid>.scope`, where `<id>` is the app ID
+  (or the shortcut ID of a non-Steam app) and `<pid>` is the launch step's own
+  process ID, so there is no fixed name to stop an app by. Match
   `app-steam-<id>-*` instead.
 - Output is not captured by the journal. The scope inherits Steam's stdout and
   stderr.
@@ -53,5 +61,6 @@ them.
   starting, and setting `After` will stop the launch from waiting for it. Put
   dependencies on the target instead, see [Run a tool alongside a game with
   systemd]({{< relref "/docs/run-alongside-game" >}}).
-- With no systemd user manager the app still launches, without a scope, so no
-  limits are applied.
+- With no systemd user manager the app still launches, without the module's
+  scope, so no limits are applied. A notification says so, and Steam's own scope
+  follows `env`.

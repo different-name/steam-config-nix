@@ -7,13 +7,13 @@ Unreal Engine games keep their settings in `.ini` files, usually under
 `Engine/Config/` in the install directory or under the Windows user profile in
 the prefix.
 
-Patch them to change only the keys you name:
+Set keys in them to change only the ones you name:
 
 ```nix
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.game.patch."Engine/Config/BaseEngine.ini" = {
+    files.game.writeKeys."Engine/Config/BaseEngine.ini" = {
       format = "ini";
       content.SystemSettings."r.Tonemapper.Sharpen" = 2;
     };
@@ -32,9 +32,9 @@ Per-user settings live in the prefix rather than the install directory:
 
 ```nix
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.prefix.patch."drive_c/users/steamuser/Documents/My Games/SomeGame/Saved/Config/WindowsNoEditor/Engine.ini" = {
+    files.prefix.writeKeys."drive_c/users/steamuser/Documents/My Games/SomeGame/Saved/Config/WindowsNoEditor/Engine.ini" = {
       format = "ini";
       content.SystemSettings."r.MotionBlurQuality" = 0;
     };
@@ -43,7 +43,8 @@ Per-user settings live in the prefix rather than the install directory:
 ```
 
 The exact path varies by game and engine version, so launch the game once and
-look. A patch against a file that is not there yet will wait for it.
+look. An entry for a file that is not there yet is skipped until the game
+creates it.
 
 ## Creating the file
 
@@ -52,7 +53,8 @@ missing. Leave it off for engine configs, so the game generates its own.
 
 ## Applying and removing
 
-`patch` merges your keys into the game's own file on every activation, and only
-the keys you name are touched. Removing the entry will put the original back
-only if the file has not changed since it was last patched, and otherwise leave
-it as it is, your keys included.
+`writeKeys` merges your keys into the game's own file before every launch, and
+only the keys you name are touched. A copy of the file as it was before the
+first write is kept under
+`$XDG_DATA_HOME/steam-config-nix/apps/<app>/originals/`. Removing the entry
+leaves your keys in place.

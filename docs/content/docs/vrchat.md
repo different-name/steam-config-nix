@@ -7,7 +7,7 @@ weight: 41
 
 ```nix
 {
-  programs.steam.config.apps."438100" = {
+  programs.steam-config.apps."438100" = {
     name = "VRChat";
     env.TZ = null;
   };
@@ -23,7 +23,7 @@ To run a companion tool only while VRChat runs:
 
 ```nix
 {
-  programs.steam.config.apps."438100" = {
+  programs.steam-config.apps."438100" = {
     name = "VRChat";
     systemd.enable = true;
   };

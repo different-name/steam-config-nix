@@ -11,7 +11,7 @@ Add it as a wrapper, listed first, with its own flags ended by `--`:
 
 ```nix
 {
-  programs.steam.config.apps."1245620" = {
+  programs.steam-config.apps."1245620" = {
     name = "Elden Ring";
     wrappers = [
       (lib.getExe pkgs.gamescope)
@@ -39,7 +39,7 @@ should run inside the session after the `--`:
 
 ```nix
 {
-  programs.steam.config.apps."1245620" = {
+  programs.steam-config.apps."1245620" = {
     name = "Elden Ring";
     wrappers = [
       (lib.getExe pkgs.gamescope)

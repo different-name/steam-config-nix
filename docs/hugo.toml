@@ -27,7 +27,7 @@ displayToggle = true
 
 [[menu.main]]
 name = "Guide"
-pageRef = "/docs"
+pageRef = "/docs/getting-started"
 weight = 1
 
 [[menu.main]]

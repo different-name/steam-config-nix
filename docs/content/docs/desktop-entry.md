@@ -8,7 +8,7 @@ else that reads `.desktop` files, and launching it goes through Steam as normal.
 
 ```nix
 {
-  programs.steam.config.apps."1091500" = {
+  programs.steam-config.apps."1091500" = {
     name = "Cyberpunk 2077";
     desktopEntry.enable = true;
   };
@@ -23,7 +23,7 @@ where the name and icon come from `name` and `artwork.icon`.
 
 ```nix
 {
-  programs.steam.config.desktopEntries.enable = true;
+  programs.steam-config.desktopEntries.enable = true;
 }
 ```
 

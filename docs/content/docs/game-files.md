@@ -1,36 +1,43 @@
 ---
-title: What managing game files can and cannot undo
+title: What managing game files changes on disk
 weight: 5
 ---
 
-[Adding, replacing or hiding files]({{< relref "/docs/manage-files" >}}) writes
-into the game's install directory or its Proton prefix, and every change is
-recorded. Removing an entry from your configuration will revert it on the next
-activation: a newly created file will be deleted, and one that replaced or
-removed something the game shipped will be restored from the backup taken before
-the first write.
+[Adding, replacing or hiding files]({{< relref "/docs/manage-files" >}}) with
+`overlay` and `hide` changes no files in the game's install directory or its
+Proton prefix. A missing directory an entry needs is created empty. The entries
+are laid over the real directory for one launch, in the game's own mount
+namespace, and are gone when the game exits. Steam's verification sees the game
+exactly as it shipped.
 
-A file that changed since it was written will be left alone instead, and its
-backup is dropped. That keeps a reversal from throwing away an edit you or the
-game made, at the cost of leaving our version in place, so check the log if you
-expected a file to come back.
+`writeDefault` and `writeKeys` write to disk:
 
-Records live under `$XDG_DATA_HOME/steam-config-nix`. Steam can overwrite
-managed files when it updates or verifies a game, and all but `seed` files will
-be re-applied on the next activation.
+- `writeDefault` writes a file when it is missing, and leaves it alone while it
+  exists.
+- `writeKeys` rewrites the keys you name in a file the game owns, before every
+  launch. The file as it was before the first write is kept under
+  `$XDG_DATA_HOME/steam-config-nix/apps/<app>/originals/`.
+
+Removing either entry leaves the file as it is. A target inside a directory the
+overlay covers is written to the `writes` directory below, not to disk. Files
+you have not declared are never touched.
+
+## The game's own writes
+
+While an overlay covers a directory, what the game writes there goes to
+`$XDG_DATA_HOME/steam-config-nix/apps/<app>/writes/` rather than to disk, and
+the game sees it again at the next launch. Three kinds of write do not survive,
+and each is logged by the launch step:
+
+- a change the game makes to a served file or a hidden path is discarded at the
+  start of every launch
+- when you change or remove an entry, the copies of the files it used to serve
+  are dropped
+- a copy of a real file is dropped when Steam updates that file underneath it
+
+Directories listed in `passthrough` are written in place.
 
 ## Saves
 
-Reversing the files does not reverse what the game did while they were there.
-
-A mod that writes to your saves will leave those saves depending on it, and
-removing the mod cleanly will not make them whole again.
-
-## Files the game writes
-
-A file placed with the default `"enforce"` mode is written again on every
-activation, so a change the game makes to it will be replaced the next time you
-rebuild. For a file the game or you should be able to edit, use `mode = "seed"`:
-it is written only if the file is absent, and then left alone.
-
-Files you have not declared will never be touched.
+A save written while a mod was served depends on that mod. Removing the entry
+does not make the save whole again.

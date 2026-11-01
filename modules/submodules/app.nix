@@ -191,7 +191,7 @@ in
       type = types.lines;
       default = "";
       description = ''
-        Shell run before the app starts, inside the launch wrapper. The variables from `env` are exported at this point. `cmdline` holds the command line Steam built, and the `wrappers` and `args` arrays can be changed.
+        Bash run by the launch step before the app starts, with `env`, `dllOverrides` and `prefixPath` applied. `cmdline` holds the command line Steam built, and the `wrappers` and `args` arrays hold those options. Changes to all three carry into the launch. Any exit before the end stops the launch, with a notification for a non-zero code.
       '';
     };
 

@@ -3,78 +3,61 @@ title: How launch options work
 weight: 4
 ---
 
-Steam gives each app a single launch options string. The module compiles your
-configuration into a wrapper script at a stable path outside Steam, and puts
-only a command that runs it into Steam:
+Steam runs every game through a launch shell when the `STEAM_GAME_LAUNCH_SHELL`
+variable names one. The `steam` command this module installs sets it, so each
+launch goes through `steam-config-launch` first. It applies the app's options
+and then runs the command line Steam built. Nothing is written into Steam's
+launch options field.
 
-```
-/bin/sh -c 'if [ -x "$0" ]; then exec "$0" "$@"; else exec "$@"; fi' <wrapper> %command%
-```
+The `steam` on `PATH` is that command. A script, autostart entry or unit that
+starts Steam by store path should use `programs.steam-config.launcher`.
 
 ## When changes apply
 
-Steam's launch options field is written once, when the app first needs the
-wrapper. That write lands in Steam's own configuration, so it waits for Steam to
-close like anything else there. After it, a change to your configuration only
-rewrites the script, so it will apply without waiting.
+A rebuild places one launch spec per configured app under the module's data
+directory. The launch step reads it at the next game launch, so a change to any
+launch option applies without closing Steam. Only a Steam that was started
+before the module was first enabled has to be restarted once.
 
 ## Launch options set in Steam
 
-Most options make use of the wrapper script, so in most cases whatever was set
-manually in Steam's launch options field will be overwritten.
+Whatever is set in Steam's launch options field is kept. Steam folds it into the
+command line it builds, and the launch step runs that command line as it is.
 
-If you have launch strings you want to keep, move them into `rawLaunchOptions`
-rather than leaving them in Steam.
+## What a launch does
 
-## The generated script
+In order:
 
-The structured options each fill a different slot in the generated script:
+1. `programs.steam-config.env`, then the app's `env`
+2. `WINEDLLOVERRIDES` from `dllOverrides`
+3. `prefixPath`, as `STEAM_COMPAT_DATA_PATH`
+4. `winetricks` verbs that are not installed yet
+5. `preHook`
+6. `rawLaunchOptions` spliced into the command line, then `args` appended
+7. the systemd scope from `systemd.enable`
+8. the files overlay from `files`
+9. `wrappers`, outermost first, then the command line in `/bin/sh -c`
 
-```nix
-{
-  programs.steam.config.apps."438100" = {
-    name = "VRChat";
-    env.TZ = null;
-    dllOverrides = {
-      winhttp = "n,b";
-      version = "n,b";
-    };
-    wrappers = [ "gamemoderun" ];
-    args = [ "--fps=60" ];
-    preHook = ''
-      echo "launching $*"
-    '';
-  };
-}
-```
+`steam-config-launch show <app id>` prints what a launch would do for an app,
+with where each environment variable came from, the final command line and the
+exec chain, without launching anything. A non-Steam app is named by its
+attribute name.
 
-produces roughly:
+## preHook
 
-```bash
-unset TZ
-export WINEDLLOVERRIDES="version=n,b;winhttp=n,b"
+`preHook` runs as its own bash before the scope and the files overlay, with the
+environment above exported. `cmdline` holds the command line Steam built, also
+passed as `$1`, and the `wrappers` and `args` arrays hold the options of the
+same name. Edits to the three, exports and unsets all carry into the launch.
 
-declare -a wrappers=(gamemoderun)
-declare -a game_command=("$@")
-declare -a args=(--fps=60)
-
-echo "launching $*"
-
-exec env "${wrappers[@]}" "${game_command[@]}" "${args[@]}"
-```
-
-The order is fixed: environment first, then wrappers outermost, the game
-command, then extra arguments.
-
-`preHook` runs after the `env` exports and the array declarations, and before
-`exec`, with `wrappers`, `game_command` and `args` in scope. It can read or
-modify them.
+A non-zero exit stops the launch with that code and a notification. Exiting
+early with `0` also stops the launch, silently, so let the hook run to its end.
 
 ## DLL overrides
 
 Wine reads DLL overrides from the single `WINEDLLOVERRIDES` variable.
 `dllOverrides` compiles into it, so several modules can each add overrides.
-Setting `WINEDLLOVERRIDES` in `env` as well as `dllOverrides` will be rejected.
+Setting `WINEDLLOVERRIDES` in `env` as well as `dllOverrides` is rejected.
 
 ## Raw launch options
 
@@ -83,17 +66,18 @@ standing in for the game:
 
 ```nix
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
     rawLaunchOptions = "DXVK_ASYNC=1 gamemoderun %command% -vulkan";
   };
 }
 ```
 
-It drops into the command position of the same script, wrapped by `wrappers`
-with `env` and `args` applied around it. A string with no `%command%` is
-appended as arguments, matching Steam's own behaviour. Where both set the same
-variable, the raw string wins.
+It is spliced into the command line, which runs inside `/bin/sh -c` as the last
+link of the chain, with `wrappers` and the files overlay around it and `args`
+after it. A string with no `%command%` is appended as arguments, matching
+Steam's own behaviour. Where it and `env` set the same variable, the raw string
+wins.
 
 Use it to paste a launch string you already have, and the structured options for
 anything new.
