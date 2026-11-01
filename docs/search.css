@@ -1,0 +1,104 @@
+/* the app derives page and card from these ramps, so setting those directly inverts it */
+:root {
+  --c-ternary: #eff1f5;
+  --c-ternary-l: #eff1f5;
+  --c-ternary-ll: #e6e9ef;
+  --c-ternary-d: #dce0e8;
+  --c-secondary: #1e1e2e;
+  --c-secondary-l: #1e1e2e;
+  --c-secondary-ll: #313244;
+  --c-secondary-d: #181825;
+
+  --f-color: #4c4f69;
+  --c-primary: #8839ef;
+  --c-primary-l: #a86ff3;
+  --c-primary-d: #6c28c0;
+  --c-accent: #1e66f5;
+  --c-accent-l: #5a8ef7;
+  --c-accent-d: #1750c4;
+  --c-gray: #9ca0b0;
+  --c-good: #40a02b;
+  --c-good-l: #5cbb46;
+  --c-good-d: #327f22;
+  --c-danger: #d20f39;
+  --c-danger-l: #e33f61;
+  --c-danger-d: #a80c2e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --f-color: #cdd6f4;
+    --c-primary: #cba6f7;
+    --c-primary-l: #dbc2f9;
+    --c-primary-d: #b586f0;
+    --c-accent: #89b4fa;
+    --c-accent-l: #a6c8fb;
+    --c-accent-d: #6a9df8;
+    --c-gray: #6c7086;
+    --c-good: #a6e3a1;
+    --c-good-l: #bce9b8;
+    --c-good-d: #8bd785;
+    --c-danger: #f38ba8;
+    --c-danger-l: #f6a8bf;
+    --c-danger-d: #ef6e91;
+  }
+}
+
+/* the app's own header is sticky at z-index 10, and only clears well above it */
+.scn-back {
+  position: fixed;
+  top: 0.85rem;
+  right: 1rem;
+  z-index: 100;
+  padding: 0.3rem 0.7rem;
+  border: 0.1rem solid var(--c-card-secondary);
+  border-radius: calc(0.4 * var(--s-unit));
+  background: var(--c-card);
+  font: inherit;
+  font-size: var(--f-size-small);
+  color: var(--f-color);
+  text-decoration: none;
+}
+
+.scn-back:hover {
+  border-color: var(--c-primary);
+}
+
+.typography code {
+  background-color: #e6e9ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  .typography code {
+    background-color: #181825;
+  }
+}
+
+/* angular scopes the component rule with its own attributes, which outweighs a selector */
+input,
+textarea {
+  background-color: #e6e9ef !important;
+  border-color: #e6e9ef !important;
+}
+
+input:hover,
+input:focus,
+textarea:hover,
+textarea:focus {
+  border-color: #ccd0da !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  input,
+  textarea {
+    background-color: #181825 !important;
+    border-color: #181825 !important;
+  }
+
+  input:hover,
+  input:focus,
+  textarea:hover,
+  textarea:focus {
+    border-color: #45475a !important;
+  }
+}

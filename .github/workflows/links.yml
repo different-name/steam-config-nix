@@ -19,12 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v22
-      - run: nix build .#docs
+      - run: nix build ./docs
       - name: check external links
         id: lychee
         continue-on-error: true
         run: |
-          base=$(nix eval --raw .#docs.basePath)
+          base=$(nix eval --raw ./docs#default.basePath)
           site="root$base"
           mkdir -p "$(dirname "$site")"
           cp -rL result "$site"

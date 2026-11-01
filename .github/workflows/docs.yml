@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v22
-      - run: nix build .#docs
+      - run: nix build ./docs
       - run: cp -rL result public
       - uses: actions/upload-pages-artifact@v3
         with:
