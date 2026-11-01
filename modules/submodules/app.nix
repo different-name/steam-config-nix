@@ -462,9 +462,9 @@ in
   }
   // lib.optionalAttrs (!isSteam) {
     target = lib.mkOption {
-      type = with types; either path str;
-      example = lib.literalExpression "lib.getExe pkgs.vintagestory";
-      description = "The executable Steam launches.";
+      type = with types; coercedTo package lib.getExe (either path str);
+      example = lib.literalExpression "pkgs.vintagestory";
+      description = "The executable Steam launches, as a package or an absolute path.";
     };
 
     startIn = lib.mkOption {
