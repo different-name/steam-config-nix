@@ -31,7 +31,6 @@ pub struct LaunchSpec {
     pub wrappers: Vec<String>,
     pub env_program: Option<PathBuf>,
     pub scope: Option<Scope>,
-    pub steam_scope: Option<bool>,
     pub files: Option<PathBuf>,
 }
 
@@ -217,7 +216,6 @@ pub mod tests {
         let portal = parse_app(PORTAL).unwrap();
         assert_eq!(portal.kind, Kind::Steam);
         assert_eq!(portal.env["TZ"], None);
-        assert_eq!(portal.steam_scope, None);
         assert_eq!(portal.scope.unwrap().properties.len(), 5);
         let probe = parse_app(PROBE).unwrap();
         assert_eq!(probe.kind, Kind::NonSteam);
@@ -225,12 +223,6 @@ pub mod tests {
         let global =
             parse_global(r#"{ "version": 1, "notifySend": null, "env": { "A": "1" } }"#).unwrap();
         assert_eq!(global.env["A"].as_deref(), Some("1"));
-    }
-
-    #[test]
-    fn steam_scope_parses() {
-        let text = PROBE.replace("\"files\": null", "\"files\": null, \"steamScope\": false");
-        assert_eq!(parse_app(&text).unwrap().steam_scope, Some(false));
     }
 
     #[test]

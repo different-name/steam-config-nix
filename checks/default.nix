@@ -279,6 +279,7 @@ let
         WINEDLLOVERRIDES = "winhttp=n,b";
       };
       apps."620".dllOverrides.winhttp = "n,b";
+      apps."620".systemd.enable = true;
       apps."620".files.game = {
         overlay."Saves/x.txt".text = "x";
         overlay."a.cfg".text = "a";
@@ -518,8 +519,6 @@ in
     spec 7 '{env: {DROP: null, KEEP: "k"}, dllOverrides: {d3d9: "disabled", winhttp: "n,b"}}'
     expect "$(DROP=1 WINEDLLOVERRIDES=old $shell 'echo "''${DROP-unset} $KEEP $WINEDLLOVERRIDES"')" "unset k d3d9=;winhttp=n,b"
 
-    spec 7 '{steamScope: false}'
-    expect "$($shell 'echo "$STEAM_LAUNCH_WRAPPER_SCOPE"')" 0
     spec 7 '{scope: {systemdRun: "/nonexistent", systemctl: "${lib.getExe' pkgs.coreutils "false"}", properties: {}}}'
     expect "$(STEAM_LAUNCH_WRAPPER_SCOPE=1 $shell 'echo "$STEAM_LAUNCH_WRAPPER_SCOPE"' 2>err)" 1
     grep -q 'No systemd user manager, launching t without a scope' err
@@ -556,7 +555,7 @@ in
 
   launch-spec = pkgs.runCommand "launch-spec" { } ''
     ${jq} -e '.env.SCN == "x" and .args == ["-a", "two words"]' ${spec105600}
-    ${jq} -e '.shell == null and .envProgram == null and .steamScope == null' ${spec105600}
+    ${jq} -e '.shell == null and .envProgram == null' ${spec105600}
     ${jq} -e '.scope.properties | .Description == "105600" and .Wants == "steam-app-105600.target" and .After == "steam-app-105600.target"' ${spec105600}
     ${jq} -e '.files == "${cfg.apps."105600".filesSpec}"' ${spec105600}
     ${jq} -e '.rawLaunchOptions == "MANGOHUD=1 %command% -x" and .files == null and .scope == null' ${specJellycar}
@@ -637,7 +636,7 @@ in
     assert expectMessage "`allowOverlay` was renamed to `overlay`";
     assert expectMessage "`isHidden` was renamed to `hidden`";
     assert expectMessage "programs.steam.config was renamed to programs.steam-config";
-    assert expectMessage "`env.STEAM_LAUNCH_WRAPPER_SCOPE` conflicts with `systemd.steamScope`";
+    assert expectMessage "`env.STEAM_LAUNCH_WRAPPER_SCOPE` has no effect with `systemd.enable`";
     assert expectMessage "`env.WINEDLLOVERRIDES` is replaced by `dllOverrides`";
     assert expectMessage "more than one app has the key 620.";
     assert expectMessage "needs at least one letter or digit in a-z0-9: !!!";

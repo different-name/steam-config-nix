@@ -36,7 +36,6 @@ let
     || config.winetricks != [ ]
     || config.prefixPath != null
     || config.systemd.enable
-    || config.systemd.steamScope != null
     || config.filesSpec != null;
 
   scopeProperties = {
@@ -87,7 +86,6 @@ let
         }
       else
         null;
-    inherit (config.systemd) steamScope;
     files = if config.filesSpec == null then null else "${config.filesSpec}";
   };
 in
@@ -273,15 +271,6 @@ in
         default = { };
         description = ''
           Extra `[Unit]` settings for the target. The generated target sets `Description`, `Documentation`, `StopWhenUnneeded`, `RefuseManualStart`, `RefuseManualStop` and its dependencies on `steam-app.target`.
-        '';
-      };
-
-      steamScope = lib.mkOption {
-        type = with types; nullOr bool;
-        default = null;
-        example = false;
-        description = ''
-          Whether Steam's launch wrapper moves the app into a systemd scope of its own, through `STEAM_LAUNCH_WRAPPER_SCOPE`. `null` leaves the variable as Steam and `programs.steam-config.env` set it. While the app runs in the scope from `enable`, Steam's own scope is always off.
         '';
       };
 
@@ -532,9 +521,9 @@ in
             (lib.optional (config.allowOverlay != null) "`allowOverlay` was renamed to `overlay`.")
           ]
         )
-        ++ lib.optional (
-          config.env ? STEAM_LAUNCH_WRAPPER_SCOPE
-        ) "`env.STEAM_LAUNCH_WRAPPER_SCOPE` conflicts with `systemd.steamScope`, set it there instead."
+        ++
+          lib.optional (config.systemd.enable && config.env ? STEAM_LAUNCH_WRAPPER_SCOPE)
+            "`env.STEAM_LAUNCH_WRAPPER_SCOPE` has no effect with `systemd.enable`, which always turns Steam's scope off."
         ++ lib.optional (
           config.env ? WINEDLLOVERRIDES && config.dllOverrides != { }
         ) "`env.WINEDLLOVERRIDES` is replaced by `dllOverrides`, set the overrides there instead."
