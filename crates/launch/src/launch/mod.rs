@@ -238,8 +238,9 @@ fn run(spec: LaunchSpec, mut plan: EnvPlan, cmdline: String) -> ! {
             notify_in(notify_send, &msg, Some(&plan));
         }
     }
-    let flag = scope::steam_flag(head.is_some(), spec.steam_scope);
-    scope::apply_flag(&mut plan, &flag, "systemd");
+    if head.is_some() {
+        scope::steam_off(&mut plan);
+    }
     if spec.pre_hook.is_some() {
         parts.push("preHook".into());
     }
@@ -350,7 +351,7 @@ mod tests {
         );
         apply_spec_env(&mut plan, &spec);
         plan.set(COMPAT_DATA, "/p", "prefixPath");
-        scope::apply_flag(&mut plan, &scope::steam_flag(true, None), "systemd");
+        scope::steam_off(&mut plan);
         let order: Vec<(String, Option<String>, &str)> = plan
             .entries
             .iter()

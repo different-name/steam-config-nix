@@ -119,13 +119,9 @@ pub fn render(view: View) -> String {
         .as_ref()
         .filter(|_| view.probe)
         .map(|s| scope::head(s, &scope::unit(spec.app_id, view.pid)));
-    let flag = scope::steam_flag(head.is_some(), spec.steam_scope);
-    let source = if head.is_some() {
-        "systemd"
-    } else {
-        "systemd.steamScope"
-    };
-    scope::apply_flag(&mut plan, &flag, source);
+    if head.is_some() {
+        scope::steam_off(&mut plan);
+    }
     env_section(&mut out, &plan);
 
     if let Some(p) = &spec.prefix_path {
@@ -422,9 +418,8 @@ exec chain
     }
 
     #[test]
-    fn no_manager_and_steam_scope() {
-        let text = PORTAL.replace("\"files\":", "\"steamScope\": true, \"files\":");
-        let spec = spec::parse_app(&text).unwrap();
+    fn no_manager() {
+        let spec = spec::parse_app(PORTAL).unwrap();
         let out = render(View {
             exe: Path::new("/data/launch-shell"),
             spec_path: Path::new("/data/launch/620.json"),
@@ -438,10 +433,7 @@ exec chain
             pid: "<pid>",
         });
         assert!(out.contains("no user manager, launches without a scope"));
-        assert!(out.contains(&format!(
-            "  {:<50} systemd.steamScope, unset",
-            "STEAM_LAUNCH_WRAPPER_SCOPE"
-        )));
+        assert!(!out.contains("STEAM_LAUNCH_WRAPPER_SCOPE"));
         assert!(!out.contains("systemd-run"));
         assert!(!out.contains("  global "));
         assert!(out.contains("command line\n  X=1 game -r -a 'two words'\n"));

@@ -6,27 +6,8 @@ use super::spec::Scope;
 
 pub const STEAM_SCOPE: &str = "STEAM_LAUNCH_WRAPPER_SCOPE";
 
-#[derive(Debug, PartialEq)]
-pub enum SteamFlag {
-    Off,
-    Unset,
-    Leave,
-}
-
-pub fn steam_flag(own_scope: bool, steam_scope: Option<bool>) -> SteamFlag {
-    match (own_scope, steam_scope) {
-        (true, _) | (false, Some(false)) => SteamFlag::Off,
-        (false, Some(true)) => SteamFlag::Unset,
-        (false, None) => SteamFlag::Leave,
-    }
-}
-
-pub fn apply_flag(plan: &mut EnvPlan, flag: &SteamFlag, source: &'static str) {
-    match flag {
-        SteamFlag::Off => plan.set(STEAM_SCOPE, "0", source),
-        SteamFlag::Unset => plan.push(STEAM_SCOPE, None, source),
-        SteamFlag::Leave => {}
-    }
+pub fn steam_off(plan: &mut EnvPlan) {
+    plan.set(STEAM_SCOPE, "0", "systemd");
 }
 
 pub fn unit(app_id: u64, pid: impl std::fmt::Display) -> String {
@@ -65,15 +46,6 @@ pub fn probe(scope: &Scope, plan: &EnvPlan) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn flag_table() {
-        assert_eq!(steam_flag(true, None), SteamFlag::Off);
-        assert_eq!(steam_flag(true, Some(true)), SteamFlag::Off);
-        assert_eq!(steam_flag(false, Some(false)), SteamFlag::Off);
-        assert_eq!(steam_flag(false, Some(true)), SteamFlag::Unset);
-        assert_eq!(steam_flag(false, None), SteamFlag::Leave);
-    }
 
     #[test]
     fn head_argv() {
