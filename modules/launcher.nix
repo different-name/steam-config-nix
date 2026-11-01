@@ -46,7 +46,12 @@ in
     if isNixos then
       {
         environment.systemPackages = [ (lib.hiPrio launcher) ];
-        programs.steam.enable = lib.mkDefault true;
+        assertions = [
+          {
+            assertion = config.programs.steam.enable;
+            message = "programs.steam-config needs `programs.steam.enable = true`.";
+          }
+        ];
       }
     else
       { home.packages = [ (lib.hiPrio launcher) ]; }
