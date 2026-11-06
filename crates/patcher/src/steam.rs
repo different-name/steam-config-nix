@@ -239,7 +239,7 @@ pub fn close_steam(steam: &Path) {
 mod tests {
     use super::{find_app_manifest, library_paths, own_uid, processes, shutdown, stop, user_ids};
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
     use std::time::Duration;
 
@@ -346,26 +346,37 @@ mod tests {
         assert!(!child.wait().unwrap().success());
     }
 
+    // written by a child, a writable fd held here leaks into a concurrent test's fork and exec fails with ETXTBSY
+    fn write_script(path: &Path, body: &str) {
+        let status = Command::new("/bin/sh")
+            .args([
+                "-c",
+                "printf '%s' \"$2\" > \"$1\" && chmod 755 \"$1\"",
+                "sh",
+            ])
+            .arg(path)
+            .arg(body)
+            .status()
+            .unwrap();
+        assert!(status.success());
+    }
+
     #[test]
     fn shutdown_runs_the_command_and_kills_a_hung_one() {
         let root = temp("shutdown");
         let marker = root.join("ran");
         let script = root.join("steam");
-        fs::write(
+        write_script(
             &script,
-            format!(
+            &format!(
                 "#!/bin/sh\n[ \"$1\" = -shutdown ] && touch {}\n",
                 marker.display()
             ),
-        )
-        .unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+        );
         shutdown(&script, Duration::from_secs(5));
         assert!(marker.exists());
         let hung = root.join("hung");
-        fs::write(&hung, "#!/bin/sh\nsleep 30\n").unwrap();
-        fs::set_permissions(&hung, fs::Permissions::from_mode(0o755)).unwrap();
+        write_script(&hung, "#!/bin/sh\nsleep 30\n");
         let start = std::time::Instant::now();
         shutdown(&hung, Duration::from_millis(500));
         assert!(start.elapsed() < Duration::from_secs(10));
