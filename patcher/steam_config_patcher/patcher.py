@@ -29,6 +29,7 @@ from steam_config_patcher.types import (
     APPMANIFEST_PATH,
     COMPAT_TOOL_MAPPING_PATH,
     CONFIG_FILE,
+    DEFAULT_ALLOW_DOWNLOADS_DURING_GAMEPLAY,
     DESKTOP_UI_SCALE_PATH,
     DISPLAY_RATES_AS_BITS_PATH,
     DOWNLOAD_SPEED_LIMIT,
@@ -103,6 +104,17 @@ def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedK
                 file=CONFIG_FILE,
                 key_path=DOWNLOAD_SPEED_LIMIT,
                 expected=throttle,
+            )
+        )
+
+    if cfg.default_game_allow_downloads is not None:
+        allow = "1" if cfg.default_game_allow_downloads else "0"
+        leaves[DEFAULT_ALLOW_DOWNLOADS_DURING_GAMEPLAY] = allow
+        managed_keys.append(
+            ManagedKey(
+                file=CONFIG_FILE,
+                key_path=DEFAULT_ALLOW_DOWNLOADS_DURING_GAMEPLAY,
+                expected=allow,
             )
         )
 
