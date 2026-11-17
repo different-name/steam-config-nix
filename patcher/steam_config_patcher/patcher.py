@@ -31,6 +31,7 @@ from steam_config_patcher.types import (
     CONFIG_FILE,
     DESKTOP_UI_SCALE_PATH,
     DISPLAY_RATES_AS_BITS_PATH,
+    DOWNLOAD_SPEED_LIMIT,
     LOCALCONFIG_APPS_PATH,
     LOCALCONFIG_FILE,
     ConfigPatch,
@@ -91,6 +92,17 @@ def config_vdf_state(cfg: PatcherConfig) -> tuple[KeyValuesLeaves, list[ManagedK
                 file=CONFIG_FILE,
                 key_path=DESKTOP_UI_SCALE_PATH,
                 expected=scale,
+            )
+        )
+
+    if cfg.download_throttle_kbps is not None:
+        throttle = str(cfg.download_throttle_kbps)
+        leaves[DOWNLOAD_SPEED_LIMIT] = throttle
+        managed_keys.append(
+            ManagedKey(
+                file=CONFIG_FILE,
+                key_path=DOWNLOAD_SPEED_LIMIT,
+                expected=throttle,
             )
         )
 

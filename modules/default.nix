@@ -126,6 +126,18 @@ in
       '';
     };
 
+    downloadSpeedLimit = lib.mkOption {
+      type = with types; nullOr ints.unsigned;
+      default = null;
+      example = 80000;
+      description = ''
+        Download limit in Kbps (kilobits per second)
+
+        `0`: disables the limit
+        `null`: leaves the existing Steam setting untouched.
+      '';
+    };
+
     apps = lib.mkOption {
       type = mkAppType steamAppModule;
       default = { };
@@ -275,7 +287,11 @@ in
       );
 
       patcherConfig = builtins.toJSON {
-        inherit (cfg) onSteamRunning displayRatesAsBits desktopUiScale;
+        inherit (cfg)
+          onSteamRunning
+          displayRatesAsBits
+          desktopUiScale
+          downloadSpeedLimit
         defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
         apps = mapFinalConfigs enabledApps;
         nonSteamApps = mapFinalConfigs enabledNonSteamApps;

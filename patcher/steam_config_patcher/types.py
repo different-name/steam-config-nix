@@ -9,6 +9,14 @@ DISPLAY_RATES_AS_BITS_PATH = (
     "system",
     "displayratesasbits",
 )
+DOWNLOAD_SPEED_LIMIT = (
+    "InstallConfigStore",
+    "Software",
+    "Valve",
+    "Steam",
+    "DownloadThrottleKbps",
+)
+
 DESKTOP_UI_SCALE_PATH = (
     "InstallConfigStore",
     "Accessibility",
@@ -82,6 +90,7 @@ class PatcherConfig:
     users: dict[int, UserConfig]
     display_rates_as_bits: bool | None = None
     desktop_ui_scale: float | None = None
+    download_throttle_kbps: int | None = None
     game_betas: dict[int, str] = field(default_factory=dict)
     game_languages: dict[int, str] = field(default_factory=dict)
     game_update_behaviors: dict[int, str] = field(default_factory=dict)

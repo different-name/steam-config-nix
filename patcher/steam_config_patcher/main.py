@@ -93,6 +93,7 @@ class InputSchema(StrictSchema):
     onSteamRunning: Literal["wait", "close", "force-close", "skip"]
     defaultCompatTool: CompatToolValue
     displayRatesAsBits: bool | None = None
+    downloadSpeedLimit: int | None = None
     desktopUiScale: float | None = None
     apps: dict[str, AppSchema]
     nonSteamApps: dict[str, NonSteamAppSchema]
@@ -128,6 +129,7 @@ def parse_input() -> PatcherConfig:
         steam_dir=steam_dir,
         display_rates_as_bits=validated_input.displayRatesAsBits,
         desktop_ui_scale=validated_input.desktopUiScale,
+        download_throttle_kbps=validated_input.downloadSpeedLimit,
         compat_tool_mapping={
             app.id: CompatToolConfig(
                 name=name,
