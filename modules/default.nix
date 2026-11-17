@@ -126,6 +126,31 @@ in
       '';
     };
 
+    downloadSpeedLimit = lib.mkOption {
+      type = with types; nullOr ints.unsigned;
+      default = null;
+      example = 80000;
+      description = ''
+        Download limit in Kbps (kilobits per second)
+
+        `0`: disables the limit
+        `null`: leaves the existing Steam setting untouched.
+      '';
+    };
+
+    defaultAllowDownloadsWhileRunning = lib.mkOption {
+      type = with types; nullOr bool;
+      default = null;
+      example = false;
+      description = ''
+        Whether Steam may download apps while a game is running
+
+        `true`: allow background downloads by default
+        `false`: disable background downloads by default
+        This sets the default in Steam. It does not change the default for `apps.<name>.allowDownloadsWhileRunning`.
+      '';
+    };
+
     apps = lib.mkOption {
       type = mkAppType steamAppModule;
       default = { };
@@ -275,7 +300,13 @@ in
       );
 
       patcherConfig = builtins.toJSON {
-        inherit (cfg) onSteamRunning displayRatesAsBits desktopUiScale;
+        inherit (cfg)
+          onSteamRunning
+          displayRatesAsBits
+          desktopUiScale
+          downloadSpeedLimit
+          defaultAllowDownloadsWhileRunning
+          ;
         defaultCompatTool = mkCompatToolValue cfg.defaultCompatTool;
         apps = mapFinalConfigs enabledApps;
         nonSteamApps = mapFinalConfigs enabledNonSteamApps;
