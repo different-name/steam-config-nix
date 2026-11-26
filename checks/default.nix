@@ -362,6 +362,79 @@ let
     lib.assertMsg (lib.any (m: lib.hasInfix needle m) badMessages) "missing assertion: ${needle}";
   patcherUnit = eval.systemd.user.services.steam-config-patcher;
   userActivation = pkgs.writeText "user-activation" eval.system.userActivationScripts.script;
+
+  docsSnippets =
+    let
+      pages = lib.filter (lib.hasSuffix ".md") (lib.filesystem.listFilesRecursive ../docs/content);
+      blocksIn =
+        page:
+        let
+          # a bare fence excludes the {eval=false} blocks
+          after = lib.drop 1 (lib.splitString "```nix\n" (lib.readFile page));
+          relative = lib.removePrefix "${toString ../docs/content}/" (toString page);
+        in
+        lib.imap0 (index: chunk: {
+          name = "${lib.replaceStrings [ "/" ] [ "-" ] relative}-${toString index}";
+          source = "${relative}:${toString index}";
+          text = lib.head (lib.splitString "\n```" chunk);
+        }) after;
+    in
+    lib.concatMap blocksIn pages;
+
+  # a snippet reaches the store on its own, so a page relative path needs a stand in
+  withAssets =
+    text:
+    lib.concatMapStrings (part: if lib.isList part then "snippetAsset" else part) (
+      builtins.split "\\./[A-Za-z0-9_.-]+" text
+    );
+
+  evalSnippet =
+    block:
+    let
+      module = import (
+        builtins.toFile "${block.name}.nix" ''
+          { lib, pkgs, config, ... }:
+          let snippetAsset = pkgs.emptyFile; in
+          ${withAssets block.text}
+        ''
+      );
+      snippet = nixos [
+        { programs.steam-config.enable = true; }
+        # without _file a failing snippet reports <unknown-file> instead of its page
+        {
+          _file = block.source;
+          imports = [ module ];
+        }
+      ];
+      failed = map (a: a.message) (lib.filter (a: !a.assertion) snippet.assertions);
+      forced = lib.toJSON {
+        rules = snippet.systemd.tmpfiles.rules;
+        entries = map (p: p.drvPath) snippet.environment.systemPackages;
+      };
+      # forcing our own tree never reaches an option a snippet sets elsewhere, so walk what it defines
+      defined =
+        let
+          applied = module {
+            inherit lib pkgs;
+            config = snippet;
+          };
+        in
+        removeAttrs (applied.config or applied) [
+          "imports"
+          "options"
+          "_file"
+          "key"
+        ];
+      # an option that does not exist throws while the attribute below it is looked up
+      leaves =
+        path: value:
+        if lib.isAttrs value && !lib.isDerivation value && (value._type or null) == null then
+          lib.concatMap (name: leaves (path ++ [ name ]) value.${name}) (lib.attrNames value)
+        else
+          [ (lib.seq (lib.attrByPath path null snippet) true) ];
+    in
+    assert lib.assertMsg (failed == [ ]) "${block.source}: ${lib.concatStringsSep "\n" failed}";
+    lib.seq forced (lib.deepSeq (leaves [ ] defined) block.source);
 in
 {
   module-eval = pkgs.runCommand "module-eval" { } (
@@ -622,6 +695,23 @@ in
     assert expectMessage "`package` was split into `packages.patcher` and `packages.launch`";
     "touch $out"
   );
+
+  docs-snippets = pkgs.runCommand "docs-snippets" { } ''
+    echo "evaluated ${toString (lib.length docsSnippets)} doc snippets:"
+    ${lib.concatMapStringsSep "\n" (b: "echo '  ${evalSnippet b}'") docsSnippets}
+    touch $out
+  '';
+
+  docs-options = pkgs.runCommand "docs-options" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+    python3 ${./docs-options.py} ${
+      import ../docs/options.nix {
+        inherit lib pkgs;
+        inherit (pkgs) nixosOptionsDoc;
+        inherit (self) homeModules;
+      }
+    } ${../docs/content}
+    touch $out
+  '';
 
   formatting = pkgs.runCommand "formatting" { nativeBuildInputs = [ self.formatter.${system} ]; } ''
     cp -r ${self} src

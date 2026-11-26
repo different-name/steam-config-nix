@@ -20,17 +20,14 @@ let
       )
     );
 
-  optionsJson =
-    let
-      eval = lib.evalModules {
-        specialArgs = { inherit pkgs; };
-        modules = [
-          { config._module.check = false; }
-          homeModules.default
-        ];
-      };
-    in
-    (nixosOptionsDoc { inherit (eval) options; }).optionsJSON + "/share/doc/nixos/options.json";
+  optionsJson = import ./options.nix {
+    inherit
+      lib
+      pkgs
+      nixosOptionsDoc
+      homeModules
+      ;
+  };
 
   search = mkSearch {
     optionsJSON = optionsJson;
@@ -54,6 +51,7 @@ stdenv.mkDerivation {
       lib.fileset.unions [
         ./flake.nix
         ./flake.lock
+        ./options.nix
         ./package.nix
         ./search.css
       ]
