@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["crates/vdf", "crates/launch", "crates/patcher"]
+
+[workspace.package]
+version = "0.7.0"
+edition = "2024"
+license = "GPL-3.0-or-later"

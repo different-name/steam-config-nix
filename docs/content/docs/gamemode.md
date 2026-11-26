@@ -11,7 +11,7 @@ It is a wrapper:
 
 ```nix
 {
-  programs.steam.config.apps."1091500" = {
+  programs.steam-config.apps."1091500" = {
     name = "Cyberpunk 2077";
     wrappers = [ "gamemoderun" ];
   };

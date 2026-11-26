@@ -10,78 +10,104 @@ Game files are declared by path relative to the game's install directory:
 
 ```nix {eval=false}
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.game.place."BepInEx/plugins/plugin.dll".source = ./plugin.dll;
+    files.game.overlay."BepInEx/plugins/plugin.dll".source = ./plugin.dll;
   };
 }
 ```
 
 Everything lives under `files.<location>`, where the location is `game` (the
-install directory) or `prefix` (the Proton prefix, `compatdata/<id>/pfx`), and
-each location has `place`, `patch` and `remove`.
+install directory, Steam apps only) or `prefix` (the Proton prefix,
+`compatdata/<id>/pfx`). Each location has `overlay`, `hide` and `passthrough`,
+which change what the game sees for one session, and `writeDefault` and
+`writeKeys`, which write to disk.
 
-## Placing and removing files
+All of it is applied by the launch step, every time the app starts through
+Steam. A rebuild does not touch the game's directory.
+
+## Serving and hiding files
 
 ```nix {eval=false}
 {
-  programs.steam.config.apps."1966720" = {
+  programs.steam-config.apps."1966720" = {
     name = "Lethal Company";
-    files.game.place = {
-      # place a file from a path, keyed by its destination
+    files.game.overlay = {
+      # a file from a path, keyed by where the game sees it
       "config/settings.ini".source = ./settings.ini;
-      # place inline contents instead of a file
+      # inline contents instead of a file
       "config/notes.txt".text = "managed by nix";
     };
-    # remove a file entirely
-    files.game.remove = [ "movies/intro.bik" ];
+    # the game does not see this one
+    files.game.hide = [ "movies/intro.bik" ];
   };
 }
 ```
 
-Each `place` entry sets exactly one of `source` or `text`. A `source` may be a
-file or a directory, and a directory is copied recursively and merged with
-whatever is already at the target, so unpacking a mod loader over the game root
-leaves the game's own files in place.
+Each `overlay` entry sets exactly one of `source` or `text`. The entry is laid
+over the real directory for the session: the game sees it at that path, and the
+files on disk are not changed. A `source` may be a directory, which merges with
+whatever is already there, so unpacking a mod loader over the game root leaves
+the game's own files in view.
 
-Removing an entry from your configuration will revert it: a newly created file
-will be deleted, and one that replaced or removed something the game shipped
-will be restored from the backup taken before the first write.
+`hide` makes a path invisible to the game. The real file stays.
 
-The exception is a file that changed since it was written, or a removed file the
-game has since put back: it will be left as it is and the backup is dropped.
+Removing an entry from your configuration is enough to undo it.
 
-## Letting the game keep its changes
+Set `readOnly = true` on an entry the game overwrites at startup.
 
-Each `place` entry has a `mode`:
+## Where the game's writes go
 
-- `"enforce"` (the default): re-apply the declared contents on every activation.
-- `"seed"`: write it once and then leave it alone, which is what you want for
-  files the game or you edit in place. Delete the file to push a new version.
-- `"lock"`: like `"enforce"`, but the file will be made read-only.
+The overlay covers the directory holding each declared path. An entry at the
+root of the install directory covers all of it. Anything the game writes inside
+a covered directory lands under
+`$XDG_DATA_HOME/steam-config-nix/apps/<app>/writes/<location>` instead of on
+disk, where `<app>` is the app ID, or for a non-Steam app its attribute name
+lowercased with `-` for anything outside `a-z0-9`. The game sees its writes
+again at the next launch, except for changes to the served and hidden paths
+themselves, which are discarded. See [What managing game files changes on
+disk]({{< relref "/docs/game-files" >}}).
+
+For a directory the game should write in place, such as saves that Steam Cloud
+syncs, list it in `passthrough`:
 
 ```nix {eval=false}
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.game.place."BepInEx/config/MoreCompany.cfg" = {
-      source = ./MoreCompany.cfg;
-      mode = "seed";
-    };
+    files.game.overlay."winhttp.dll".source = ./winhttp.dll;
+    files.game.passthrough = [ "Saves" ];
+  };
+}
+```
+
+A served or hidden path cannot be inside a passthrough directory.
+
+## Letting the game keep its changes
+
+`writeDefault` writes a file once, before the first launch where it is missing,
+and then leaves it alone. The game and you own it from then on, and a changed
+`source` is not written until the file is deleted:
+
+```nix {eval=false}
+{
+  programs.steam-config.apps."1234560" = {
+    name = "Some Game";
+    files.game.writeDefault."BepInEx/config/MoreCompany.cfg".source = ./MoreCompany.cfg;
   };
 }
 ```
 
 ## Setting keys in a file the game owns
 
-To change a few keys in a config the game generates, patch it instead of
-replacing it. Keys you do not set will be left untouched:
+To change a few keys in a config the game generates, set them in place instead
+of replacing the file. Keys you do not name are kept:
 
 ```nix {eval=false}
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.game.patch."config/user.ini" = {
+    files.game.writeKeys."config/user.ini" = {
       format = "ini";
       content.Video.Fullscreen = 1;
     };
@@ -90,32 +116,42 @@ replacing it. Keys you do not set will be left untouched:
 ```
 
 `createIfMissing` writes a new file with just your keys when the target does not
-exist. It is off by default, so a patch against a missing file waits until the
-game generates it, retrying on the next activation.
+exist. Without it, an entry for a missing file is skipped until the game
+generates it, checked again at the next launch.
 
-A patch will be re-applied on every activation. Removing it will restore the
-original, unless the file has changed since it was last patched. A file cannot
-be both placed and patched, and two patches cannot target the same file.
+The keys are written before every launch. A `writeDefault` or `writeKeys` target
+inside a directory the overlay covers goes to the `writes` directory instead,
+like any other write made there. A copy of the file as it was before the first
+write is kept under
+`$XDG_DATA_HOME/steam-config-nix/apps/<app>/originals/<location>`. Removing the
+entry leaves your keys in place. A path can only be in one of `overlay`, `hide`,
+`writeDefault` and `writeKeys`.
 
-In an `ini` file a key you patch ends up with a single value. Give it a list to
+In an `ini` file a key you set ends up with a single value. Give it a list to
 write the key once per element instead, which is how engines such as Unreal
 store a multi-valued setting.
 
 ## Files in the Proton prefix
 
-Use `files.prefix.place`, `files.prefix.remove` and `files.prefix.patch` to
-target the Proton prefix instead, for files under
+Use `files.prefix` to target the Proton prefix instead, for files under
 `drive_c/users/steamuser/AppData` and the like:
 
 ```nix {eval=false}
 {
-  programs.steam.config.apps."1234560" = {
+  programs.steam-config.apps."1234560" = {
     name = "Some Game";
-    files.prefix.place."drive_c/users/steamuser/AppData/LocalLow/Studio/Game/mod.xml".source =
+    files.prefix.overlay."drive_c/users/steamuser/AppData/LocalLow/Studio/Game/mod.xml".source =
       ./mod.xml;
   };
 }
 ```
 
-Prefix files will be skipped until the prefix exists, so launch the game once
-before they can be applied.
+Prefix files are skipped until the prefix exists, so launch the game once before
+they can be applied.
+
+## Requirements
+
+The overlay is mounted with bubblewrap in the game's own mount namespace, which
+needs unprivileged user namespaces. When the mounts cannot be set up, or another
+launch of the same app is still using them, the game starts without its files
+and a notification says so.

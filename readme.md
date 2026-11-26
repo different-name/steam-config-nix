@@ -14,7 +14,7 @@ Declaratively manage Steam and your library on NixOS or Home Manager.
 
 <!-- prettier-ignore -->
 > [!NOTE]
-> By default, changes are not applied until Steam is closed. This is configurable with `onSteamRunning`, which can also close Steam for you. See [How changes are applied](https://different-name.github.io/steam-config-nix/docs/applying-changes/).
+> Settings kept in Steam's own files are not applied until Steam is closed. This is configurable with `onSteamRunning`, which can also close Steam for you. Launch options and game files apply at the next launch. See [How changes are applied](https://different-name.github.io/steam-config-nix/docs/applying-changes/).
 
 Start with
 [Getting started](https://different-name.github.io/steam-config-nix/docs/), or

@@ -9,7 +9,7 @@ people get replacements.
 
 ```nix
 {
-  programs.steam.config.nonSteamApps."Super Tux Kart" = {
+  programs.steam-config.nonSteamApps."Super Tux Kart" = {
     target = lib.getExe pkgs.supertuxkart;
 
     artwork = {

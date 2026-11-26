@@ -8,22 +8,23 @@ else that reads `.desktop` files, and launching it goes through Steam as normal.
 
 ```nix
 {
-  programs.steam.config.apps."1091500" = {
+  programs.steam-config.apps."1091500" = {
     name = "Cyberpunk 2077";
     desktopEntry.enable = true;
   };
 }
 ```
 
-The name comes from the app's own `name`, which for a Steam app defaults to its
-ID, so set `name` if you want a readable entry. It works for non-Steam apps too,
-where the name and icon come from `name` and `artwork.icon`.
+The name comes from the app's own `name`, which defaults to the attribute name,
+so set `name` for an app keyed by its ID if you want a readable entry. It works
+for non-Steam apps too, where the name and icon come from `name` and
+`artwork.icon`.
 
 ## For every app at once
 
 ```nix
 {
-  programs.steam.config.desktopEntries.enable = true;
+  programs.steam-config.desktopEntries.enable = true;
 }
 ```
 

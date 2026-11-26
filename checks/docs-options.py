@@ -3,7 +3,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = "programs.steam.config"
+ROOT = "programs.steam-config"
 
 SEGMENT = re.compile(r'\.(?:"([^"\n]*)"|([A-Za-z0-9_-]+))')
 # concrete attr names in the docs stand in for the <name> placeholder
