@@ -1,7 +1,7 @@
 { lib, rustPlatform }:
 rustPlatform.buildRustPackage {
   pname = "steam-config-launch";
-  version = "0.1.0";
+  version = (lib.importTOML ../Cargo.toml).workspace.package.version;
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [

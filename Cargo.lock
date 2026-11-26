@@ -257,7 +257,7 @@ checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
 
 [[package]]
 name = "steam-config-launch"
-version = "0.1.0"
+version = "0.7.0"
 dependencies = [
  "libc",
  "serde",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "steam-config-patcher"
-version = "0.1.0"
+version = "0.7.0"
 dependencies = [
  "image",
  "libc",
@@ -278,7 +278,7 @@ dependencies = [
 
 [[package]]
 name = "steam-config-vdf"
-version = "0.1.0"
+version = "0.7.0"
 dependencies = [
  "serde_json",
 ]
